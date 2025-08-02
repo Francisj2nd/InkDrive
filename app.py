@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-from google import genai  # Updated import
+from google import genai  # Correct import for google-genai
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
@@ -15,7 +15,7 @@ app = Flask(__name__)
 # Load environment variables with fallbacks and validation
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")  # Adjusted to match snippet
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")  # Adjusted to match common naming
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY:
@@ -67,12 +67,13 @@ def get_image_url(query):
         return None
 
 try:
-    # Initialize genai client with Vertex AI
-    genai.configure(api_key=None)  # No API key needed for Vertex AI
-    CLIENT = genai.Client(
-        vertexai=True,
-        project=GCP_PROJECT_ID,
-        location=GCP_LOCATION,
+    # Initialize genai client with Vertex AI (no configure method needed)
+    CLIENT = genai.GenerativeModel(
+        model_name=MODEL_NAME,
+        client_options={
+            "api_endpoint": f"{GCP_LOCATION}-aiplatform.googleapis.com",
+            "credentials": None,  # Use ADC
+        },
     )
     print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
 except Exception as e:
@@ -123,10 +124,7 @@ def generate_article():
 
     full_prompt = construct_initial_prompt(user_topic)
     try:
-        response = CLIENT.generate_content(
-            model=MODEL_NAME,
-            contents=full_prompt,
-        )
+        response = CLIENT.generate_content(full_prompt)
         if not response.candidates:
             return jsonify({"error": "Model response was empty."}), 500
         
@@ -152,10 +150,7 @@ def refine_article():
             {"role": "model", "parts": [{"text": raw_text}]},
             {"role": "user", "parts": [{"text": refinement_prompt}]}
         ]
-        response = CLIENT.generate_content(
-            model=MODEL_NAME,
-            contents=history,
-        )
+        response = CLIENT.generate_content(contents=history)
         if not response.candidates:
             return jsonify({"error": "Refinement response was empty."}), 500
 
