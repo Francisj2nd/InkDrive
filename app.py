@@ -7,15 +7,15 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-from google.cloud import aiplatform
+from google import genai  # Updated import
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
 
 # Load environment variables with fallbacks and validation
-GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")  # Default to us-central1 if not set or invalid
+GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite-preview-06-17")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")  # Adjusted to match snippet
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY:
@@ -67,10 +67,13 @@ def get_image_url(query):
         return None
 
 try:
-    # Initialize Vertex AI client
-    aiplatform.init(project=GCP_PROJECT_ID, location=GCP_LOCATION)
-    # Assuming MODEL_NAME refers to a Vertex AI endpoint or model resource
-    CLIENT = aiplatform.GenerativeModel(model_name=MODEL_NAME)
+    # Initialize genai client with Vertex AI
+    genai.configure(api_key=None)  # No API key needed for Vertex AI
+    CLIENT = genai.Client(
+        vertexai=True,
+        project=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+    )
     print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
 except Exception as e:
     print(f"❌ Failed to initialize Google AI client. Error details: {e}")
@@ -120,11 +123,14 @@ def generate_article():
 
     full_prompt = construct_initial_prompt(user_topic)
     try:
-        response = CLIENT.generate_content(full_prompt)
+        response = CLIENT.generate_content(
+            model=MODEL_NAME,
+            contents=full_prompt,
+        )
         if not response.candidates:
             return jsonify({"error": "Model response was empty."}), 500
         
-        raw_text = response.text
+        raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text)
         
         return jsonify({"article_html": final_html, "raw_text": raw_text})
@@ -142,15 +148,18 @@ def refine_article():
     
     try:
         history = [
-            {'role': 'user', 'parts': [{'text': "You are an AI assistant. You provided this article draft."}]},
-            {'role': 'model', 'parts': [{'text': raw_text}]},
-            {'role': 'user', 'parts': [{'text': refinement_prompt}]}
+            {"role": "user", "parts": [{"text": "You are an AI assistant. You provided this article draft."}]},
+            {"role": "model", "parts": [{"text": raw_text}]},
+            {"role": "user", "parts": [{"text": refinement_prompt}]}
         ]
-        response = CLIENT.generate_content(history)
+        response = CLIENT.generate_content(
+            model=MODEL_NAME,
+            contents=history,
+        )
         if not response.candidates:
             return jsonify({"error": "Refinement response was empty."}), 500
 
-        refined_text = response.text
+        refined_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(refined_text)
 
         return jsonify({"article_html": final_html, "raw_text": refined_text})
