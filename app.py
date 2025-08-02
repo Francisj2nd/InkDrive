@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-import google.generativeai as genai
+from google.cloud import aiplatform
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
@@ -50,7 +50,10 @@ def get_image_url(query):
         return None
 
 try:
-    CLIENT = genai.Client(vertexai=True, project=GCP_PROJECT_ID, location=GCP_LOCATION)
+    # Initialize Vertex AI client
+    aiplatform.init(project=GCP_PROJECT_ID, location=GCP_LOCATION)
+    # Assuming MODEL_NAME refers to a Vertex AI endpoint or model resource
+    CLIENT = aiplatform.GenerativeModel(model_name=MODEL_NAME)
     print("✅ Google AI Client Initialized Successfully via Vertex AI.")
 except Exception as e:
     print(f"❌ Failed to initialize Google AI client. Error details: {e}")
@@ -72,12 +75,11 @@ def format_article_content(raw_markdown_text):
         image_data = get_image_url(alt_text)
 
         if image_data:
-            # THE FIX IS HERE: We add a new <p> tag with the class "alt-text-display"
             new_image_tag = (
                 f'<div class="real-image-container">'
                 f'<p class="image-title">{title}</p>'
                 f'<img src="{image_data["url"]}" alt="{alt_text}">'
-                f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'  # <-- THIS LINE IS NEW
+                f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'
                 f'<p class="attribution">{image_data["attribution"]}</p>'
                 f'</div>'
             )
@@ -101,7 +103,7 @@ def generate_article():
 
     full_prompt = construct_initial_prompt(user_topic)
     try:
-        response = CLIENT.models.generate_content(model=MODEL_NAME, contents=full_prompt)
+        response = CLIENT.generate_content(full_prompt)
         if not response.candidates:
             return jsonify({"error": "Model response was empty."}), 500
         
@@ -127,7 +129,7 @@ def refine_article():
             {'role': 'model', 'parts': [{'text': raw_text}]},
             {'role': 'user', 'parts': [{'text': refinement_prompt}]}
         ]
-        response = CLIENT.models.generate_content(model=MODEL_NAME, contents=history)
+        response = CLIENT.generate_content(history)
         if not response.candidates:
             return jsonify({"error": "Refinement response was empty."}), 500
 
