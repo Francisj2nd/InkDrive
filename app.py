@@ -7,7 +7,9 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-from google import genai  # Correct import for google-genai
+# Correct import for google-genai
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions # Import for specific exceptions
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
@@ -15,7 +17,7 @@ app = Flask(__name__)
 # Load environment variables with fallbacks and validation
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")  # Adjusted to match common naming
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite") # Adjusted to match common naming
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY:
@@ -38,17 +40,49 @@ if GCP_LOCATION not in SUPPORTED_REGIONS:
     print(f"Warning: {GCP_LOCATION} is not a supported Vertex AI region. Defaulting to us-central1.")
     GCP_LOCATION = "us-central1"
 
+# --- Initialize genai client with Vertex AI ---
+try:
+    # 1. Configure the SDK with Vertex AI endpoint and project
+    genai.configure(
+        api_key=os.getenv("GOOGLE_API_KEY"),  # Optional, if not using ADC or environment variable
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        # If you are running this in a GCP environment with ADC, you might not need to explicitly set API_KEY.
+        # If running locally, ensure GOOGLE_APPLICATION_CREDENTIALS environment variable is set,
+        # or provide a direct API key.
+    )
+
+    # 2. Instantiate the GenerativeModel
+    # The constructor for GenerativeModel has changed.
+    # When using Vertex AI, you directly create it with the model name.
+    CLIENT = genai.GenerativeModel(model_name=f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/models/{MODEL_NAME}")
+
+    print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
+
+except google_exceptions.GoogleAPIError as e:
+    print(f"❌ Google API Error initializing AI client: {e}")
+    CLIENT = None
+except Exception as e:
+    print(f"❌ Failed to initialize Google AI client. Error details: {e}")
+    CLIENT = None
+
+
+# ... (rest of your app.py remains the same) ...
+
 def construct_initial_prompt(topic):
     article_requirements = """
 **Article Requirements:**
-1.  Focus and Depth: Focus entirely on the topic. Educate the reader in-depth.
-2.  Length: Aim for over 1000 words.
-3.  Structure: Use clear sections with H2 and H3 subheadings using Markdown.
-4.  Placeholders: Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`
-5.  SEO Elements: At the very end of the article, provide "SEO Keywords:" and "Meta Description:".
-6.  Quality: The content must be original, human-readable, and valuable.
+1. Focus and Depth: Focus entirely on the topic. Educate the reader in-depth.
+2. Length: Aim for over 1000 words.
+3. Structure: Use clear sections with H2 and H3 subheadings using Markdown.
+4. Placeholders: Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`
+5. SEO Elements: At the very end of the article, provide "SEO Keywords:" and "Meta Description:".
+6. Quality: The content must be original, human-readable, and valuable.
 """
-    return f"""I want you to generate a high-quality, SEO-optimized thought-leadership article on the topic of: "{topic}"\n\n{article_requirements}"""
+    return f"""I want you to generate a high-quality, SEO-optimized thought-leadership article on the topic of: "{topic}"
+
+{article_requirements}
+"""
 
 def get_image_url(query):
     if not UNSPLASH_ACCESS_KEY or "YOUR_KEY" in UNSPLASH_ACCESS_KEY:
@@ -66,19 +100,6 @@ def get_image_url(query):
     except requests.RequestException:
         return None
 
-try:
-    # Initialize genai client with Vertex AI (no configure method needed)
-    CLIENT = genai.GenerativeModel(
-        model_name=MODEL_NAME,
-        client_options={
-            "api_endpoint": f"{GCP_LOCATION}-aiplatform.googleapis.com",
-            "credentials": None,  # Use ADC
-        },
-    )
-    print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
-except Exception as e:
-    print(f"❌ Failed to initialize Google AI client. Error details: {e}")
-    CLIENT = None
 
 # --- 2. FORMATTING & WEB ROUTES ---
 
@@ -98,13 +119,17 @@ def format_article_content(raw_markdown_text):
         if image_data:
             new_image_tag = (
                 f'<div class="real-image-container">'
-                f'<p class="image-title">{title}</p>'
-                f'<img src="{image_data["url"]}" alt="{alt_text}">'
-                f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'
+                f'<p class="image-title">{title}</p>' # Added title here
+                f'<img src="{image_data["url"]}" alt="">'
+                f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>' # Added alt text directly
                 f'<p class="attribution">{image_data["attribution"]}</p>'
                 f'</div>'
             )
             hybrid_content = hybrid_content.replace(original_placeholder, new_image_tag, 1)
+        else:
+            # If image fetch fails, keep a placeholder or a simple text
+            hybrid_content = hybrid_content.replace(original_placeholder, f'<p>[Image Placeholder: {title} - Could not fetch image]</p>', 1)
+
 
     final_html = markdown.markdown(hybrid_content, extensions=['fenced_code', 'tables'])
     return final_html
@@ -124,16 +149,28 @@ def generate_article():
 
     full_prompt = construct_initial_prompt(user_topic)
     try:
-        response = CLIENT.generate_content(full_prompt)
+        # When using Vertex AI, the prompt is passed directly to generate_content
+        response = CLIENT.generate_content(contents=full_prompt)
+
         if not response.candidates:
-            return jsonify({"error": "Model response was empty."}), 500
-        
+            # Handle cases where the model might return no candidates or a safety block
+            error_message = "Model response was empty or blocked."
+            if response.prompt_feedback:
+                error_message += f" Prompt feedback: {response.prompt_feedback}"
+            return jsonify({"error": error_message}), 500
+
+        # Ensure the first part of the content is text
+        if not response.candidates[0].content.parts:
+            return jsonify({"error": "Model response content is empty."}), 500
+
         raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text)
-        
+
         return jsonify({"article_html": final_html, "raw_text": raw_text})
+    except google_exceptions.GoogleAPIError as e:
+        return jsonify({"error": f"Google API Error: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"API Error: {str(e)}"}), 500
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/refine", methods=["POST"])
 def refine_article():
@@ -143,23 +180,34 @@ def refine_article():
     raw_text, refinement_prompt = data.get("raw_text"), data.get("refinement_prompt")
     if not all([raw_text, refinement_prompt]):
         return jsonify({"error": "Missing data for refinement."}), 400
-    
+
     try:
+        # For conversational refinement, use the history
         history = [
             {"role": "user", "parts": [{"text": "You are an AI assistant. You provided this article draft."}]},
             {"role": "model", "parts": [{"text": raw_text}]},
             {"role": "user", "parts": [{"text": refinement_prompt}]}
         ]
-        response = CLIENT.generate_content(contents=history)
+        response = CLIENT.generate_content(contents=history) # Use contents for chat history
+
         if not response.candidates:
-            return jsonify({"error": "Refinement response was empty."}), 500
+            error_message = "Refinement response was empty or blocked."
+            if response.prompt_feedback:
+                error_message += f" Prompt feedback: {response.prompt_feedback}"
+            return jsonify({"error": error_message}), 500
+
+        if not response.candidates[0].content.parts:
+            return jsonify({"error": "Refinement response content is empty."}), 500
 
         refined_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(refined_text)
 
         return jsonify({"article_html": final_html, "raw_text": refined_text})
+    except google_exceptions.GoogleAPIError as e:
+        return jsonify({"error": f"Google API Error during refinement: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"API Error: {str(e)}"}), 500
+        return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
+
 
 @app.route("/download-docx", methods=["POST"])
 def download_docx():
@@ -183,31 +231,36 @@ def download_docx():
             img_tag = element.find('img')
             alt_text_p = element.find('p', class_='alt-text-display')
             attr_p = element.find('p', class_='attribution')
-            
+
             if title_p:
                 p = doc.add_paragraph(title_p.get_text())
-                p.alignment = 1
+                p.alignment = 1 # Center alignment (adjust as needed)
                 p.bold = True
-            
+
             if img_tag and img_tag.get('src'):
                 try:
                     img_response = requests.get(img_tag['src'], stream=True)
                     img_response.raise_for_status()
-                    doc.add_picture(io.BytesIO(img_response.content), width=Inches(5.0))
+                    # Ensure the image fits within the page width, adjust width as necessary
+                    doc.add_picture(io.BytesIO(img_response.content), width=Inches(5.5))
                 except requests.RequestException:
-                    doc.add_paragraph(f"[Image failed to load]")
-            
+                    doc.add_paragraph(f"[Image failed to load from {img_tag['src']}]")
+
             if alt_text_p:
                 p = doc.add_paragraph()
-                clean_alt_text = alt_text_p.get_text().replace("Alt Text: ", "")
-                p.add_run(clean_alt_text).italic = True
-                p.alignment = 1
+                # Extract clean alt text, removing "Alt Text: " prefix if it exists
+                clean_alt_text = alt_text_p.get_text()
+                if clean_alt_text.lower().startswith("alt text:"):
+                    clean_alt_text = clean_alt_text[len("Alt Text:"):].strip()
+                run = p.add_run(clean_alt_text)
+                run.italic = True
+                p.alignment = 1 # Center alignment
 
             if attr_p:
                 p = doc.add_paragraph(attr_p.get_text())
-                p.alignment = 1
+                p.alignment = 1 # Center alignment
                 p.italic = True
-    
+
     file_stream = io.BytesIO()
     doc.save(file_stream)
     file_stream.seek(0)
