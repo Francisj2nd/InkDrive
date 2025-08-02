@@ -21,13 +21,9 @@ MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite-preview-06-17")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 # Retrieve the service account key content from Render's environment variable
-# IMPORTANT: Verify the exact key name in Render. It might be 'GOOGLE_APPLICATION_CREDENTIALS' or similar if you set it that way.
-# If it's indeed 'GOOGLE_APPLICATION_CREDENTIALS' as shown, use that.
-# If you set it as a file, this would be a file path. Assuming it's content here.
 GOOGLE_APPLICATION_CREDENTIALS_CONTENT = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY or not GOOGLE_APPLICATION_CREDENTIALS_CONTENT:
-    # Dynamically adjust the error message based on what's missing
     missing_vars = []
     if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
     if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
@@ -35,30 +31,22 @@ if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY or not GOOGLE_APPLICATION_CREDE
     raise RuntimeError(f"Required environment variables are not set: {', '.join(missing_vars)}")
 
 # --- Initialize genai client with Vertex AI ---
+service_account_file_path = None # Define it here, outside the try block
+
 try:
     # --- Handle the service account key content ---
-    # Create a temporary directory if it doesn't exist (e.g., /tmp on most Linux systems)
     os.makedirs('/tmp', exist_ok=True)
-    service_account_file_path = '/tmp/service_account_key.json'
+    service_account_file_path = '/tmp/service_account_key.json' # Now it's always defined
 
-    # Write the JSON content to the temporary file
     with open(service_account_file_path, 'w') as f:
         f.write(GOOGLE_APPLICATION_CREDENTIALS_CONTENT)
     
-    # Set the GOOGLE_APPLICATION_CREDENTIALS environment variable for Google libraries to use
-    # This must be set *before* any Google client libraries are initialized or configured.
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = service_account_file_path
     
-    # 1. Configure the SDK.
-    # Since GOOGLE_APPLICATION_CREDENTIALS is now set, genai.configure()
-    # will automatically pick up the credentials. We do NOT pass project_id or location here.
     genai.configure()
     print(f"✅ Configured Google AI using credentials from {service_account_file_path}.")
     print(f"   Using project: {GCP_PROJECT_ID}, location: {GCP_LOCATION}, model: {MODEL_NAME}")
 
-
-    # 2. Instantiate the GenerativeModel for Vertex AI
-    # This line remains correct for specifying Vertex AI models.
     CLIENT = genai.GenerativeModel(model_name=f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/models/{MODEL_NAME}")
     print(f"✅ Google AI Client Initialized Successfully via Vertex AI.")
 
@@ -69,12 +57,10 @@ except google_exceptions.GoogleAPIError as e:
     print(f"❌ Google API Error initializing AI client: {e}")
     CLIENT = None
 except Exception as e:
-    # Catch any other unexpected errors during initialization
     print(f"❌ Failed to initialize Google AI client. Error details: {e}")
     CLIENT = None
 
-
-# ... (rest of your app.py remains the same) ...
+# --- Rest of your app.py remains the same ---
 
 def construct_initial_prompt(topic):
     article_requirements = """
@@ -107,7 +93,6 @@ def get_image_url(query):
     except requests.RequestException:
         return None
 
-
 # --- 2. FORMATTING & WEB ROUTES ---
 
 def format_article_content(raw_markdown_text):
@@ -137,7 +122,6 @@ def format_article_content(raw_markdown_text):
             # If image fetch fails, keep a placeholder or a simple text
             hybrid_content = hybrid_content.replace(original_placeholder, f'<p>[Image Placeholder: {title} - Could not fetch image]</p>', 1)
 
-
     final_html = markdown.markdown(hybrid_content, extensions=['fenced_code', 'tables'])
     return final_html
 
@@ -156,17 +140,14 @@ def generate_article():
 
     full_prompt = construct_initial_prompt(user_topic)
     try:
-        # When using Vertex AI, the prompt is passed directly to generate_content
         response = CLIENT.generate_content(contents=full_prompt)
 
         if not response.candidates:
-            # Handle cases where the model might return no candidates or a safety block
             error_message = "Model response was empty or blocked."
             if response.prompt_feedback:
                 error_message += f" Prompt feedback: {response.prompt_feedback}"
             return jsonify({"error": error_message}), 500
 
-        # Ensure the first part of the content is text
         if not response.candidates[0].content.parts:
             return jsonify({"error": "Model response content is empty."}), 500
 
@@ -189,7 +170,6 @@ def refine_article():
         return jsonify({"error": "Missing data for refinement."}), 400
 
     try:
-        # For conversational refinement, use the history
         history = [
             {"role": "user", "parts": [{"text": "You are an AI assistant. You provided this article draft."}]},
             {"role": "model", "parts": [{"text": raw_text}]},
@@ -214,7 +194,6 @@ def refine_article():
         return jsonify({"error": f"Google API Error during refinement: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
-
 
 @app.route("/download-docx", methods=["POST"])
 def download_docx():
@@ -248,14 +227,12 @@ def download_docx():
                 try:
                     img_response = requests.get(img_tag['src'], stream=True)
                     img_response.raise_for_status()
-                    # Ensure the image fits within the page width, adjust width as necessary
                     doc.add_picture(io.BytesIO(img_response.content), width=Inches(5.5))
                 except requests.RequestException:
                     doc.add_paragraph(f"[Image failed to load from {img_tag['src']}]")
 
             if alt_text_p:
                 p = doc.add_paragraph()
-                # Extract clean alt text, removing "Alt Text: " prefix if it exists
                 clean_alt_text = alt_text_p.get_text()
                 if clean_alt_text.lower().startswith("alt text:"):
                     clean_alt_text = clean_alt_text[len("Alt Text:"):].strip()
@@ -277,7 +254,11 @@ def download_docx():
 if __name__ == "__main__":
     # Clean up the temporary service account file on startup if it exists
     # This is good practice, though in ephemeral containers, it's less critical.
-    if 'service_account_file_path' in locals() and os.path.exists(service_account_file_path):
+    # Ensure service_account_file_path is defined here before checking its existence.
+    # If initialization failed, service_account_file_path might still be None.
+    
+    # Only attempt cleanup if service_account_file_path was successfully assigned
+    if 'service_account_file_path' in locals() and service_account_file_path and os.path.exists(service_account_file_path):
         try:
             os.remove(service_account_file_path)
             print(f"Cleaned up temporary service account file: {service_account_file_path}")
