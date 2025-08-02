@@ -9,7 +9,7 @@ from docx import Document
 from docx.shared import Inches
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
-import json # Needed to parse the JSON key content
+# No need for 'json' if we're not writing the file ourselves
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
@@ -20,39 +20,33 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
-# Retrieve the service account key content from Render's environment variable
-GOOGLE_APPLICATION_CREDENTIALS_CONTENT = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+# !!! IMPORTANT: We are now relying on GOOGLE_APPLICATION_CREDENTIALS being set
+# by Render to point to the secret file !!!
+# We no longer need to read the content directly from an environment variable.
 
-if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY or not GOOGLE_APPLICATION_CREDENTIALS_CONTENT:
+# Validation check - ensure the critical variables are set
+if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY or not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
     missing_vars = []
     if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
     if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
-    if not GOOGLE_APPLICATION_CREDENTIALS_CONTENT: missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
+    if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
     raise RuntimeError(f"Required environment variables are not set: {', '.join(missing_vars)}")
 
 # --- Initialize genai client with Vertex AI ---
-service_account_file_path = None # Define it here, outside the try block
-
 try:
-    # --- Handle the service account key content ---
-    os.makedirs('/tmp', exist_ok=True)
-    service_account_file_path = '/tmp/service_account_key.json' # Now it's always defined
-
-    with open(service_account_file_path, 'w') as f:
-        f.write(GOOGLE_APPLICATION_CREDENTIALS_CONTENT)
-    
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = service_account_file_path
-    
+    # 1. Configure the SDK.
+    # It will automatically look for the GOOGLE_APPLICATION_CREDENTIALS environment variable,
+    # which Render will set to the path of your secret file.
     genai.configure()
-    print(f"✅ Configured Google AI using credentials from {service_account_file_path}.")
+    print(f"✅ Configured Google AI using ADC.")
     print(f"   Using project: {GCP_PROJECT_ID}, location: {GCP_LOCATION}, model: {MODEL_NAME}")
 
-    CLIENT = genai.GenerativeModel(model_name=f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/models/{MODEL_NAME}")
-    print(f"✅ Google AI Client Initialized Successfully via Vertex AI.")
+    # 2. Instantiate the GenerativeModel for Vertex AI
+    # Pass ONLY the model name, as the SDK infers the Vertex AI endpoint
+    # from the configured project and location (which come from ADC).
+    CLIENT = genai.GenerativeModel(model_name=MODEL_NAME)
+    print(f"✅ Google AI Client Initialized Successfully via Vertex AI (using short model name).")
 
-except FileNotFoundError:
-    print(f"❌ Error: Could not write service account key to {service_account_file_path}")
-    CLIENT = None
 except google_exceptions.GoogleAPIError as e:
     print(f"❌ Google API Error initializing AI client: {e}")
     CLIENT = None
@@ -252,12 +246,7 @@ def download_docx():
     return send_file(file_stream, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 if __name__ == "__main__":
-    # Clean up the temporary service account file on startup if it exists
-    # This is good practice, though in ephemeral containers, it's less critical.
-    # Ensure service_account_file_path is defined here before checking its existence.
-    # If initialization failed, service_account_file_path might still be None.
-    
-    # Only attempt cleanup if service_account_file_path was successfully assigned
+    # Cleanup logic (as before)
     if 'service_account_file_path' in locals() and service_account_file_path and os.path.exists(service_account_file_path):
         try:
             os.remove(service_account_file_path)
@@ -266,4 +255,5 @@ if __name__ == "__main__":
             print(f"Error removing temporary service account file: {e}")
 
     app.run(debug=True, port=5001)
+
 
