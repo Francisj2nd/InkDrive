@@ -7,13 +7,13 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-import google.genai as genai
+from google.cloud import aiplatform
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
 
 # Load environment variables with fallbacks and validation
-GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
+GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")  # Default to us-central1 if not set or invalid
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite-preview-06-17")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
@@ -21,7 +21,7 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY:
     raise RuntimeError("Required environment variables (GCP_PROJECT_ID, UNSPLASH_ACCESS_KEY) are not set.")
 
-# Supported Vertex AI regions (for reference, though not used with google-genai directly)
+# Supported Vertex AI regions
 SUPPORTED_REGIONS = {
     'europe-central2', 'us-east5', 'asia-southeast1', 'europe-southwest1', 'europe-north1',
     'me-central2', 'australia-southeast2', 'me-central1', 'us-east4', 'europe-west1',
@@ -37,18 +37,6 @@ SUPPORTED_REGIONS = {
 if GCP_LOCATION not in SUPPORTED_REGIONS:
     print(f"Warning: {GCP_LOCATION} is not a supported Vertex AI region. Defaulting to us-central1.")
     GCP_LOCATION = "us-central1"
-
-# Configure google-genai with API key or Vertex AI credentials
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))  # Replace with your API key or use Vertex AI auth
-try:
-    # Initialize with the model
-    CLIENT = genai.GenerativeModel(model_name=MODEL_NAME)
-    print(f"✅ Google AI Client Initialized Successfully with model {MODEL_NAME}.")
-except Exception as e:
-    print(f"❌ Failed to initialize Google AI client. Error details: {e}")
-    CLIENT = None
-
-# --- 2. FORMATTING & WEB ROUTES ---
 
 def construct_initial_prompt(topic):
     article_requirements = """
@@ -77,6 +65,16 @@ def get_image_url(query):
         return None
     except requests.RequestException:
         return None
+
+try:
+    # Initialize Vertex AI client
+    aiplatform.init(project=GCP_PROJECT_ID, location=GCP_LOCATION)
+    # Assuming MODEL_NAME refers to a Vertex AI endpoint or model resource
+    CLIENT = aiplatform.GenerativeModel(model_name=MODEL_NAME)
+    print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
+except Exception as e:
+    print(f"❌ Failed to initialize Google AI client. Error details: {e}")
+    CLIENT = None
 
 # --- 2. FORMATTING & WEB ROUTES ---
 
@@ -126,7 +124,7 @@ def generate_article():
         if not response.candidates:
             return jsonify({"error": "Model response was empty."}), 500
         
-        raw_text = response.candidates[0].content.parts[0].text
+        raw_text = response.text
         final_html = format_article_content(raw_text)
         
         return jsonify({"article_html": final_html, "raw_text": raw_text})
@@ -144,15 +142,15 @@ def refine_article():
     
     try:
         history = [
-            {"role": "user", "parts": [{"text": "You are an AI assistant. You provided this article draft."}]},
-            {"role": "model", "parts": [{"text": raw_text}]},
-            {"role": "user", "parts": [{"text": refinement_prompt}]}
+            {'role': 'user', 'parts': [{'text': "You are an AI assistant. You provided this article draft."}]},
+            {'role': 'model', 'parts': [{'text': raw_text}]},
+            {'role': 'user', 'parts': [{'text': refinement_prompt}]}
         ]
         response = CLIENT.generate_content(history)
         if not response.candidates:
             return jsonify({"error": "Refinement response was empty."}), 500
 
-        refined_text = response.candidates[0].content.parts[0].text
+        refined_text = response.text
         final_html = format_article_content(refined_text)
 
         return jsonify({"article_html": final_html, "raw_text": refined_text})
