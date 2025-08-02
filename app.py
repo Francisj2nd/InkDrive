@@ -17,7 +17,7 @@ app = Flask(__name__)
 # Load environment variables from Render
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite-preview-06-17")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 # Retrieve the service account key content from Render's environment variable
@@ -266,3 +266,4 @@ if __name__ == "__main__":
             print(f"Error removing temporary service account file: {e}")
 
     app.run(debug=True, port=5001)
+
