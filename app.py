@@ -8,7 +8,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-import google.genai as genai
+import google.generativeai as genai
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
@@ -188,4 +188,5 @@ def download_docx():
     return send_file(file_stream, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 if __name__ == "__main__":
+
     app.run(debug=True, port=5001)
