@@ -6,7 +6,7 @@ gunicorn==22.0.0
 
 # Google AI
 google-generativeai==0.5.4
-google-cloud-aiplatform==1.54.0
+google-cloud-aiplatform>=1.54.0
 
 # Image and Document Handling
 requests==2.31.0
@@ -18,3 +18,4 @@ Pillow==10.4.0
 # Build dependency for Pillow
 
 setuptools==75.1.0
+
