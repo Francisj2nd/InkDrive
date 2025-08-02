@@ -1,0 +1,9 @@
+# Ignore secrets file. DO NOT PUSH THIS TO GITHUB.
+config.json
+
+# Python cache
+__pycache__/
+
+# Virtual Environment folder
+venv/
+*.venv
