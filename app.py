@@ -13,13 +13,30 @@ from google.cloud import aiplatform
 app = Flask(__name__)
 
 # Load environment variables with fallbacks and validation
-GCP_LOCATION = os.getenv("GCP_LOCATION", "global")
+GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")  # Default to us-central1 if not set or invalid
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite-preview-06-17")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY:
     raise RuntimeError("Required environment variables (GCP_PROJECT_ID, UNSPLASH_ACCESS_KEY) are not set.")
+
+# Supported Vertex AI regions
+SUPPORTED_REGIONS = {
+    'europe-central2', 'us-east5', 'asia-southeast1', 'europe-southwest1', 'europe-north1',
+    'me-central2', 'australia-southeast2', 'me-central1', 'us-east4', 'europe-west1',
+    'europe-west2', 'asia-northeast1', 'me-west1', 'africa-south1', 'europe-west4',
+    'europe-west12', 'northamerica-northeast2', 'europe-west9', 'southamerica-east1',
+    'us-central1', 'asia-northeast3', 'europe-west6', 'northamerica-northeast1',
+    'asia-south1', 'asia-east1', 'us-west3', 'us-east1', 'australia-southeast1',
+    'us-south1', 'asia-southeast2', 'europe-west8', 'europe-west3', 'southamerica-west1',
+    'us-west1', 'asia-east2', 'us-west4', 'us-west2', 'asia-northeast2'
+}
+
+# Validate and set GCP_LOCATION
+if GCP_LOCATION not in SUPPORTED_REGIONS:
+    print(f"Warning: {GCP_LOCATION} is not a supported Vertex AI region. Defaulting to us-central1.")
+    GCP_LOCATION = "us-central1"
 
 def construct_initial_prompt(topic):
     article_requirements = """
@@ -54,7 +71,7 @@ try:
     aiplatform.init(project=GCP_PROJECT_ID, location=GCP_LOCATION)
     # Assuming MODEL_NAME refers to a Vertex AI endpoint or model resource
     CLIENT = aiplatform.GenerativeModel(model_name=MODEL_NAME)
-    print("✅ Google AI Client Initialized Successfully via Vertex AI.")
+    print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
 except Exception as e:
     print(f"❌ Failed to initialize Google AI client. Error details: {e}")
     CLIENT = None
