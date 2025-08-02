@@ -7,62 +7,69 @@ from flask import Flask, render_template, request, jsonify, send_file
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
-# Correct import for google-genai
 import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions # Import for specific exceptions
+from google.api_core import exceptions as google_exceptions
+import json # Needed to parse the JSON key content
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
 
-# Load environment variables with fallbacks and validation
+# Load environment variables from Render
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite") # Adjusted to match common naming
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite-preview-06-17")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
-if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY:
-    raise RuntimeError("Required environment variables (GCP_PROJECT_ID, UNSPLASH_ACCESS_KEY) are not set.")
+# Retrieve the service account key content from Render's environment variable
+# IMPORTANT: Verify the exact key name in Render. It might be 'GOOGLE_APPLICATION_CREDENTIALS' or similar if you set it that way.
+# If it's indeed 'GOOGLE_APPLICATION_CREDENTIALS' as shown, use that.
+# If you set it as a file, this would be a file path. Assuming it's content here.
+GOOGLE_APPLICATION_CREDENTIALS_CONTENT = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-# Supported Vertex AI regions
-SUPPORTED_REGIONS = {
-    'europe-central2', 'us-east5', 'asia-southeast1', 'europe-southwest1', 'europe-north1',
-    'me-central2', 'australia-southeast2', 'me-central1', 'us-east4', 'europe-west1',
-    'europe-west2', 'asia-northeast1', 'me-west1', 'africa-south1', 'europe-west4',
-    'europe-west12', 'northamerica-northeast2', 'europe-west9', 'southamerica-east1',
-    'us-central1', 'asia-northeast3', 'europe-west6', 'northamerica-northeast1',
-    'asia-south1', 'asia-east1', 'us-west3', 'us-east1', 'australia-southeast1',
-    'us-south1', 'asia-southeast2', 'europe-west8', 'europe-west3', 'southamerica-west1',
-    'us-west1', 'asia-east2', 'us-west4', 'us-west2', 'asia-northeast2'
-}
-
-# Validate and set GCP_LOCATION
-if GCP_LOCATION not in SUPPORTED_REGIONS:
-    print(f"Warning: {GCP_LOCATION} is not a supported Vertex AI region. Defaulting to us-central1.")
-    GCP_LOCATION = "us-central1"
+if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY or not GOOGLE_APPLICATION_CREDENTIALS_CONTENT:
+    # Dynamically adjust the error message based on what's missing
+    missing_vars = []
+    if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
+    if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
+    if not GOOGLE_APPLICATION_CREDENTIALS_CONTENT: missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
+    raise RuntimeError(f"Required environment variables are not set: {', '.join(missing_vars)}")
 
 # --- Initialize genai client with Vertex AI ---
 try:
-    # 1. Configure the SDK with Vertex AI endpoint and project
-    genai.configure(
-        api_key=os.getenv("GOOGLE_API_KEY"),  # Optional, if not using ADC or environment variable
-        project_id=GCP_PROJECT_ID,
-        location=GCP_LOCATION,
-        # If you are running this in a GCP environment with ADC, you might not need to explicitly set API_KEY.
-        # If running locally, ensure GOOGLE_APPLICATION_CREDENTIALS environment variable is set,
-        # or provide a direct API key.
-    )
+    # --- Handle the service account key content ---
+    # Create a temporary directory if it doesn't exist (e.g., /tmp on most Linux systems)
+    os.makedirs('/tmp', exist_ok=True)
+    service_account_file_path = '/tmp/service_account_key.json'
 
-    # 2. Instantiate the GenerativeModel
-    # The constructor for GenerativeModel has changed.
-    # When using Vertex AI, you directly create it with the model name.
+    # Write the JSON content to the temporary file
+    with open(service_account_file_path, 'w') as f:
+        f.write(GOOGLE_APPLICATION_CREDENTIALS_CONTENT)
+    
+    # Set the GOOGLE_APPLICATION_CREDENTIALS environment variable for Google libraries to use
+    # This must be set *before* any Google client libraries are initialized or configured.
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = service_account_file_path
+    
+    # 1. Configure the SDK.
+    # Since GOOGLE_APPLICATION_CREDENTIALS is now set, genai.configure()
+    # will automatically pick up the credentials. We do NOT pass project_id or location here.
+    genai.configure()
+    print(f"✅ Configured Google AI using credentials from {service_account_file_path}.")
+    print(f"   Using project: {GCP_PROJECT_ID}, location: {GCP_LOCATION}, model: {MODEL_NAME}")
+
+
+    # 2. Instantiate the GenerativeModel for Vertex AI
+    # This line remains correct for specifying Vertex AI models.
     CLIENT = genai.GenerativeModel(model_name=f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/models/{MODEL_NAME}")
+    print(f"✅ Google AI Client Initialized Successfully via Vertex AI.")
 
-    print(f"✅ Google AI Client Initialized Successfully via Vertex AI in region {GCP_LOCATION}.")
-
+except FileNotFoundError:
+    print(f"❌ Error: Could not write service account key to {service_account_file_path}")
+    CLIENT = None
 except google_exceptions.GoogleAPIError as e:
     print(f"❌ Google API Error initializing AI client: {e}")
     CLIENT = None
 except Exception as e:
+    # Catch any other unexpected errors during initialization
     print(f"❌ Failed to initialize Google AI client. Error details: {e}")
     CLIENT = None
 
@@ -268,4 +275,13 @@ def download_docx():
     return send_file(file_stream, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 if __name__ == "__main__":
+    # Clean up the temporary service account file on startup if it exists
+    # This is good practice, though in ephemeral containers, it's less critical.
+    if 'service_account_file_path' in locals() and os.path.exists(service_account_file_path):
+        try:
+            os.remove(service_account_file_path)
+            print(f"Cleaned up temporary service account file: {service_account_file_path}")
+        except OSError as e:
+            print(f"Error removing temporary service account file: {e}")
+
     app.run(debug=True, port=5001)
