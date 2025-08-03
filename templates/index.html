@@ -61,6 +61,11 @@
             left: 0;
             right: 0;
             z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .header.hidden {
+            transform: translateY(-100%);
         }
 
         .header-left {
@@ -268,6 +273,7 @@
             display: flex;
             flex-direction: column;
             transition: margin-left 0.3s ease;
+            padding-bottom: 8px; /* Add padding to prevent footer overlap */
         }
 
         .main-content.sidebar-collapsed {
@@ -457,6 +463,7 @@
             background: var(--surface);
             border-top: 1px solid var(--outline-variant);
             padding: 12px 16px;
+            margin-bottom: var(--footer-height); /* Prevent footer overlap */
         }
 
         .input-container {
@@ -782,7 +789,29 @@
             }
 
             .header {
+                justify-content: center;
+                position: relative;
+            }
+            
+            .header-left {
+                position: absolute;
+                left: 12px;
+            }
+            
+            .header-right {
+                position: absolute;
+                right: 12px;
+                margin-left: 0;
+            }
+            
+            .logo {
+                font-size: 16px;
+                justify-content: center;
+            }
+
+            .header {
                 padding: 0 12px;
+                position: relative;
             }
 
             .logo {
@@ -801,6 +830,7 @@
 
             .main-content {
                 margin-left: 0;
+                padding-bottom: 12px;
             }
 
             .chat-container {
@@ -832,6 +862,7 @@
 
             .input-area {
                 padding: 8px 12px;
+                margin-bottom: calc(var(--footer-height) + 4px);
             }
 
             .action-buttons {
@@ -940,6 +971,20 @@
                 display: block;
             }
         }
+
+        .inline-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 20px;
+            color: var(--on-surface-variant);
+            font-style: italic;
+        }
+
+        .inline-loading .typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
     </style>
 </head>
 <body>
@@ -1046,11 +1091,11 @@
 
     <!-- Footer -->
     <footer class="footer">
-        <span>InkDrive 2025 • Powered by AI</span>
+        <span>InkDrive 2025 • Francisj2nd</span>
     </footer>
 
-    <!-- Status Indicator -->
-    <div class="status-indicator" id="statusIndicator">
+    <!-- Remove or hide the old status indicator -->
+    <div class="status-indicator" id="statusIndicator" style="display: none !important;">
         <div class="typing-indicator">
             <div class="typing-dot"></div>
             <div class="typing-dot"></div>
@@ -1083,7 +1128,7 @@
             
             <div class="version-section">
                 <div class="version-header">Version 1.0.0</div>
-                <div class="version-date">January 2025</div>
+                <div class="version-date">August 2025</div>
                 <ul class="version-changes">
                     <li>Initial release of InkDrive Studio</li>
                     <li>AI-powered article generation with SEO optimization</li>
@@ -1334,7 +1379,7 @@
             
             messageDiv.innerHTML = `
                 <div class="message-avatar ${isUser ? 'user-avatar' : 'ai-avatar'}">
-                    ${isUser ? 'U' : 'AI'}
+                    ${isUser ? 'U' : 'I'}
                 </div>
                 <div class="message-content">
                     ${content}
