@@ -30,6 +30,8 @@
             --sidebar-width: 280px;
             --header-height: 60px;
             --input-area-height: 100px;
+            --success-green: #34a853;
+            --error-red: #ea4335;
         }
 
         [data-theme="dark"] {
@@ -50,7 +52,7 @@
 
         html {
             height: 100%;
-            height: 100dvh; /* Dynamic viewport height for better mobile support */
+            height: 100dvh;
         }
 
         body {
@@ -330,7 +332,6 @@
             background-color: var(--surface-container);
         }
 
-        /* Show menu button on desktop when sidebar is collapsed */
         .main-area.sidebar-collapsed .menu-button {
             display: flex;
         }
@@ -482,6 +483,16 @@
 
         .message.user {
             flex-direction: row-reverse;
+            justify-content: flex-start;
+            margin-left: auto;
+            max-width: 85%;
+        }
+
+        .message.user .message-content {
+            background: var(--primary-blue);
+            color: white;
+            margin-right: 4px; /* Reduce gap between avatar and message */
+            margin-left: 0;
         }
 
         .message-avatar {
@@ -513,6 +524,7 @@
             padding: 16px 20px;
             max-width: 85%;
             word-wrap: break-word;
+            position: relative;
         }
 
         .message.user .message-content {
@@ -567,6 +579,65 @@
             margin-top: 4px;
         }
 
+        /* Message Actions */
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--outline-variant);
+            opacity: 0;
+            transition: opacity 0.2s;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: auto;
+            min-height: 32px;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        .message-action-btn {
+            background: none;
+            border: 1px solid var(--outline-variant);
+            border-radius: 8px;
+            padding: 2px 6px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            color: var(--on-surface-variant);
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: fit-content;
+        }
+
+        .message-action-btn:hover {
+            background: var(--surface-container);
+            border-color: var(--primary-blue);
+            color: var(--on-surface);
+        }
+
+        .message-action-btn.upvoted {
+            background: var(--success-green);
+            color: white;
+            border-color: var(--success-green);
+        }
+
+        .message-action-btn.downvoted {
+            background: var(--error-red);
+            color: white;
+            border-color: var(--error-red);
+        }
+
+        .message-action-btn .material-symbols-outlined {
+            font-size: 16px;
+        }
+
         /* Input Area */
         .input-area {
             background: var(--surface);
@@ -579,6 +650,7 @@
         .input-container {
             max-width: 800px;
             margin: 0 auto;
+            position: relative;
         }
 
         .input-wrapper {
@@ -589,6 +661,7 @@
             align-items: flex-end;
             padding: 8px 16px;
             transition: border-color 0.2s;
+            position: relative;
         }
 
         .input-wrapper:focus-within {
@@ -639,6 +712,7 @@
             cursor: not-allowed;
         }
 
+        /* Action buttons - now only for new article */
         .action-buttons {
             display: none;
             justify-content: center;
@@ -665,11 +739,6 @@
         .action-button:hover:not(:disabled) {
             background: var(--surface-container);
             border-color: var(--primary-blue);
-        }
-
-        .action-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
 
         .action-button.primary {
@@ -876,7 +945,7 @@
             left: 0;
         }
 
-        /* Mobile Responsive - Better viewport handling */
+        /* Mobile Responsive */
         @media (max-width: 768px) {
             :root {
                 --sidebar-width: 85vw;
@@ -921,10 +990,6 @@
             .menu-button {
                 display: flex !important;
             }
-            
-            .main-area.sidebar-collapsed .menu-button {
-                display: flex;
-            }
 
             .header-title {
                 font-size: 16px;
@@ -944,6 +1009,7 @@
             .input-area {
                 padding: 12px;
                 min-height: var(--input-area-height);
+                
                 position: relative;
                 bottom: 0;
             }
@@ -979,15 +1045,22 @@
                 padding: 12px 16px;
             }
 
-            .action-buttons {
-                gap: 6px;
-                flex-wrap: wrap;
+            .message-actions {
+                gap: 4px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 4px;
             }
 
-            .action-button {
-                padding: 6px 12px;
-                font-size: 13px;
-                min-height: 32px;
+            .message-action-btn {
+                padding: 2px 4px;
+                font-size: 9px;
+                gap: 1px;
+                min-width: 50px;
+            }
+
+            .message-action-btn .material-symbols-outlined {
+                font-size: 12px;
             }
 
             .input-wrapper {
@@ -1024,14 +1097,6 @@
                 font-size: 20px;
             }
 
-            .example-prompt-title {
-                font-size: 12px;
-            }
-
-            .example-prompt-desc {
-                font-size: 11px;
-            }
-
             .message-content {
                 padding: 8px 12px;
                 font-size: 14px;
@@ -1043,12 +1108,6 @@
 
             .input-area {
                 padding: 8px;
-            }
-
-            .action-button {
-                padding: 4px 8px;
-                font-size: 12px;
-                min-height: 28px;
             }
         }
 
@@ -1068,14 +1127,12 @@
             }
         }
 
-        /* Fallback for older browsers */
         @supports not (height: 100dvh) {
             html, body, .app-container, .main-area, .sidebar {
                 height: 100vh;
             }
         }
 
-        /* Prevent layout shifts and ensure proper mobile scaling */
         html {
             -webkit-text-size-adjust: 100%;
             -ms-text-size-adjust: 100%;
@@ -1085,7 +1142,6 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Ensure input areas don't cause zoom on iOS */
         input, textarea, select {
             font-size: 16px;
         }
@@ -1183,7 +1239,7 @@
                     <div class="header-title">InkDrive Studio</div>
                 </div>
                 <div class="header-right">
-                    <div class="version-badge" id="versionBadge">V1.0.0</div>
+                    <div class="version-badge" id="versionBadge">V1.0.2</div>
                     <button class="theme-toggle" id="themeToggle">
                         <span class="material-symbols-outlined">dark_mode</span>
                     </button>
@@ -1227,6 +1283,8 @@
                 <!-- Input Area -->
                 <div class="input-area">
                     <div class="input-container">
+                        
+                        
                         <div class="input-wrapper">
                             <textarea 
                                 id="chatInput" 
@@ -1240,14 +1298,6 @@
                         </div>
                         
                         <div class="action-buttons" id="actionButtons">
-                            <button class="action-button" id="refineBtn">
-                                <span class="material-symbols-outlined">edit</span>
-                                Refine Article
-                            </button>
-                            <button class="action-button" id="downloadDocxBtn">
-                                <span class="material-symbols-outlined">download</span>
-                                Download DOCX
-                            </button>
                             <button class="action-button primary" id="newArticleBtn">
                                 <span class="material-symbols-outlined">add</span>
                                 New Article
@@ -1282,6 +1332,18 @@
             </div>
             
             <div class="version-section">
+                <div class="version-header">Version 1.0.2</div>
+                <div class="version-date">August 2025</div>
+                <ul class="version-changes">
+                    <li>Fixed user message alignment - reduced gap between user avatar and message bubble</li>
+                    <li>Improved right-side alignment for user messages</li>
+                    <li>Better visual spacing in chat interface</li>
+                </ul>
+            </div>
+
+            <div style="height: 1px; background: var(--outline-variant); margin: 16px 0;"></div>
+
+            <div class="version-section">
                 <div class="version-header">Version 1.0.0</div>
                 <div class="version-date">August 2025</div>
                 <ul class="version-changes">
@@ -1294,6 +1356,7 @@
                     <li>Mobile-responsive design</li>
                     <li>Chat history with local storage</li>
                     <li>Version tracking and changelog system</li>
+                    <li>Individual article actions (download, upvote, downvote)</li>
                 </ul>
             </div>
         </div>
@@ -1313,8 +1376,6 @@
         const welcomeScreen = document.getElementById('welcomeScreen');
         const chatMessages = document.getElementById('chatMessages');
         const actionButtons = document.getElementById('actionButtons');
-        const refineBtn = document.getElementById('refineBtn');
-        const downloadDocxBtn = document.getElementById('downloadDocxBtn');
         const newArticleBtn = document.getElementById('newArticleBtn');
         const versionBadge = document.getElementById('versionBadge');
         const changelogModal = document.getElementById('changelogModal');
@@ -1337,6 +1398,9 @@
         let chats = JSON.parse(localStorage.getItem('inkdrive_chats') || '[]');
         let historyExpanded = true;
 
+        // Article ratings storage
+        let articleRatings = JSON.parse(localStorage.getItem('inkdrive_ratings') || '{}');
+
         // Initialize
         loadChatHistory();
         
@@ -1353,7 +1417,6 @@
                 sidebar.classList.add('mobile-show');
                 sidebarOverlay.classList.add('mobile-show');
             } else {
-                // Desktop: toggle collapsed state with proper scaling
                 const isCollapsed = sidebar.classList.contains('collapsed');
                 if (isCollapsed) {
                     sidebar.classList.remove('collapsed');
@@ -1365,20 +1428,17 @@
             }
         });
 
-        // Sidebar close button - fix for desktop
         sidebarClose.addEventListener('click', () => {
             const isMobile = window.innerWidth <= 768;
             if (isMobile) {
                 sidebar.classList.remove('mobile-show');
                 sidebarOverlay.classList.remove('mobile-show');
             } else {
-                // Desktop: collapse the sidebar with scaling
                 sidebar.classList.add('collapsed');
                 mainArea.classList.add('sidebar-collapsed');
             }
         });
 
-        // Close mobile sidebar
         sidebarOverlay.addEventListener('click', () => {
             sidebar.classList.remove('mobile-show');
             sidebarOverlay.classList.remove('mobile-show');
@@ -1462,6 +1522,10 @@
             return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
+        function generateMessageId() {
+            return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
         function saveChat(chatId, title, messages, rawText = '', refined = false) {
             const existingIndex = chats.findIndex(chat => chat.id === chatId);
             const chatData = {
@@ -1500,7 +1564,7 @@
             chatMessages.innerHTML = '';
             
             chat.messages.forEach(msg => {
-                addMessage(msg.content, msg.isUser);
+                addMessage(msg.content, msg.isUser, msg.id);
             });
 
             if (chat.messages.length > 0 && !chat.messages[chat.messages.length - 1].isUser) {
@@ -1509,12 +1573,6 @@
                 chatInput.placeholder = hasRefined ? 
                     'Refinement already used. Start a new article to make changes...' :
                     'Enter refinement instruction...';
-                
-                if (hasRefined) {
-                    sendButton.disabled = true;
-                    refineBtn.disabled = true;
-                    refineBtn.innerHTML = '<span class="material-symbols-outlined">check</span>Refinement Used';
-                }
             }
 
             updateChatHistoryUI();
@@ -1567,13 +1625,105 @@
             }
         }
 
-        // Make deleteChat available globally
+        // Make functions available globally
         window.deleteChat = deleteChat;
+        window.rateArticle = rateArticle;
+        window.downloadArticle = downloadArticle;
 
-        // Add message to chat
-        function addMessage(content, isUser = false) {
+        // Article rating functions
+        function rateArticle(messageId, rating) {
+            articleRatings[messageId] = rating;
+            localStorage.setItem('inkdrive_ratings', JSON.stringify(articleRatings));
+            
+            // Update UI
+            const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+            if (messageElement) {
+                const upvoteBtn = messageElement.querySelector('.upvote-btn');
+                const downvoteBtn = messageElement.querySelector('.downvote-btn');
+                
+                upvoteBtn.classList.toggle('upvoted', rating === 'up');
+                downvoteBtn.classList.toggle('downvoted', rating === 'down');
+                
+                if (rating === 'up') {
+                    downvoteBtn.classList.remove('downvoted');
+                } else if (rating === 'down') {
+                    upvoteBtn.classList.remove('upvoted');
+                }
+            }
+        }
+
+        // Download individual article
+        async function downloadArticle(messageId) {
+            const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+            if (!messageElement) {
+                alert('Article not found.');
+                return;
+            }
+
+            try {
+                const htmlContent = messageElement.querySelector('.message-content').innerHTML;
+                const chat = chats.find(c => c.id === currentChatId);
+                const title = chat ? chat.title : 'Generated Article';
+                
+                const response = await fetch('/download-docx', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        html: htmlContent, 
+                        topic: title 
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Download failed.');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Add message to chat with individual actions
+        function addMessage(content, isUser = false, messageId = null) {
+            if (!messageId) {
+                messageId = generateMessageId();
+            }
+            
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'ai'}`;
+            messageDiv.setAttribute('data-message-id', messageId);
+            
+            let actionsHtml = '';
+            if (!isUser) {
+                const rating = articleRatings[messageId];
+                actionsHtml = `
+                    <div class="message-actions">
+                        <button class="message-action-btn upvote-btn ${rating === 'up' ? 'upvoted' : ''}" onclick="rateArticle('${messageId}', 'up')">
+                            <span class="material-symbols-outlined">thumb_up</span>
+                            Upvote
+                        </button>
+                        <button class="message-action-btn downvote-btn ${rating === 'down' ? 'downvoted' : ''}" onclick="rateArticle('${messageId}', 'down')">
+                            <span class="material-symbols-outlined">thumb_down</span>
+                            Downvote
+                        </button>
+                        <button class="message-action-btn" onclick="downloadArticle('${messageId}')">
+                            <span class="material-symbols-outlined">download</span>
+                            Download
+                        </button>
+                    </div>
+                `;
+            }
             
             messageDiv.innerHTML = `
                 <div class="message-avatar ${isUser ? 'user-avatar' : 'ai-avatar'}">
@@ -1581,11 +1731,14 @@
                 </div>
                 <div class="message-content">
                     ${content}
+                    ${actionsHtml}
                 </div>
             `;
             
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageId;
         }
 
         // Switch to chat view
@@ -1607,8 +1760,6 @@
             chatInput.value = '';
             chatInput.placeholder = 'Enter your article topic...';
             sendButton.disabled = false;
-            refineBtn.disabled = false;
-            refineBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>Refine Article';
             updateChatHistoryUI();
         }
 
@@ -1618,10 +1769,10 @@
             currentChatId = generateChatId();
             
             switchToChatView();
-            addMessage(topic, true);
+            const userMessageId = addMessage(topic, true);
             
             // Show inline loading
-            addMessage(`
+            const loadingMessageId = addMessage(`
                 <div class="inline-loading">
                     <div class="typing-indicator">
                         <div class="typing-dot"></div>
@@ -1645,19 +1796,19 @@
                 if (data.error) throw new Error(data.error);
 
                 // Remove loading message
-                const loadingMessage = chatMessages.lastElementChild;
-                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                if (loadingMessage) {
                     loadingMessage.remove();
                 }
 
                 rawArticleText = data.raw_text;
-                addMessage(data.article_html);
+                const aiMessageId = addMessage(data.article_html);
                 currentState = 'article-ready';
                 actionButtons.style.display = 'flex';
                 
                 const messages = [
-                    { content: topic, isUser: true },
-                    { content: data.article_html, isUser: false }
+                    { content: topic, isUser: true, id: userMessageId },
+                    { content: data.article_html, isUser: false, id: aiMessageId }
                 ];
                 saveChat(currentChatId, topic, messages, rawArticleText, false);
                 
@@ -1665,8 +1816,8 @@
                 
             } catch (error) {
                 // Remove loading message
-                const loadingMessage = chatMessages.lastElementChild;
-                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                if (loadingMessage) {
                     loadingMessage.remove();
                 }
                 addMessage(`❌ Error: ${error.message}`);
@@ -1684,10 +1835,10 @@
             }
 
             currentState = 'refining';
-            addMessage(instruction, true);
+            const userMessageId = addMessage(instruction, true);
             
             // Show inline loading
-            addMessage(`
+            const loadingMessageId = addMessage(`
                 <div class="inline-loading">
                     <div class="typing-indicator">
                         <div class="typing-dot"></div>
@@ -1699,7 +1850,6 @@
             `);
             
             sendButton.disabled = true;
-            refineBtn.disabled = true;
 
             try {
                 const response = await fetch('/refine', {
@@ -1715,23 +1865,20 @@
                 if (data.error) throw new Error(data.error);
 
                 // Remove loading message
-                const loadingMessage = chatMessages.lastElementChild;
-                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                if (loadingMessage) {
                     loadingMessage.remove();
                 }
 
                 rawArticleText = data.raw_text;
-                addMessage(data.article_html);
+                const aiMessageId = addMessage(data.article_html);
                 hasRefined = true;
-                refineBtn.innerHTML = '<span class="material-symbols-outlined">check</span>Refinement Used';
-                refineBtn.disabled = true;
-                sendButton.disabled = true;
                 currentState = 'article-ready';
                 
                 const chat = chats.find(c => c.id === currentChatId);
                 if (chat) {
-                    chat.messages.push({ content: instruction, isUser: true });
-                    chat.messages.push({ content: data.article_html, isUser: false });
+                    chat.messages.push({ content: instruction, isUser: true, id: userMessageId });
+                    chat.messages.push({ content: data.article_html, isUser: false, id: aiMessageId });
                     chat.rawText = rawArticleText;
                     chat.hasRefined = true;
                     saveChat(currentChatId, chat.title, chat.messages, rawArticleText, true);
@@ -1739,62 +1886,16 @@
                 
                 refinementPopup.style.display = 'flex';
                 chatInput.placeholder = 'Refinement used. Start a new article to make more changes...';
+                sendButton.disabled = true;
                 
             } catch (error) {
                 // Remove loading message
-                const loadingMessage = chatMessages.lastElementChild;
-                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                if (loadingMessage) {
                     loadingMessage.remove();
                 }
                 addMessage(`❌ Error: ${error.message}`);
                 sendButton.disabled = false;
-                refineBtn.disabled = false;
-            }
-        }
-
-        // Download functionality
-        async function downloadFile(format) {
-            const endpoint = format === 'docx' ? '/download-docx' : '/download-pdf';
-            const lastAiMessage = Array.from(chatMessages.children)
-                .filter(msg => !msg.classList.contains('user'))
-                .pop();
-            
-            if (!lastAiMessage) {
-                alert('No content to download.');
-                return;
-            }
-
-            try {
-                const htmlContent = lastAiMessage.querySelector('.message-content').innerHTML;
-                const chat = chats.find(c => c.id === currentChatId);
-                const title = chat ? chat.title : 'Generated Article';
-                
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        html: htmlContent, 
-                        topic: title 
-                    })
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || 'Download failed.');
-                }
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${format}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-            } catch (error) {
-                alert(`Error: ${error.message}`);
             }
         }
 
@@ -1815,27 +1916,11 @@
 
         // Event listeners
         sendButton.addEventListener('click', sendMessage);
-        
-        chatInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
 
         newArticleBtn.addEventListener('click', () => {
             resetToWelcome();
             closeMobileSidebar();
         });
-
-        refineBtn.addEventListener('click', () => {
-            if (currentState === 'article-ready' && !hasRefined) {
-                chatInput.focus();
-                chatInput.placeholder = 'Enter your refinement instruction...';
-            }
-        });
-
-        downloadDocxBtn.addEventListener('click', () => downloadFile('docx'));
 
         // Window resize handling
         window.addEventListener('resize', () => {
