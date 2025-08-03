@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InkDrive - AI Studio</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234285f4'/%3E%3Cstop offset='25%25' style='stop-color:%2334a853'/%3E%3Cstop offset='50%25' style='stop-color:%23fbbc05'/%3E%3Cstop offset='100%25' style='stop-color:%23ea4335'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23grad)'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='14' font-weight='600'%3EI%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <style>
@@ -19,6 +20,7 @@
             --outline-variant: #e8eaed;
             --sidebar-width: 280px;
             --header-height: 64px;
+            --footer-height: 48px;
         }
 
         [data-theme="dark"] {
@@ -53,7 +55,7 @@
             border-bottom: 1px solid var(--outline-variant);
             display: flex;
             align-items: center;
-            padding: 0 24px;
+            padding: 0 16px;
             position: fixed;
             top: 0;
             left: 0;
@@ -64,7 +66,7 @@
         .header-left {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
 
         .menu-button {
@@ -78,6 +80,8 @@
             align-items: center;
             justify-content: center;
             transition: background-color 0.2s;
+            min-width: 40px;
+            min-height: 40px;
         }
 
         .menu-button:hover {
@@ -88,7 +92,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 400;
             color: var(--on-surface);
         }
@@ -113,6 +117,21 @@
             gap: 8px;
         }
 
+        .version-badge {
+            background: var(--surface-container);
+            color: var(--on-surface-variant);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .version-badge:hover {
+            background: var(--outline);
+        }
+
         .theme-toggle {
             background: none;
             border: none;
@@ -124,6 +143,8 @@
             align-items: center;
             justify-content: center;
             transition: background-color 0.2s;
+            min-width: 40px;
+            min-height: 40px;
         }
 
         .theme-toggle:hover {
@@ -136,12 +157,13 @@
             left: 0;
             top: var(--header-height);
             width: var(--sidebar-width);
-            height: calc(100vh - var(--header-height));
+            height: calc(100vh - var(--header-height) - var(--footer-height));
             background: var(--surface);
             border-right: 1px solid var(--outline-variant);
-            padding: 24px 16px;
+            padding: 16px;
             overflow-y: auto;
             transition: transform 0.3s ease;
+            z-index: 999;
         }
 
         .sidebar.collapsed {
@@ -154,15 +176,17 @@
             color: white;
             border: none;
             border-radius: 24px;
-            padding: 12px 20px;
+            padding: 12px 16px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             transition: background-color 0.2s;
+            min-height: 44px;
         }
 
         .new-chat-button:hover {
@@ -185,6 +209,8 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            min-height: 44px;
+            position: relative;
         }
 
         .chat-item:hover {
@@ -196,11 +222,49 @@
             color: var(--on-surface);
         }
 
+        .chat-item-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chat-item-date {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            opacity: 0.7;
+        }
+
+        .delete-chat-btn {
+            background: none;
+            border: none;
+            color: var(--on-surface-variant);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            opacity: 0;
+            transition: all 0.2s;
+            min-width: 24px;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-item:hover .delete-chat-btn {
+            opacity: 1;
+        }
+
+        .delete-chat-btn:hover {
+            background: var(--outline);
+            color: var(--on-surface);
+        }
+
         /* Main Content */
         .main-content {
             margin-left: var(--sidebar-width);
             margin-top: var(--header-height);
-            height: calc(100vh - var(--header-height));
+            height: calc(100vh - var(--header-height) - var(--footer-height));
             display: flex;
             flex-direction: column;
             transition: margin-left 0.3s ease;
@@ -213,7 +277,7 @@
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
         }
@@ -227,10 +291,11 @@
             text-align: center;
             max-width: 600px;
             margin: 0 auto;
+            padding: 20px;
         }
 
         .welcome-title {
-            font-size: 48px;
+            font-size: 36px;
             font-weight: 400;
             margin-bottom: 16px;
             background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
@@ -240,15 +305,16 @@
         }
 
         .welcome-subtitle {
-            font-size: 18px;
+            font-size: 16px;
             color: var(--on-surface-variant);
             margin-bottom: 32px;
+            line-height: 1.5;
         }
 
         .example-prompts {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
             width: 100%;
             margin-bottom: 32px;
         }
@@ -257,10 +323,14 @@
             background: var(--surface-variant);
             border: 1px solid var(--outline-variant);
             border-radius: 16px;
-            padding: 20px;
+            padding: 16px;
             cursor: pointer;
             transition: all 0.2s;
             text-align: left;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .example-prompt:hover {
@@ -270,26 +340,28 @@
 
         .example-prompt-title {
             font-weight: 500;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: var(--on-surface);
+            font-size: 14px;
         }
 
         .example-prompt-desc {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--on-surface-variant);
+            line-height: 1.4;
         }
 
         /* Chat Messages */
         .chat-messages {
             display: none;
             flex-direction: column;
-            gap: 24px;
-            margin-bottom: 24px;
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         .message {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             max-width: 100%;
         }
 
@@ -324,7 +396,8 @@
             background: var(--surface-variant);
             border-radius: 18px;
             padding: 16px 20px;
-            max-width: 70%;
+            max-width: 85%;
+            word-wrap: break-word;
         }
 
         .message.user .message-content {
@@ -383,7 +456,7 @@
         .input-area {
             background: var(--surface);
             border-top: 1px solid var(--outline-variant);
-            padding: 16px 24px;
+            padding: 12px 16px;
         }
 
         .input-container {
@@ -416,7 +489,7 @@
             color: var(--on-surface);
             resize: none;
             min-height: 24px;
-            max-height: 200px;
+            max-height: 120px;
             padding: 8px 0;
             line-height: 1.5;
         }
@@ -438,6 +511,7 @@
             color: white;
             margin-left: 8px;
             transition: background-color 0.2s;
+            flex-shrink: 0;
         }
 
         .send-button:hover:not(:disabled) {
@@ -453,8 +527,8 @@
         .action-buttons {
             display: none;
             justify-content: center;
-            gap: 12px;
-            margin-top: 16px;
+            gap: 8px;
+            margin-top: 12px;
             flex-wrap: wrap;
         }
 
@@ -468,13 +542,19 @@
             transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             color: var(--on-surface);
+            min-height: 36px;
         }
 
-        .action-button:hover {
+        .action-button:hover:not(:disabled) {
             background: var(--surface-container);
             border-color: var(--primary-blue);
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .action-button.primary {
@@ -483,15 +563,183 @@
             border-color: var(--primary-blue);
         }
 
-        .action-button.primary:hover {
+        .action-button.primary:hover:not(:disabled) {
             background: var(--primary-blue-hover);
+        }
+
+        /* Footer */
+        .footer {
+            height: var(--footer-height);
+            background: var(--surface);
+            border-top: 1px solid var(--outline-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 16px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            font-size: 14px;
+            color: var(--on-surface-variant);
+        }
+
+        /* Popup */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .popup {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .popup-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: var(--on-surface);
+        }
+
+        .popup-message {
+            font-size: 14px;
+            color: var(--on-surface-variant);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .popup-button {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .popup-button:hover {
+            background: var(--primary-blue-hover);
+        }
+
+        /* Changelog Modal */
+        .changelog-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .changelog-content {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .changelog-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .changelog-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--on-surface);
+        }
+
+        .close-changelog {
+            background: none;
+            border: none;
+            color: var(--on-surface-variant);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-changelog:hover {
+            background: var(--surface-container);
+        }
+
+        .version-section {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--outline-variant);
+        }
+
+        .version-section:last-child {
+            border-bottom: none;
+        }
+
+        .version-header {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 8px;
+        }
+
+        .version-date {
+            font-size: 14px;
+            color: var(--on-surface-variant);
+            margin-bottom: 12px;
+        }
+
+        .version-changes {
+            list-style: none;
+        }
+
+        .version-changes li {
+            font-size: 14px;
+            color: var(--on-surface-variant);
+            margin-bottom: 4px;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .version-changes li:before {
+            content: "•";
+            color: var(--primary-blue);
+            position: absolute;
+            left: 0;
         }
 
         /* Status */
         .status-indicator {
             position: fixed;
-            bottom: 24px;
-            right: 24px;
+            bottom: calc(var(--footer-height) + 16px);
+            right: 16px;
             background: var(--surface-container);
             border: 1px solid var(--outline-variant);
             border-radius: 24px;
@@ -502,6 +750,7 @@
             align-items: center;
             gap: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 1500;
         }
 
         .typing-indicator {
@@ -525,22 +774,129 @@
             40% { transform: scale(1); opacity: 1; }
         }
 
-        /* Responsive */
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
+            :root {
+                --sidebar-width: 100vw;
+                --header-height: 56px;
             }
-            
+
+            .header {
+                padding: 0 12px;
+            }
+
+            .logo {
+                font-size: 16px;
+            }
+
+            .sidebar {
+                width: 100vw;
+                transform: translateX(-100%);
+                z-index: 1500;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
             .main-content {
                 margin-left: 0;
             }
-            
+
+            .chat-container {
+                padding: 12px;
+            }
+
+            .welcome-title {
+                font-size: 28px;
+            }
+
+            .welcome-subtitle {
+                font-size: 14px;
+            }
+
             .example-prompts {
                 grid-template-columns: 1fr;
+                gap: 8px;
             }
-            
+
+            .example-prompt {
+                padding: 12px;
+                min-height: 70px;
+            }
+
+            .message-content {
+                max-width: 90%;
+                padding: 12px 16px;
+            }
+
+            .input-area {
+                padding: 8px 12px;
+            }
+
+            .action-buttons {
+                gap: 6px;
+            }
+
+            .action-button {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+
+            .popup {
+                margin: 20px;
+                padding: 20px;
+            }
+
+            .changelog-content {
+                margin: 20px;
+                padding: 20px;
+            }
+
+            .status-indicator {
+                bottom: calc(var(--footer-height) + 12px);
+                right: 12px;
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-left {
+                gap: 8px;
+            }
+
+            .logo {
+                font-size: 14px;
+            }
+
+            .logo-text {
+                display: none;
+            }
+
+            .version-badge {
+                font-size: 11px;
+                padding: 3px 6px;
+            }
+
             .welcome-title {
-                font-size: 36px;
+                font-size: 24px;
+            }
+
+            .example-prompt-title {
+                font-size: 13px;
+            }
+
+            .example-prompt-desc {
+                font-size: 12px;
+            }
+
+            .message-content {
+                padding: 10px 14px;
+            }
+
+            .footer {
+                font-size: 12px;
             }
         }
 
@@ -551,7 +907,7 @@
 
         /* Scrollbar */
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
 
         ::-webkit-scrollbar-track {
@@ -560,11 +916,29 @@
 
         ::-webkit-scrollbar-thumb {
             background: var(--outline);
-            border-radius: 4px;
+            border-radius: 3px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
             background: var(--on-surface-variant);
+        }
+
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 1400;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-overlay.show {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -577,15 +951,19 @@
             </button>
             <div class="logo">
                 <div class="logo-icon">I</div>
-                <span>InkDrive Studio</span>
+                <span class="logo-text">InkDrive Studio</span>
             </div>
         </div>
         <div class="header-right">
+            <div class="version-badge" id="versionBadge">V1.0.0</div>
             <button class="theme-toggle" id="themeToggle">
                 <span class="material-symbols-outlined">dark_mode</span>
             </button>
         </div>
     </header>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -594,11 +972,8 @@
             New Article
         </button>
         
-        <div class="chat-history">
-            <div class="chat-item active">
-                <span class="material-symbols-outlined">article</span>
-                <span>Current Article</span>
-            </div>
+        <div class="chat-history" id="chatHistory">
+            <!-- Chat history will be populated here -->
         </div>
     </aside>
 
@@ -669,6 +1044,11 @@
         </div>
     </main>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <span>InkDrive 2025 • Powered by AI</span>
+    </footer>
+
     <!-- Status Indicator -->
     <div class="status-indicator" id="statusIndicator">
         <div class="typing-indicator">
@@ -679,11 +1059,52 @@
         <span id="statusText">Generating article...</span>
     </div>
 
+    <!-- Refinement Used Popup -->
+    <div class="popup-overlay" id="refinementPopup">
+        <div class="popup">
+            <div class="popup-title">Refinement Used</div>
+            <div class="popup-message">
+                Your refinement has been applied successfully! You can only refine once per article. 
+                To make more changes, please start a new article.
+            </div>
+            <button class="popup-button" id="dismissPopup">Got it</button>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div class="changelog-modal" id="changelogModal">
+        <div class="changelog-content">
+            <div class="changelog-header">
+                <h2 class="changelog-title">Changelog</h2>
+                <button class="close-changelog" id="closeChangelog">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <div class="version-section">
+                <div class="version-header">Version 1.0.0</div>
+                <div class="version-date">January 2025</div>
+                <ul class="version-changes">
+                    <li>Initial release of InkDrive Studio</li>
+                    <li>AI-powered article generation with SEO optimization</li>
+                    <li>Real-time image integration from Unsplash</li>
+                    <li>Article refinement capability (one per session)</li>
+                    <li>DOCX export functionality</li>
+                    <li>Dark/light theme support</li>
+                    <li>Mobile-responsive design</li>
+                    <li>Chat history with local storage</li>
+                    <li>Version tracking and changelog system</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // UI Elements
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
         const mainContent = document.getElementById('mainContent');
         const themeToggle = document.getElementById('themeToggle');
         const chatInput = document.getElementById('chatInput');
@@ -697,22 +1118,45 @@
         const newArticleBtn = document.getElementById('newArticleBtn');
         const refineBtn = document.getElementById('refineBtn');
         const downloadDocxBtn = document.getElementById('downloadDocxBtn');
+        const chatHistory = document.getElementById('chatHistory');
+        const versionBadge = document.getElementById('versionBadge');
+        const changelogModal = document.getElementById('changelogModal');
+        const closeChangelog = document.getElementById('closeChangelog');
+        const refinementPopup = document.getElementById('refinementPopup');
+        const dismissPopup = document.getElementById('dismissPopup');
 
         // State
         let currentState = 'welcome'; // 'welcome', 'generating', 'article-ready', 'refining'
         let rawArticleText = '';
         let hasRefined = false;
+        let currentChatId = null;
+        let chats = JSON.parse(localStorage.getItem('inkdrive_chats') || '[]');
 
+        // Initialize
+        loadChatHistory();
+        
         // Auto-resize textarea
         chatInput.addEventListener('input', () => {
             chatInput.style.height = 'auto';
-            chatInput.style.height = Math.min(chatInput.scrollHeight, 200) + 'px';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
         });
 
         // Sidebar toggle
         menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('sidebar-collapsed');
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('sidebar-collapsed');
+            }
+        });
+
+        // Sidebar overlay click (mobile)
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('show');
+            sidebarOverlay.classList.remove('show');
         });
 
         // Theme toggle
@@ -734,6 +1178,27 @@
             }
         });
 
+        // Version badge click
+        versionBadge.addEventListener('click', () => {
+            changelogModal.style.display = 'flex';
+        });
+
+        // Close changelog
+        closeChangelog.addEventListener('click', () => {
+            changelogModal.style.display = 'none';
+        });
+
+        changelogModal.addEventListener('click', (e) => {
+            if (e.target === changelogModal) {
+                changelogModal.style.display = 'none';
+            }
+        });
+
+        // Dismiss refinement popup
+        dismissPopup.addEventListener('click', () => {
+            refinementPopup.style.display = 'none';
+        });
+
         // Example prompts
         document.querySelectorAll('.example-prompt').forEach(prompt => {
             prompt.addEventListener('click', () => {
@@ -742,6 +1207,125 @@
                 chatInput.focus();
             });
         });
+
+        // Chat history functions
+        function generateChatId() {
+            return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function saveChat(chatId, title, messages, rawText = '', refined = false) {
+            const existingIndex = chats.findIndex(chat => chat.id === chatId);
+            const chatData = {
+                id: chatId,
+                title: title.substring(0, 50),
+                messages: messages,
+                rawText: rawText,
+                hasRefined: refined,
+                timestamp: Date.now(),
+                date: new Date().toLocaleDateString()
+            };
+
+            if (existingIndex >= 0) {
+                chats[existingIndex] = chatData;
+            } else {
+                chats.unshift(chatData);
+            }
+
+            // Keep only last 50 chats
+            if (chats.length > 50) {
+                chats = chats.slice(0, 50);
+            }
+
+            localStorage.setItem('inkdrive_chats', JSON.stringify(chats));
+            loadChatHistory();
+        }
+
+        function loadChat(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            currentChatId = chatId;
+            rawArticleText = chat.rawText;
+            hasRefined = chat.hasRefined;
+            
+            switchToChatView();
+            chatMessages.innerHTML = '';
+            
+            chat.messages.forEach(msg => {
+                addMessage(msg.content, msg.isUser);
+            });
+
+            if (chat.messages.length > 0 && !chat.messages[chat.messages.length - 1].isUser) {
+                currentState = 'article-ready';
+                actionButtons.style.display = 'flex';
+                chatInput.placeholder = hasRefined ? 
+                    'Refinement already used. Start a new article to make changes...' :
+                    'Enter refinement instruction (e.g., "Add more examples" or "Make it shorter")...';
+                
+                if (hasRefined) {
+                    sendButton.disabled = true;
+                    refineBtn.disabled = true;
+                    refineBtn.innerHTML = '<span class="material-symbols-outlined">check</span>Refinement Used';
+                }
+            }
+
+            updateChatHistoryUI();
+        }
+
+        function deleteChat(chatId) {
+            chats = chats.filter(chat => chat.id !== chatId);
+            localStorage.setItem('inkdrive_chats', JSON.stringify(chats));
+            
+            if (currentChatId === chatId) {
+                resetToWelcome();
+            }
+            
+            loadChatHistory();
+        }
+
+        function loadChatHistory() {
+            chatHistory.innerHTML = '';
+            
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = `chat-item ${currentChatId === chat.id ? 'active' : ''}`;
+                chatItem.innerHTML = `
+                    <span class="material-symbols-outlined">article</span>
+                    <div class="chat-item-title">${chat.title}</div>
+                    <div class="chat-item-date">${chat.date}</div>
+                    <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                `;
+                
+                chatItem.addEventListener('click', () => {
+                    loadChat(chat.id);
+                    // Close sidebar on mobile
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                    }
+                });
+                
+                chatHistory.appendChild(chatItem);
+            });
+        }
+
+        function updateChatHistoryUI() {
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            if (currentChatId) {
+                const activeItem = document.querySelector(`[onclick*="${currentChatId}"]`)?.parentElement;
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                }
+            }
+        }
+
+        // Make deleteChat available globally
+        window.deleteChat = deleteChat;
 
         // Add message to chat
         function addMessage(content, isUser = false) {
@@ -786,13 +1370,21 @@
             currentState = 'welcome';
             rawArticleText = '';
             hasRefined = false;
+            currentChatId = null;
             chatInput.value = '';
+            chatInput.placeholder = 'Enter your article topic or refinement instruction...';
+            sendButton.disabled = false;
+            refineBtn.disabled = false;
+            refineBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>Refine Article';
             hideStatus();
+            updateChatHistoryUI();
         }
 
         // Generate article
         async function generateArticle(topic) {
             currentState = 'generating';
+            currentChatId = generateChatId();
+            
             switchToChatView();
             addMessage(topic, true);
             showStatus('Generating article and finding images...');
@@ -813,6 +1405,13 @@
                 currentState = 'article-ready';
                 actionButtons.style.display = 'flex';
                 hideStatus();
+                
+                // Save chat
+                const messages = [
+                    { content: topic, isUser: true },
+                    { content: data.article_html, isUser: false }
+                ];
+                saveChat(currentChatId, topic, messages, rawArticleText, false);
                 
                 // Update placeholder for refinement
                 chatInput.placeholder = 'Enter refinement instruction (e.g., "Add more examples" or "Make it shorter")...';
@@ -855,16 +1454,31 @@
                 rawArticleText = data.raw_text;
                 addMessage(data.article_html);
                 hasRefined = true;
-                refineBtn.textContent = 'Refinement Used';
+                refineBtn.innerHTML = '<span class="material-symbols-outlined">check</span>Refinement Used';
                 refineBtn.disabled = true;
+                sendButton.disabled = true;
                 currentState = 'article-ready';
                 hideStatus();
+                
+                // Update chat
+                const chat = chats.find(c => c.id === currentChatId);
+                if (chat) {
+                    chat.messages.push({ content: instruction, isUser: true });
+                    chat.messages.push({ content: data.article_html, isUser: false });
+                    chat.rawText = rawArticleText;
+                    chat.hasRefined = true;
+                    saveChat(currentChatId, chat.title, chat.messages, rawArticleText, true);
+                }
+                
+                // Show popup
+                refinementPopup.style.display = 'flex';
+                chatInput.placeholder = 'Refinement used. Start a new article to make more changes...';
                 
             } catch (error) {
                 addMessage(`❌ Error: ${error.message}`);
                 hideStatus();
-            } finally {
                 sendButton.disabled = false;
+                refineBtn.disabled = false;
             }
         }
 
@@ -884,12 +1498,15 @@
 
             try {
                 const htmlContent = lastAiMessage.querySelector('.message-content').innerHTML;
+                const chat = chats.find(c => c.id === currentChatId);
+                const title = chat ? chat.title : 'Generated Article';
+                
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         html: htmlContent, 
-                        topic: 'Generated Article' 
+                        topic: title 
                     })
                 });
 
@@ -902,7 +1519,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `article.${format}`;
+                a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${format}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -951,6 +1568,14 @@
         });
 
         downloadDocxBtn.addEventListener('click', () => downloadFile('docx'));
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+            }
+        });
 
         // Focus input on load
         chatInput.focus();
