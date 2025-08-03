@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>InkDrive - AI Studio</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234285f4'/%3E%3Cstop offset='25%25' style='stop-color:%2334a853'/%3E%3Cstop offset='50%25' style='stop-color:%23fbbc05'/%3E%3Cstop offset='100%25' style='stop-color:%23ea4335'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23grad)'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='14' font-weight='600'%3EI%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -52,6 +52,7 @@
             display: flex;
             height: 100vh;
             width: 100vw;
+            position: relative;
         }
 
         /* Sidebar */
@@ -65,10 +66,14 @@
             transition: transform 0.3s ease;
             z-index: 100;
             flex-shrink: 0;
+            position: relative;
         }
 
         .sidebar.collapsed {
             transform: translateX(-100%);
+            position: absolute;
+            left: 0;
+            top: 0;
         }
 
         .sidebar-header {
@@ -259,10 +264,13 @@
             flex-direction: column;
             height: 100vh;
             min-width: 0;
+            transition: all 0.3s ease;
+            width: calc(100vw - var(--sidebar-width));
         }
 
         .main-area.sidebar-collapsed {
             width: 100vw;
+            margin-left: 0;
         }
 
         /* Header */
@@ -296,6 +304,11 @@
 
         .menu-button:hover {
             background-color: var(--surface-container);
+        }
+
+        /* Show menu button on desktop when sidebar is collapsed */
+        .main-area.sidebar-collapsed .menu-button {
+            display: flex;
         }
 
         .header-title {
@@ -833,15 +846,22 @@
             left: 0;
         }
 
-        /* Mobile Responsive */
+        /* Mobile Responsive - Better viewport handling */
         @media (max-width: 768px) {
             :root {
-                --sidebar-width: 280px;
+                --sidebar-width: 85vw; /* Use viewport width instead of fixed pixels */
                 --header-height: 56px;
+            }
+
+            body {
+                overflow-x: hidden; /* Prevent horizontal scroll */
             }
 
             .app-container {
                 position: relative;
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
             }
 
             .sidebar {
@@ -850,6 +870,8 @@
                 left: 0;
                 z-index: 300;
                 transform: translateX(-100%);
+                width: var(--sidebar-width);
+                max-width: 320px; /* Cap maximum width */
             }
 
             .sidebar.mobile-show {
@@ -858,9 +880,14 @@
 
             .main-area {
                 width: 100vw;
+                height: 100vh;
             }
 
             .menu-button {
+                display: flex !important;
+            }
+            
+            .main-area.sidebar-collapsed .menu-button {
                 display: flex;
             }
 
@@ -873,15 +900,18 @@
             }
 
             .chat-container {
-                padding: 16px;
+                padding: 12px;
+                height: calc(100vh - var(--header-height) - 80px); /* Account for input area */
+                overflow-y: auto;
             }
 
             .input-area {
-                padding: 12px 16px;
+                padding: 12px;
+                min-height: 80px; /* Ensure consistent height */
             }
 
             .welcome-title {
-                font-size: 28px;
+                font-size: 24px; /* Smaller for mobile */
             }
 
             .welcome-subtitle {
@@ -895,7 +925,7 @@
 
             .example-prompt {
                 padding: 12px;
-                min-height: 70px;
+                min-height: 60px; /* Smaller for mobile */
             }
 
             .message-content {
@@ -905,34 +935,105 @@
 
             .action-buttons {
                 gap: 6px;
+                flex-wrap: wrap;
             }
 
             .action-button {
                 padding: 6px 12px;
                 font-size: 13px;
+                min-height: 32px; /* Smaller for mobile */
+            }
+
+            .input-wrapper {
+                padding: 6px 12px; /* Smaller padding */
+            }
+
+            .send-button {
+                width: 36px;
+                height: 36px;
             }
         }
 
         @media (max-width: 480px) {
+            :root {
+                --sidebar-width: 90vw;
+            }
+
+            .header {
+                padding: 0 8px; /* Tighter padding on small screens */
+            }
+
+            .header-title {
+                font-size: 14px;
+            }
+
             .version-badge {
-                font-size: 11px;
-                padding: 3px 6px;
+                font-size: 10px;
+                padding: 2px 6px;
             }
 
             .welcome-title {
-                font-size: 24px;
+                font-size: 20px;
             }
 
             .example-prompt-title {
-                font-size: 13px;
-            }
-
-            .example-prompt-desc {
                 font-size: 12px;
             }
 
+            .example-prompt-desc {
+                font-size: 11px;
+            }
+
             .message-content {
-                padding: 10px 14px;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .chat-container {
+                padding: 8px;
+            }
+
+            .input-area {
+                padding: 8px;
+            }
+
+            .action-button {
+                padding: 4px 8px;
+                font-size: 12px;
+                min-height: 28px;
+            }
+        }
+
+        /* Ensure no horizontal overflow */
+        * {
+            max-width: 100%;
+        }
+
+        .app-container, .main-area, .content-area {
+            overflow-x: hidden;
+        }
+
+        /* Prevent layout shifts and ensure proper mobile scaling */
+        html {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        body {
+            -webkit-overflow-scrolling: touch;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Ensure input areas don't cause zoom on iOS */
+        input, textarea, select {
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+
+        @media (max-width: 768px) {
+            input, textarea, select {
+                font-size: 16px !important;
             }
         }
 
@@ -1007,7 +1108,7 @@
 
             <div class="sidebar-footer">
                 <div class="sidebar-footer-text">
-                    InkDrive AI may make mistakes, so double-check outputs.
+                    © InkDrive 2025 · Built by Francisj2nd
                 </div>
             </div>
         </aside>
@@ -1071,7 +1172,7 @@
                             <textarea 
                                 id="chatInput" 
                                 class="chat-input" 
-                                placeholder="Enter your article topic or refinement instruction..."
+                                placeholder="Enter your article topic..."
                                 rows="1"
                             ></textarea>
                             <button class="send-button" id="sendButton">
@@ -1123,7 +1224,7 @@
             
             <div class="version-section">
                 <div class="version-header">Version 1.0.0</div>
-                <div class="version-date">January 2025</div>
+                <div class="version-date">August 2025</div>
                 <ul class="version-changes">
                     <li>Initial release of InkDrive Studio</li>
                     <li>AI-powered article generation with SEO optimization</li>
@@ -1193,15 +1294,29 @@
                 sidebar.classList.add('mobile-show');
                 sidebarOverlay.classList.add('mobile-show');
             } else {
-                sidebar.classList.toggle('collapsed');
-                mainArea.classList.toggle('sidebar-collapsed');
+                // Desktop: toggle collapsed state with proper scaling
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                if (isCollapsed) {
+                    sidebar.classList.remove('collapsed');
+                    mainArea.classList.remove('sidebar-collapsed');
+                } else {
+                    sidebar.classList.add('collapsed');
+                    mainArea.classList.add('sidebar-collapsed');
+                }
             }
         });
 
-        // Sidebar close button
+        // Sidebar close button - fix for desktop
         sidebarClose.addEventListener('click', () => {
-            sidebar.classList.remove('mobile-show');
-            sidebarOverlay.classList.remove('mobile-show');
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                sidebar.classList.remove('mobile-show');
+                sidebarOverlay.classList.remove('mobile-show');
+            } else {
+                // Desktop: collapse the sidebar with scaling
+                sidebar.classList.add('collapsed');
+                mainArea.classList.add('sidebar-collapsed');
+            }
         });
 
         // Close mobile sidebar
@@ -1334,7 +1449,7 @@
                 actionButtons.style.display = 'flex';
                 chatInput.placeholder = hasRefined ? 
                     'Refinement already used. Start a new article to make changes...' :
-                    'Enter refinement instruction (e.g., "Add more examples" or "Make it shorter")...';
+                    'Enter refinement instruction...';
                 
                 if (hasRefined) {
                     sendButton.disabled = true;
@@ -1431,7 +1546,7 @@
             hasRefined = false;
             currentChatId = null;
             chatInput.value = '';
-            chatInput.placeholder = 'Enter your article topic or refinement instruction...';
+            chatInput.placeholder = 'Enter your article topic...';
             sendButton.disabled = false;
             refineBtn.disabled = false;
             refineBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>Refine Article';
@@ -1487,7 +1602,7 @@
                 ];
                 saveChat(currentChatId, topic, messages, rawArticleText, false);
                 
-                chatInput.placeholder = 'Enter refinement instruction (e.g., "Add more examples" or "Make it shorter")...';
+                chatInput.placeholder = 'Enter refinement instruction...';
                 
             } catch (error) {
                 // Remove loading message
