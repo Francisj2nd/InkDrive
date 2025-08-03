@@ -4,7 +4,7 @@
 
 The application features a unique refinement process, allowing the user to have a one-shot conversation with the AI to edit and improve the generated content, turning a simple idea into a polished article in minutes.
 
-**➡️ Visit the Live Demo:** [https://inkdrive-0dx5.onrender.com/](https://inkdrive-0dx5.onrender.com/)  
+**➡️ Visit the Live Demo:** [https://inkdrive.ink/](https://inkdrive.ink/)  
 
 
 ## ✨ Features
@@ -39,5 +39,5 @@ Follow these instructions to get a local copy up and running for development and
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/inkdrive.git
+git clone https://github.com/Francisj2nd/InkDrive
 cd inkdrive
