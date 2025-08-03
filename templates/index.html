@@ -19,9 +19,7 @@
             --outline: #dadce0;
             --outline-variant: #e8eaed;
             --sidebar-width: 280px;
-            --header-height: 64px;
-            --footer-height: 40px; /* Reduced from 48px */
-            --input-area-height: auto; /* Make dynamic */
+            --header-height: 60px;
         }
 
         [data-theme="dark"] {
@@ -49,6 +47,224 @@
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
+        /* App Container */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--surface-variant);
+            border-right: 1px solid var(--outline-variant);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            height: var(--header-height);
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--outline-variant);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--on-surface);
+        }
+
+        .sidebar-logo-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .sidebar-close {
+            background: none;
+            border: none;
+            color: var(--on-surface-variant);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .sidebar-close:hover {
+            background-color: var(--surface-container);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            margin-bottom: 8px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--on-surface);
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-item:hover {
+            background-color: var(--surface-container);
+        }
+
+        .sidebar-item.active {
+            background-color: var(--primary-blue);
+            color: white;
+        }
+
+        .sidebar-item .material-symbols-outlined {
+            font-size: 20px;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: var(--outline-variant);
+            margin: 16px 0;
+        }
+
+        .history-section {
+            margin-top: 16px;
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--on-surface-variant);
+            cursor: pointer;
+        }
+
+        .history-header:hover {
+            color: var(--on-surface);
+        }
+
+        .history-items {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--on-surface-variant);
+            transition: all 0.2s;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .history-item:hover {
+            background-color: var(--surface-container);
+            color: var(--on-surface);
+        }
+
+        .history-item.active {
+            background-color: var(--surface-container);
+            color: var(--on-surface);
+        }
+
+        .history-item-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-item-date {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-left: 8px;
+        }
+
+        .delete-history-btn {
+            background: none;
+            border: none;
+            color: var(--on-surface-variant);
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .history-item:hover .delete-history-btn {
+            opacity: 1;
+        }
+
+        .delete-history-btn:hover {
+            background: var(--outline);
+            color: var(--on-surface);
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--outline-variant);
+            background: var(--surface-variant);
+        }
+
+        .sidebar-footer-text {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            line-height: 1.4;
+        }
+
+        /* Main Content Area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            min-width: 0;
+        }
+
+        .main-area.sidebar-collapsed {
+            width: 100vw;
+        }
+
         /* Header */
         .header {
             height: var(--header-height);
@@ -56,17 +272,9 @@
             border-bottom: 1px solid var(--outline-variant);
             display: flex;
             align-items: center;
+            justify-content: space-between;
             padding: 0 16px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-
-        .header.hidden {
-            transform: translateY(-100%);
+            flex-shrink: 0;
         }
 
         .header-left {
@@ -81,44 +289,22 @@
             color: var(--on-surface-variant);
             cursor: pointer;
             padding: 8px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: 50%;
             transition: background-color 0.2s;
-            min-width: 40px;
-            min-height: 40px;
+            display: none;
         }
 
         .menu-button:hover {
             background-color: var(--surface-container);
         }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .header-title {
             font-size: 18px;
-            font-weight: 400;
+            font-weight: 500;
             color: var(--on-surface);
-            cursor: pointer;
-        }
-
-        .logo-icon {
-            width: 24px;
-            height: 24px;
-            background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
         }
 
         .header-right {
-            margin-left: auto;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -145,149 +331,28 @@
             color: var(--on-surface-variant);
             cursor: pointer;
             padding: 8px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: 50%;
             transition: background-color 0.2s;
-            min-width: 40px;
-            min-height: 40px;
         }
 
         .theme-toggle:hover {
             background-color: var(--surface-container);
         }
 
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: var(--header-height);
-            width: var(--sidebar-width);
-            height: calc(100vh - var(--header-height) - var(--footer-height));
-            background: var(--surface);
-            border-right: 1px solid var(--outline-variant);
-            padding: 16px;
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-            z-index: 999;
-        }
-
-        .sidebar.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .new-chat-button {
-            width: 100%;
-            background: var(--primary-blue);
-            color: white;
-            border: none;
-            border-radius: 24px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 16px;
-            transition: background-color 0.2s;
-            min-height: 44px;
-        }
-
-        .new-chat-button:hover {
-            background: var(--primary-blue-hover);
-        }
-
-        .chat-history {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .chat-item {
-            padding: 12px 16px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 14px;
-            color: var(--on-surface-variant);
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-height: 44px;
-            position: relative;
-        }
-
-        .chat-item:hover {
-            background-color: var(--surface-container);
-        }
-
-        .chat-item.active {
-            background-color: var(--surface-container);
-            color: var(--on-surface);
-        }
-
-        .chat-item-title {
+        /* Content Area */
+        .content-area {
             flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .chat-item-date {
-            font-size: 12px;
-            color: var(--on-surface-variant);
-            opacity: 0.7;
-        }
-
-        .delete-chat-btn {
-            background: none;
-            border: none;
-            color: var(--on-surface-variant);
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 50%;
-            opacity: 0;
-            transition: all 0.2s;
-            min-width: 24px;
-            min-height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chat-item:hover .delete-chat-btn {
-            opacity: 1;
-        }
-
-        .delete-chat-btn:hover {
-            background: var(--outline);
-            color: var(--on-surface);
-        }
-
-        /* Main Content */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            margin-top: var(--header-height);
-            height: calc(100vh - var(--header-height));
             display: flex;
             flex-direction: column;
-            transition: margin-left 0.3s ease;
-        }
-
-        .main-content.sidebar-collapsed {
-            margin-left: 0;
+            overflow: hidden;
         }
 
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            padding-bottom: calc(var(--footer-height) + 120px); /* Add space for input area */
         }
 
         .welcome-screen {
@@ -365,6 +430,7 @@
             flex-direction: column;
             gap: 20px;
             margin-bottom: 20px;
+            flex: 1;
         }
 
         .message {
@@ -464,19 +530,13 @@
         .input-area {
             background: var(--surface);
             border-top: 1px solid var(--outline-variant);
-            padding: 8px 16px;
-            position: fixed;
-            bottom: var(--footer-height);
-            left: 0;
-            right: 0;
-            z-index: 900;
-    /* Remove margin-bottom completely */
+            padding: 16px 20px;
+            flex-shrink: 0;
         }
 
         .input-container {
             max-width: 800px;
             margin: 0 auto;
-            position: relative;
         }
 
         .input-wrapper {
@@ -537,7 +597,6 @@
             cursor: not-allowed;
         }
 
-        /* Action Buttons */
         .action-buttons {
             display: none;
             justify-content: center;
@@ -581,22 +640,47 @@
             background: var(--primary-blue-hover);
         }
 
-        /* Footer */
-        .footer {
-            height: var(--footer-height);
-            background: var(--surface);
-            border-top: 1px solid var(--outline-variant);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 16px;
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
             position: fixed;
-            bottom: 0;
+            top: 0;
             left: 0;
             right: 0;
-            z-index: 1000;
-            font-size: 12px; /* Reduced font size */
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 200;
+        }
+
+        /* Loading Animation */
+        .inline-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 20px;
             color: var(--on-surface-variant);
+            font-style: italic;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--primary-blue);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
         }
 
         /* Popup */
@@ -610,7 +694,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 2000;
+            z-index: 1000;
             padding: 20px;
         }
 
@@ -665,7 +749,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 2000;
+            z-index: 1000;
             padding: 20px;
         }
 
@@ -749,110 +833,87 @@
             left: 0;
         }
 
-        /* Status */
-        .status-indicator {
-            position: fixed;
-            bottom: calc(var(--footer-height) + 16px);
-            right: 16px;
-            background: var(--surface-container);
-            border: 1px solid var(--outline-variant);
-            border-radius: 24px;
-            padding: 8px 16px;
-            font-size: 14px;
-            color: var(--on-surface-variant);
-            display: none;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 1500;
-        }
-
-        .typing-indicator {
-            display: flex;
-            gap: 4px;
-        }
-
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--primary-blue);
-            border-radius: 50%;
-            animation: typing 1.4s infinite ease-in-out;
-        }
-
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typing {
-            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-            40% { transform: scale(1); opacity: 1; }
-        }
-
         /* Mobile Responsive */
         @media (max-width: 768px) {
             :root {
-                --sidebar-width: 100vw;
+                --sidebar-width: 280px;
                 --header-height: 56px;
-                --footer-height: 36px; /* Even smaller on mobile */
             }
 
-            .header {
-                justify-content: space-between;
-                padding: 0 12px;
+            .app-container {
+                position: relative;
             }
-            
-            .header-left {
-                position: static;
-                order: 1;
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 300;
+                transform: translateX(-100%);
             }
-            
-            .logo {
-                position: absolute;
-                left: 50%;
-                transform: translateX(-50%);
+
+            .sidebar.mobile-show {
+                transform: translateX(0);
+            }
+
+            .main-area {
+                width: 100vw;
+            }
+
+            .menu-button {
+                display: flex;
+            }
+
+            .header-title {
                 font-size: 16px;
-                justify-content: center;
-                order: 2;
-            }
-            
-            .header-right {
-                position: static;
-                margin-left: 0;
-                order: 3;
             }
 
-            .main-content {
-                margin-left: 0;
+            .sidebar-overlay.mobile-show {
+                display: block;
             }
 
             .chat-container {
-                padding: 12px;
-                padding-bottom: calc(var(--footer-height) + 100px); /* Adjusted for mobile */
+                padding: 16px;
             }
 
             .input-area {
-                padding: 6px 12px; /* Reduced mobile padding */
-                bottom: var(--footer-height);
+                padding: 12px 16px;
             }
 
-            .footer {
-                font-size: 11px; /* Even smaller on mobile */
+            .welcome-title {
+                font-size: 28px;
+            }
+
+            .welcome-subtitle {
+                font-size: 14px;
+            }
+
+            .example-prompts {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .example-prompt {
+                padding: 12px;
+                min-height: 70px;
+            }
+
+            .message-content {
+                max-width: 90%;
+                padding: 12px 16px;
+            }
+
+            .action-buttons {
+                gap: 6px;
+            }
+
+            .action-button {
+                padding: 6px 12px;
+                font-size: 13px;
             }
         }
 
         @media (max-width: 480px) {
-            .header-left {
-                gap: 8px;
-            }
-
-            .logo {
-                font-size: 14px;
-            }
-
-            .logo-text {
-                display: none;
-            }
-
             .version-badge {
                 font-size: 11px;
                 padding: 3px 6px;
@@ -872,10 +933,6 @@
 
             .message-content {
                 padding: 10px 14px;
-            }
-
-            .footer {
-                font-size: 12px;
             }
         }
 
@@ -901,155 +958,145 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--on-surface-variant);
         }
-
-        /* Sidebar overlay for mobile */
-        .sidebar-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            z-index: 1400;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar-overlay.show {
-                display: block;
-            }
-        }
-
-        .inline-loading {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 16px 20px;
-            color: var(--on-surface-variant);
-            font-style: italic;
-        }
-
-        .inline-loading .typing-indicator {
-            display: flex;
-            gap: 4px;
-        }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-left">
-            <button class="menu-button" id="menuToggle">
-                <span class="material-symbols-outlined">menu</span>
-            </button>
-            <div class="logo">
-                <div class="logo-icon">I</div>
-                <span class="logo-text">InkDrive Studio</span>
-            </div>
-        </div>
-        <div class="header-right">
-            <div class="version-badge" id="versionBadge">V1.0.0</div>
-            <button class="theme-toggle" id="themeToggle">
-                <span class="material-symbols-outlined">dark_mode</span>
-            </button>
-        </div>
-    </header>
+    <div class="app-container">
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <button class="new-chat-button" id="newChatBtn">
-            <span class="material-symbols-outlined">add</span>
-            New Article
-        </button>
-        
-        <div class="chat-history" id="chatHistory">
-            <!-- Chat history will be populated here -->
-        </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main-content" id="mainContent">
-        <div class="chat-container" id="chatContainer">
-            <!-- Welcome Screen -->
-            <div class="welcome-screen" id="welcomeScreen">
-                <h1 class="welcome-title">InkDrive Studio</h1>
-                <p class="welcome-subtitle">Transform your ideas into comprehensive, SEO-optimized articles with AI assistance</p>
-                
-                <div class="example-prompts">
-                    <div class="example-prompt" data-prompt="The Future of Remote Work and its Impact on Company Culture">
-                        <div class="example-prompt-title">Remote Work Evolution</div>
-                        <div class="example-prompt-desc">Explore how remote work is reshaping modern business culture</div>
-                    </div>
-                    <div class="example-prompt" data-prompt="Sustainable Technology: Green Innovations Shaping Tomorrow">
-                        <div class="example-prompt-title">Green Technology</div>
-                        <div class="example-prompt-desc">Discover sustainable innovations driving environmental change</div>
-                    </div>
-                    <div class="example-prompt" data-prompt="The Psychology of User Experience Design">
-                        <div class="example-prompt-title">UX Psychology</div>
-                        <div class="example-prompt-desc">Understanding the mental models behind great design</div>
-                    </div>
-                    <div class="example-prompt" data-prompt="Artificial Intelligence in Healthcare: Opportunities and Challenges">
-                        <div class="example-prompt-title">AI in Healthcare</div>
-                        <div class="example-prompt-desc">Examining AI's transformative role in medical innovation</div>
-                    </div>
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">I</div>
+                    <span>InkDrive</span>
                 </div>
+                <button class="sidebar-close" id="sidebarClose">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
 
-            <!-- Chat Messages -->
-            <div class="chat-messages" id="chatMessages">
-                <!-- Messages will be dynamically added here -->
-            </div>
-        </div>
-
-        <!-- Input Area -->
-        <div class="input-area">
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <textarea 
-                        id="chatInput" 
-                        class="chat-input" 
-                        placeholder="Enter your article topic or refinement instruction..."
-                        rows="1"
-                    ></textarea>
-                    <button class="send-button" id="sendButton">
-                        <span class="material-symbols-outlined">send</span>
-                    </button>
-                </div>
-                
-                <div class="action-buttons" id="actionButtons">
-                    <button class="action-button" id="refineBtn">
-                        <span class="material-symbols-outlined">edit</span>
-                        Refine Article
-                    </button>
-                    <button class="action-button" id="downloadDocxBtn">
-                        <span class="material-symbols-outlined">download</span>
-                        Download DOCX
-                    </button>
-                    <button class="action-button primary" id="newArticleBtn">
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <div class="sidebar-item active" id="chatItem">
+                        <span class="material-symbols-outlined">chat</span>
+                        <span>Chat</span>
+                    </div>
+                    <div class="sidebar-item" id="newArticleItem">
                         <span class="material-symbols-outlined">add</span>
-                        New Article
+                        <span>New Article</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-divider"></div>
+
+                <div class="history-section">
+                    <div class="history-header" id="historyToggle">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="material-symbols-outlined">history</span>
+                            <span>History</span>
+                        </div>
+                        <span class="material-symbols-outlined" id="historyArrow">expand_more</span>
+                    </div>
+                    <div class="history-items" id="historyItems">
+                        <!-- History items will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-footer-text">
+                    InkDrive AI may make mistakes, so double-check outputs.
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Area -->
+        <div class="main-area" id="mainArea">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-button" id="menuToggle">
+                        <span class="material-symbols-outlined">menu</span>
                     </button>
+                    <div class="header-title">InkDrive Studio</div>
+                </div>
+                <div class="header-right">
+                    <div class="version-badge" id="versionBadge">V1.0.0</div>
+                    <button class="theme-toggle" id="themeToggle">
+                        <span class="material-symbols-outlined">dark_mode</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="chat-container" id="chatContainer">
+                    <!-- Welcome Screen -->
+                    <div class="welcome-screen" id="welcomeScreen">
+                        <h1 class="welcome-title">InkDrive Studio</h1>
+                        <p class="welcome-subtitle">Transform your ideas into comprehensive, SEO-optimized articles with AI assistance</p>
+                        
+                        <div class="example-prompts">
+                            <div class="example-prompt" data-prompt="The Future of Remote Work and its Impact on Company Culture">
+                                <div class="example-prompt-title">Remote Work Evolution</div>
+                                <div class="example-prompt-desc">Explore how remote work is reshaping modern business culture</div>
+                            </div>
+                            <div class="example-prompt" data-prompt="Sustainable Technology: Green Innovations Shaping Tomorrow">
+                                <div class="example-prompt-title">Green Technology</div>
+                                <div class="example-prompt-desc">Discover sustainable innovations driving environmental change</div>
+                            </div>
+                            <div class="example-prompt" data-prompt="The Psychology of User Experience Design">
+                                <div class="example-prompt-title">UX Psychology</div>
+                                <div class="example-prompt-desc">Understanding the mental models behind great design</div>
+                            </div>
+                            <div class="example-prompt" data-prompt="Artificial Intelligence in Healthcare: Opportunities and Challenges">
+                                <div class="example-prompt-title">AI in Healthcare</div>
+                                <div class="example-prompt-desc">Examining AI's transformative role in medical innovation</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Messages will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <div class="input-container">
+                        <div class="input-wrapper">
+                            <textarea 
+                                id="chatInput" 
+                                class="chat-input" 
+                                placeholder="Enter your article topic or refinement instruction..."
+                                rows="1"
+                            ></textarea>
+                            <button class="send-button" id="sendButton">
+                                <span class="material-symbols-outlined">send</span>
+                            </button>
+                        </div>
+                        
+                        <div class="action-buttons" id="actionButtons">
+                            <button class="action-button" id="refineBtn">
+                                <span class="material-symbols-outlined">edit</span>
+                                Refine Article
+                            </button>
+                            <button class="action-button" id="downloadDocxBtn">
+                                <span class="material-symbols-outlined">download</span>
+                                Download DOCX
+                            </button>
+                            <button class="action-button primary" id="newArticleBtn">
+                                <span class="material-symbols-outlined">add</span>
+                                New Article
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <span>InkDrive 2025 • Powered by AI</span>
-    </footer>
-
-    <!-- Remove or hide the old status indicator -->
-    <div class="status-indicator" id="statusIndicator" style="display: none !important;">
-        <div class="typing-indicator">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-        </div>
-        <span id="statusText">Generating article...</span>
     </div>
 
     <!-- Refinement Used Popup -->
@@ -1097,33 +1144,38 @@
         // UI Elements
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
-        const mainContent = document.getElementById('mainContent');
+        const mainArea = document.getElementById('mainArea');
         const themeToggle = document.getElementById('themeToggle');
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         const welcomeScreen = document.getElementById('welcomeScreen');
         const chatMessages = document.getElementById('chatMessages');
         const actionButtons = document.getElementById('actionButtons');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const statusText = document.getElementById('statusText');
-        const newChatBtn = document.getElementById('newChatBtn');
-        const newArticleBtn = document.getElementById('newArticleBtn');
         const refineBtn = document.getElementById('refineBtn');
         const downloadDocxBtn = document.getElementById('downloadDocxBtn');
-        const chatHistory = document.getElementById('chatHistory');
+        const newArticleBtn = document.getElementById('newArticleBtn');
         const versionBadge = document.getElementById('versionBadge');
         const changelogModal = document.getElementById('changelogModal');
         const closeChangelog = document.getElementById('closeChangelog');
         const refinementPopup = document.getElementById('refinementPopup');
         const dismissPopup = document.getElementById('dismissPopup');
+        
+        // Sidebar elements
+        const chatItem = document.getElementById('chatItem');
+        const newArticleItem = document.getElementById('newArticleItem');
+        const historyToggle = document.getElementById('historyToggle');
+        const historyArrow = document.getElementById('historyArrow');
+        const historyItems = document.getElementById('historyItems');
 
         // State
-        let currentState = 'welcome'; // 'welcome', 'generating', 'article-ready', 'refining'
+        let currentState = 'welcome';
         let rawArticleText = '';
         let hasRefined = false;
         let currentChatId = null;
         let chats = JSON.parse(localStorage.getItem('inkdrive_chats') || '[]');
+        let historyExpanded = true;
 
         // Initialize
         loadChatHistory();
@@ -1134,22 +1186,52 @@
             chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
         });
 
-        // Sidebar toggle
+        // Sidebar toggle functionality
         menuToggle.addEventListener('click', () => {
             const isMobile = window.innerWidth <= 768;
             if (isMobile) {
-                sidebar.classList.toggle('show');
-                sidebarOverlay.classList.toggle('show');
+                sidebar.classList.add('mobile-show');
+                sidebarOverlay.classList.add('mobile-show');
             } else {
                 sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('sidebar-collapsed');
+                mainArea.classList.toggle('sidebar-collapsed');
             }
         });
 
-        // Sidebar overlay click (mobile)
+        // Sidebar close button
+        sidebarClose.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-show');
+            sidebarOverlay.classList.remove('mobile-show');
+        });
+
+        // Close mobile sidebar
         sidebarOverlay.addEventListener('click', () => {
-            sidebar.classList.remove('show');
-            sidebarOverlay.classList.remove('show');
+            sidebar.classList.remove('mobile-show');
+            sidebarOverlay.classList.remove('mobile-show');
+        });
+
+        function closeMobileSidebar() {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('mobile-show');
+                sidebarOverlay.classList.remove('mobile-show');
+            }
+        }
+
+        // Sidebar navigation
+        chatItem.addEventListener('click', () => {
+            closeMobileSidebar();
+        });
+
+        newArticleItem.addEventListener('click', () => {
+            resetToWelcome();
+            closeMobileSidebar();
+        });
+
+        // History toggle
+        historyToggle.addEventListener('click', () => {
+            historyExpanded = !historyExpanded;
+            historyItems.style.display = historyExpanded ? 'block' : 'none';
+            historyArrow.textContent = historyExpanded ? 'expand_less' : 'expand_more';
         });
 
         // Theme toggle
@@ -1210,7 +1292,7 @@
             const existingIndex = chats.findIndex(chat => chat.id === chatId);
             const chatData = {
                 id: chatId,
-                title: title.substring(0, 50),
+                title: title.substring(0, 30),
                 messages: messages,
                 rawText: rawText,
                 hasRefined: refined,
@@ -1224,7 +1306,6 @@
                 chats.unshift(chatData);
             }
 
-            // Keep only last 50 chats
             if (chats.length > 50) {
                 chats = chats.slice(0, 50);
             }
@@ -1263,6 +1344,7 @@
             }
 
             updateChatHistoryUI();
+            closeMobileSidebar();
         }
 
         function deleteChat(chatId) {
@@ -1277,35 +1359,29 @@
         }
 
         function loadChatHistory() {
-            chatHistory.innerHTML = '';
+            historyItems.innerHTML = '';
             
             chats.forEach(chat => {
-                const chatItem = document.createElement('div');
-                chatItem.className = `chat-item ${currentChatId === chat.id ? 'active' : ''}`;
-                chatItem.innerHTML = `
-                    <span class="material-symbols-outlined">article</span>
-                    <div class="chat-item-title">${chat.title}</div>
-                    <div class="chat-item-date">${chat.date}</div>
-                    <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">
-                        <span class="material-symbols-outlined">delete</span>
+                const historyItem = document.createElement('div');
+                historyItem.className = `history-item ${currentChatId === chat.id ? 'active' : ''}`;
+                historyItem.innerHTML = `
+                    <div class="history-item-title">${chat.title}</div>
+                    <div class="history-item-date">${chat.date}</div>
+                    <button class="delete-history-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
                     </button>
                 `;
                 
-                chatItem.addEventListener('click', () => {
+                historyItem.addEventListener('click', () => {
                     loadChat(chat.id);
-                    // Close sidebar on mobile
-                    if (window.innerWidth <= 768) {
-                        sidebar.classList.remove('show');
-                        sidebarOverlay.classList.remove('show');
-                    }
                 });
                 
-                chatHistory.appendChild(chatItem);
+                historyItems.appendChild(historyItem);
             });
         }
 
         function updateChatHistoryUI() {
-            document.querySelectorAll('.chat-item').forEach(item => {
+            document.querySelectorAll('.history-item').forEach(item => {
                 item.classList.remove('active');
             });
             
@@ -1338,16 +1414,6 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Show status
-        function showStatus(text) {
-            statusText.textContent = text;
-            statusIndicator.style.display = 'flex';
-        }
-
-        function hideStatus() {
-            statusIndicator.style.display = 'none';
-        }
-
         // Switch to chat view
         function switchToChatView() {
             welcomeScreen.style.display = 'none';
@@ -1369,7 +1435,6 @@
             sendButton.disabled = false;
             refineBtn.disabled = false;
             refineBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>Refine Article';
-            hideStatus();
             updateChatHistoryUI();
         }
 
@@ -1380,7 +1445,19 @@
             
             switchToChatView();
             addMessage(topic, true);
-            showStatus('Generating article and finding images...');
+            
+            // Show inline loading
+            addMessage(`
+                <div class="inline-loading">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                    <span>Generating article and finding images...</span>
+                </div>
+            `);
+            
             sendButton.disabled = true;
 
             try {
@@ -1393,25 +1470,32 @@
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
+                // Remove loading message
+                const loadingMessage = chatMessages.lastElementChild;
+                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                    loadingMessage.remove();
+                }
+
                 rawArticleText = data.raw_text;
                 addMessage(data.article_html);
                 currentState = 'article-ready';
                 actionButtons.style.display = 'flex';
-                hideStatus();
                 
-                // Save chat
                 const messages = [
                     { content: topic, isUser: true },
                     { content: data.article_html, isUser: false }
                 ];
                 saveChat(currentChatId, topic, messages, rawArticleText, false);
                 
-                // Update placeholder for refinement
                 chatInput.placeholder = 'Enter refinement instruction (e.g., "Add more examples" or "Make it shorter")...';
                 
             } catch (error) {
+                // Remove loading message
+                const loadingMessage = chatMessages.lastElementChild;
+                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                    loadingMessage.remove();
+                }
                 addMessage(`❌ Error: ${error.message}`);
-                hideStatus();
                 currentState = 'welcome';
             } finally {
                 sendButton.disabled = false;
@@ -1427,7 +1511,19 @@
 
             currentState = 'refining';
             addMessage(instruction, true);
-            showStatus('Refining your article...');
+            
+            // Show inline loading
+            addMessage(`
+                <div class="inline-loading">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                    <span>Refining your article...</span>
+                </div>
+            `);
+            
             sendButton.disabled = true;
             refineBtn.disabled = true;
 
@@ -1444,6 +1540,12 @@
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
+                // Remove loading message
+                const loadingMessage = chatMessages.lastElementChild;
+                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                    loadingMessage.remove();
+                }
+
                 rawArticleText = data.raw_text;
                 addMessage(data.article_html);
                 hasRefined = true;
@@ -1451,9 +1553,7 @@
                 refineBtn.disabled = true;
                 sendButton.disabled = true;
                 currentState = 'article-ready';
-                hideStatus();
                 
-                // Update chat
                 const chat = chats.find(c => c.id === currentChatId);
                 if (chat) {
                     chat.messages.push({ content: instruction, isUser: true });
@@ -1463,13 +1563,16 @@
                     saveChat(currentChatId, chat.title, chat.messages, rawArticleText, true);
                 }
                 
-                // Show popup
                 refinementPopup.style.display = 'flex';
                 chatInput.placeholder = 'Refinement used. Start a new article to make more changes...';
                 
             } catch (error) {
+                // Remove loading message
+                const loadingMessage = chatMessages.lastElementChild;
+                if (loadingMessage && loadingMessage.querySelector('.inline-loading')) {
+                    loadingMessage.remove();
+                }
                 addMessage(`❌ Error: ${error.message}`);
-                hideStatus();
                 sendButton.disabled = false;
                 refineBtn.disabled = false;
             }
@@ -1486,8 +1589,6 @@
                 alert('No content to download.');
                 return;
             }
-
-            showStatus(`Preparing ${format.toUpperCase()} file...`);
 
             try {
                 const htmlContent = lastAiMessage.querySelector('.message-content').innerHTML;
@@ -1518,10 +1619,8 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
-                hideStatus();
             } catch (error) {
-                statusText.textContent = `❌ Error: ${error.message}`;
-                setTimeout(hideStatus, 3000);
+                alert(`Error: ${error.message}`);
             }
         }
 
@@ -1550,32 +1649,9 @@
             }
         });
 
-        newChatBtn.addEventListener('click', () => {
-            resetToWelcome();
-            // Close sidebar on mobile
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('show');
-                sidebarOverlay.classList.remove('show');
-            }
-        });
-
         newArticleBtn.addEventListener('click', () => {
             resetToWelcome();
-            // Close sidebar on mobile
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('show');
-                sidebarOverlay.classList.remove('show');
-            }
-        });
-        
-        // Logo click to return home
-        document.querySelector('.logo').addEventListener('click', () => {
-            resetToWelcome();
-            // Close sidebar on mobile
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('show');
-                sidebarOverlay.classList.remove('show');
-            }
+            closeMobileSidebar();
         });
 
         refineBtn.addEventListener('click', () => {
@@ -1587,11 +1663,11 @@
 
         downloadDocxBtn.addEventListener('click', () => downloadFile('docx'));
 
-        // Handle window resize
+        // Window resize handling
         window.addEventListener('resize', () => {
             if (window.innerWidth > 768) {
-                sidebar.classList.remove('show');
-                sidebarOverlay.classList.remove('show');
+                sidebar.classList.remove('mobile-show');
+                sidebarOverlay.classList.remove('mobile-show');
             }
         });
 
