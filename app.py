@@ -17,6 +17,8 @@ from google.api_core import exceptions as google_exceptions
 from datetime import datetime, timedelta
 import json
 import logging
+from sqlalchemy.exc import OperationalError, DatabaseError
+import time
 
 # Import our models and forms
 from models import db, User, Article, ChatSession
@@ -33,6 +35,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'connect_timeout': 10,
+        'sslmode': 'require' if 'postgresql' in os.getenv('DATABASE_URL', '') else None
+    }
+}
 
 # Fix for Render PostgreSQL URLs
 if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
@@ -62,7 +72,33 @@ login_manager.login_message_category = 'info'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    try:
+        return User.query.get(int(user_id))
+    except Exception as e:
+        logger.error(f"Error loading user {user_id}: {e}")
+        return None
+
+# Database connection retry decorator
+def retry_db_operation(max_retries=3, delay=1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (OperationalError, DatabaseError) as e:
+                    logger.warning(f"Database operation failed (attempt {attempt + 1}/{max_retries}): {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(delay * (2 ** attempt))  # Exponential backoff
+                        continue
+                    else:
+                        logger.error(f"Database operation failed after {max_retries} attempts: {e}")
+                        raise
+                except Exception as e:
+                    logger.error(f"Unexpected error in database operation: {e}")
+                    raise
+            return None
+        return wrapper
+    return decorator
 
 # Validation check - log missing variables but don't fail
 missing_vars = []
@@ -145,8 +181,9 @@ def format_article_content(raw_markdown_text):
     final_html = markdown.markdown(hybrid_content, extensions=['fenced_code', 'tables'])
     return final_html
 
+@retry_db_operation(max_retries=3)
 def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None):
-    """Save article to database"""
+    """Save article to database with retry logic"""
     try:
         # Extract word count (rough estimate)
         word_count = len(content_raw.split())
@@ -181,7 +218,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
             # Update user's article count and monthly word count
             user = User.query.get(user_id)
             if user:
-                user.articles_generated += 1
+                user.articles_generated = (user.articles_generated or 0) + 1
                 
                 # Check if we need to reset monthly quotas
                 if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
@@ -189,7 +226,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                     user.downloads_this_month = 0
                     user.last_quota_reset = datetime.utcnow()
                 else:
-                    user.words_generated_this_month += word_count
+                    user.words_generated_this_month = (user.words_generated_this_month or 0) + word_count
         
         db.session.commit()
         return article.id
@@ -198,29 +235,41 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
         logger.error(f"Error saving article: {e}")
         return None
 
+@retry_db_operation(max_retries=2)
 def check_monthly_word_quota(user):
     """Check if user has exceeded monthly word quota"""
-    # Reset quota if it's been more than 30 days
-    if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
-        user.words_generated_this_month = 0
-        user.downloads_this_month = 0
-        user.last_quota_reset = datetime.utcnow()
-        db.session.commit()
-        return True
-    
-    return user.words_generated_this_month < MONTHLY_WORD_LIMIT
+    try:
+        # Reset quota if it's been more than 30 days
+        if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
+            user.words_generated_this_month = 0
+            user.downloads_this_month = 0
+            user.last_quota_reset = datetime.utcnow()
+            db.session.commit()
+            return True
+        
+        words_generated = user.words_generated_this_month or 0
+        return words_generated < MONTHLY_WORD_LIMIT
+    except Exception as e:
+        logger.error(f"Error checking word quota for user {user.id}: {e}")
+        return True  # Allow operation if check fails
 
+@retry_db_operation(max_retries=2)
 def check_monthly_download_quota(user):
     """Check if user has exceeded monthly download quota"""
-    # Reset quota if it's been more than 30 days
-    if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
-        user.words_generated_this_month = 0
-        user.downloads_this_month = 0
-        user.last_quota_reset = datetime.utcnow()
-        db.session.commit()
-        return True
-    
-    return user.downloads_this_month < MONTHLY_DOWNLOAD_LIMIT
+    try:
+        # Reset quota if it's been more than 30 days
+        if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
+            user.words_generated_this_month = 0
+            user.downloads_this_month = 0
+            user.last_quota_reset = datetime.utcnow()
+            db.session.commit()
+            return True
+        
+        downloads_this_month = user.downloads_this_month or 0
+        return downloads_this_month < MONTHLY_DOWNLOAD_LIMIT
+    except Exception as e:
+        logger.error(f"Error checking download quota for user {user.id}: {e}")
+        return True  # Allow operation if check fails
 
 # --- 2. AUTHENTICATION ROUTES ---
 
@@ -236,13 +285,22 @@ def auth_login():
             
             if user and user.check_password(form.password.data):
                 login_user(user, remember=form.remember_me.data)
-                user.update_last_login()
+                
+                # Safely update last login with error handling
+                try:
+                    user.update_last_login()
+                except Exception as e:
+                    logger.warning(f"Failed to update last login for user {user.id}: {e}")
+                
                 flash('Welcome back!', 'success')
                 
                 next_page = request.args.get('next')
                 return redirect(next_page) if next_page else redirect(url_for('index'))
             else:
                 flash('Invalid email or password.', 'error')
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error during login: {e}")
+            flash('Database connection issue. Please try again in a moment.', 'error')
         except Exception as e:
             logger.error(f"Login error: {e}")
             flash('An error occurred during login. Please try again.', 'error')
@@ -263,13 +321,14 @@ def auth_register():
                 flash('Email address already registered.', 'error')
                 return render_template('auth/register.html', form=form)
             
-            # Create new user
+            # Create new user with safe defaults
             user = User(
                 email=form.email.data.lower(),
                 name=form.name.data,
                 is_verified=True,  # Auto-verify for now
                 words_generated_this_month=0,
                 downloads_this_month=0,
+                articles_generated=0,
                 last_quota_reset=datetime.utcnow()
             )
             user.set_password(form.password.data)
@@ -281,6 +340,10 @@ def auth_register():
             flash('Registration successful! Welcome to InkDrive!', 'success')
             return redirect(url_for('index'))
             
+        except (OperationalError, DatabaseError) as e:
+            db.session.rollback()
+            logger.error(f"Database error during registration: {e}")
+            flash('Database connection issue. Please try again in a moment.', 'error')
         except Exception as e:
             db.session.rollback()
             logger.error(f"Registration error: {e}")
@@ -329,7 +392,7 @@ def auth_google_callback():
                 user.google_id = google_id
                 user.profile_picture = picture
             else:
-                # Create new user
+                # Create new user with safe defaults
                 user = User(
                     email=email.lower(),
                     name=name,
@@ -338,6 +401,7 @@ def auth_google_callback():
                     is_verified=True,
                     words_generated_this_month=0,
                     downloads_this_month=0,
+                    articles_generated=0,
                     last_quota_reset=datetime.utcnow()
                 )
                 db.session.add(user)
@@ -348,13 +412,22 @@ def auth_google_callback():
         
         db.session.commit()
         login_user(user)
-        user.update_last_login()
+        
+        # Safely update last login
+        try:
+            user.update_last_login()
+        except Exception as e:
+            logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
         
         return jsonify({'success': True, 'redirect': url_for('index')})
         
     except ValueError as e:
         logger.error(f"Google auth token error: {e}")
         return jsonify({'error': 'Invalid token'}), 400
+    except (OperationalError, DatabaseError) as e:
+        db.session.rollback()
+        logger.error(f"Database error during Google auth: {e}")
+        return jsonify({'error': 'Database connection issue. Please try again.'}), 500
     except Exception as e:
         db.session.rollback()
         logger.error(f"Google auth error: {e}")
@@ -375,31 +448,43 @@ def auth_logout():
 def profile_dashboard():
     """User profile dashboard"""
     try:
-        # Get user's recent articles
-        recent_articles = Article.query.filter_by(user_id=current_user.id)\
-                                     .order_by(Article.created_at.desc())\
-                                     .limit(10).all()
+        # Get user's recent articles with error handling
+        recent_articles = []
+        total_articles = 0
+        total_words = 0
+        total_downloads = 0
         
-        # Calculate stats
-        total_articles = Article.query.filter_by(user_id=current_user.id).count()
-        total_words = db.session.query(db.func.sum(Article.word_count))\
-                               .filter_by(user_id=current_user.id).scalar() or 0
-        total_downloads = db.session.query(db.func.sum(Article.download_count))\
-                                    .filter_by(user_id=current_user.id).scalar() or 0
+        try:
+            recent_articles = Article.query.filter_by(user_id=current_user.id)\
+                                         .order_by(Article.created_at.desc())\
+                                         .limit(10).all()
+            
+            # Calculate stats
+            total_articles = Article.query.filter_by(user_id=current_user.id).count()
+            total_words = db.session.query(db.func.sum(Article.word_count))\
+                                   .filter_by(user_id=current_user.id).scalar() or 0
+            total_downloads = db.session.query(db.func.sum(Article.download_count))\
+                                        .filter_by(user_id=current_user.id).scalar() or 0
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error loading dashboard data: {e}")
+            flash('Some dashboard data may not be available due to connection issues.', 'warning')
         
-        # Check if we need to reset monthly quotas
-        if current_user.last_quota_reset is None or (datetime.utcnow() - current_user.last_quota_reset) > timedelta(days=30):
-            current_user.words_generated_this_month = 0
-            current_user.downloads_this_month = 0
-            current_user.last_quota_reset = datetime.utcnow()
-            db.session.commit()
+        # Check if we need to reset monthly quotas with error handling
+        try:
+            if current_user.last_quota_reset is None or (datetime.utcnow() - current_user.last_quota_reset) > timedelta(days=30):
+                current_user.words_generated_this_month = 0
+                current_user.downloads_this_month = 0
+                current_user.last_quota_reset = datetime.utcnow()
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to reset quotas for user {current_user.id}: {e}")
         
         stats = {
             'total_articles': total_articles,
             'total_words': total_words,
             'total_downloads': total_downloads,
-            'words_this_month': current_user.words_generated_this_month,
-            'downloads_this_month': current_user.downloads_this_month,
+            'words_this_month': getattr(current_user, 'words_generated_this_month', 0) or 0,
+            'downloads_this_month': getattr(current_user, 'downloads_this_month', 0) or 0,
             'word_limit': MONTHLY_WORD_LIMIT,
             'download_limit': MONTHLY_DOWNLOAD_LIMIT,
             'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
@@ -428,6 +513,10 @@ def profile_edit():
             db.session.commit()
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('profile_dashboard'))
+        except (OperationalError, DatabaseError) as e:
+            db.session.rollback()
+            logger.error(f"Database error updating profile: {e}")
+            flash('Database connection issue. Please try again.', 'error')
         except Exception as e:
             db.session.rollback()
             logger.error(f"Profile update error: {e}")
@@ -455,6 +544,10 @@ def profile_change_password():
             db.session.commit()
             flash('Password changed successfully!', 'success')
             return redirect(url_for('profile_dashboard'))
+        except (OperationalError, DatabaseError) as e:
+            db.session.rollback()
+            logger.error(f"Database error changing password: {e}")
+            flash('Database connection issue. Please try again.', 'error')
         except Exception as e:
             db.session.rollback()
             logger.error(f"Password change error: {e}")
@@ -480,6 +573,11 @@ def profile_delete_account():
         logout_user()
         flash('Your account has been deleted successfully.', 'success')
         return redirect(url_for('index'))
+    except (OperationalError, DatabaseError) as e:
+        db.session.rollback()
+        logger.error(f"Database error deleting account: {e}")
+        flash('Database connection issue. Please try again.', 'error')
+        return redirect(url_for('profile_edit'))
     except Exception as e:
         db.session.rollback()
         logger.error(f"Account deletion error: {e}")
@@ -497,6 +595,10 @@ def profile_articles():
                                .paginate(page=page, per_page=20, error_out=False)
         
         return render_template('profile/articles.html', articles=articles)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading articles: {e}")
+        flash('Database connection issue loading articles.', 'error')
+        return redirect(url_for('profile_dashboard'))
     except Exception as e:
         logger.error(f"Articles page error: {e}")
         flash('Error loading articles.', 'error')
@@ -509,6 +611,10 @@ def article_view(article_id):
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
         return render_template('article/view.html', article=article)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading article {article_id}: {e}")
+        flash('Database connection issue loading article.', 'error')
+        return redirect(url_for('profile_articles'))
     except Exception as e:
         logger.error(f"Article view error: {e}")
         flash('Error loading article.', 'error')
@@ -520,6 +626,9 @@ def share_article(public_id):
     try:
         article = Article.query.filter_by(public_id=public_id).first_or_404()
         return render_template('article/share.html', article=article)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading shared article {public_id}: {e}")
+        return render_template('errors/500.html'), 500
     except Exception as e:
         logger.error(f"Share article error: {e}")
         return render_template('errors/404.html'), 404
@@ -638,7 +747,8 @@ def refine_article():
         if article_id and current_user.is_authenticated:
             # Check monthly word quota
             word_count = len(refined_text.split())
-            if current_user.words_generated_this_month + word_count > MONTHLY_WORD_LIMIT:
+            current_words = getattr(current_user, 'words_generated_this_month', 0) or 0
+            if current_words + word_count > MONTHLY_WORD_LIMIT:
                 return jsonify({"error": f"This refinement would exceed your monthly limit of {MONTHLY_WORD_LIMIT} words."}), 403
                 
             save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
@@ -662,15 +772,18 @@ def download_docx():
     try:
         # Update download count if article_id provided and user is authenticated
         if article_id and current_user.is_authenticated:
-            article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
-            if article:
-                # Check monthly download quota
-                if not check_monthly_download_quota(current_user):
-                    return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
-                
-                article.increment_download()
-                current_user.downloads_this_month += 1
-                db.session.commit()
+            try:
+                article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
+                if article:
+                    # Check monthly download quota
+                    if not check_monthly_download_quota(current_user):
+                        return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
+                    
+                    article.increment_download()
+                    current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
+                    db.session.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update download count: {e}")
         
         # Generate DOCX
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -737,6 +850,9 @@ def api_user_articles():
         articles = Article.query.filter_by(user_id=current_user.id)\
                                .order_by(Article.created_at.desc()).all()
         return jsonify([article.to_dict() for article in articles])
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error in API articles: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
         logger.error(f"API articles error: {e}")
         return jsonify({"error": "Failed to fetch articles"}), 500
@@ -756,12 +872,15 @@ def api_user_stats():
             'total_articles': total_articles,
             'total_words': total_words,
             'total_downloads': total_downloads,
-            'words_this_month': current_user.words_generated_this_month,
-            'downloads_this_month': current_user.downloads_this_month,
+            'words_this_month': getattr(current_user, 'words_generated_this_month', 0) or 0,
+            'downloads_this_month': getattr(current_user, 'downloads_this_month', 0) or 0,
             'word_limit': MONTHLY_WORD_LIMIT,
             'download_limit': MONTHLY_DOWNLOAD_LIMIT,
             'member_since': current_user.created_at.isoformat() if current_user.created_at else None
         })
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error in API stats: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
         logger.error(f"API stats error: {e}")
         return jsonify({"error": "Failed to fetch stats"}), 500
@@ -792,11 +911,14 @@ def api_download_article(article_id):
         
         # Update download count
         article.increment_download()
-        current_user.downloads_this_month += 1
+        current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
         db.session.commit()
         
         return send_file(file_stream, as_attachment=True, download_name=filename, 
                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error in API download: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
         logger.error(f"API download error: {e}")
         return jsonify({"error": "Failed to download article"}), 500
@@ -813,6 +935,13 @@ def internal_error(error):
     logger.error(f"Internal server error: {error}")
     return render_template('errors/500.html'), 500
 
+@app.errorhandler(OperationalError)
+def database_error(error):
+    db.session.rollback()
+    logger.error(f"Database operational error: {error}")
+    flash('Database connection issue. Please try again in a moment.', 'error')
+    return redirect(url_for('index'))
+
 # --- 7. DATABASE INITIALIZATION ---
 
 def init_db():
@@ -821,6 +950,16 @@ def init_db():
         with app.app_context():
             db.create_all()
             logger.info("Database tables created successfully")
+            
+            # Run migrations to ensure schema is up to date
+            try:
+                from migrations import run_migrations
+                run_migrations()
+            except ImportError:
+                logger.warning("Migrations module not found, skipping migrations")
+            except Exception as e:
+                logger.warning(f"Migration error (non-fatal): {e}")
+                
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
