@@ -17,7 +17,7 @@ from google.api_core import exceptions as google_exceptions
 from datetime import datetime
 import json
 import logging
-from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects import registry
 
 # Import our models and forms
 from models import db, User, Article, ChatSession
@@ -39,8 +39,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 logger.info(f"SQLALCHEMY_DATABASE_URI before conversion: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
 # Update the database URI to use psycopg explicitly
-if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql+psycopg://', 1)
+if app.config['SQLALCHEMY_DATABASE_URI']:
+    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql+psycopg://', 1)
+    elif app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgresql://', 'postgresql+psycopg://', 1)
 
 # Log the database URI after conversion
 logger.info(f"SQLALCHEMY_DATABASE_URI after conversion: {app.config['SQLALCHEMY_DATABASE_URI']}")
@@ -53,7 +56,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 
 # Force SQLAlchemy to use psycopg dialect
-postgresql.dialects.registry.register("postgresql.psycopg", "sqlalchemy.dialects.postgresql.psycopg", "PsycopgDialect")
+registry.register("postgresql.psycopg", "sqlalchemy.dialects.postgresql.psycopg", "PsycopgDialect")
 logger.info("Registered psycopg dialect for PostgreSQL")
 
 # Initialize SQLAlchemy
