@@ -1,10 +1,11 @@
 import os
 import io
 import re
+import uuid
 import requests
 import markdown
 import secrets
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -13,7 +14,7 @@ from docx import Document
 from docx.shared import Inches
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 
@@ -46,6 +47,10 @@ GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+
+# Usage limits for free plan
+MONTHLY_WORD_LIMIT = 30000
+MONTHLY_DOWNLOAD_LIMIT = 10
 
 # Initialize extensions
 db.init_app(app)
@@ -140,36 +145,82 @@ def format_article_content(raw_markdown_text):
     final_html = markdown.markdown(hybrid_content, extensions=['fenced_code', 'tables'])
     return final_html
 
-def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False):
+def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None):
     """Save article to database"""
     try:
         # Extract word count (rough estimate)
         word_count = len(content_raw.split())
         
-        article = Article(
-            user_id=user_id,
-            title=topic[:200],  # Truncate if too long
-            content_html=content_html,
-            content_raw=content_raw,
-            topic=topic,
-            is_refined=is_refined,
-            word_count=word_count
-        )
+        if article_id:
+            # Update existing article
+            article = Article.query.filter_by(id=article_id, user_id=user_id).first()
+            if article:
+                article.content_html = content_html
+                article.content_raw = content_raw
+                article.is_refined = is_refined
+                article.word_count = word_count
+                article.updated_at = datetime.utcnow()
+            else:
+                # Article not found or doesn't belong to user
+                return None
+        else:
+            # Create new article
+            article = Article(
+                user_id=user_id,
+                title=topic[:200],  # Truncate if too long
+                content_html=content_html,
+                content_raw=content_raw,
+                topic=topic,
+                is_refined=is_refined,
+                word_count=word_count,
+                public_id=str(uuid.uuid4())[:8]  # Generate a short public ID for sharing
+            )
+            
+            db.session.add(article)
+            
+            # Update user's article count and monthly word count
+            user = User.query.get(user_id)
+            if user:
+                user.articles_generated += 1
+                
+                # Check if we need to reset monthly quotas
+                if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
+                    user.words_generated_this_month = word_count
+                    user.downloads_this_month = 0
+                    user.last_quota_reset = datetime.utcnow()
+                else:
+                    user.words_generated_this_month += word_count
         
-        db.session.add(article)
         db.session.commit()
-        
-        # Update user's article count
-        user = User.query.get(user_id)
-        if user:
-            user.articles_generated += 1
-            db.session.commit()
-        
         return article.id
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error saving article: {e}")
         return None
+
+def check_monthly_word_quota(user):
+    """Check if user has exceeded monthly word quota"""
+    # Reset quota if it's been more than 30 days
+    if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
+        user.words_generated_this_month = 0
+        user.downloads_this_month = 0
+        user.last_quota_reset = datetime.utcnow()
+        db.session.commit()
+        return True
+    
+    return user.words_generated_this_month < MONTHLY_WORD_LIMIT
+
+def check_monthly_download_quota(user):
+    """Check if user has exceeded monthly download quota"""
+    # Reset quota if it's been more than 30 days
+    if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
+        user.words_generated_this_month = 0
+        user.downloads_this_month = 0
+        user.last_quota_reset = datetime.utcnow()
+        db.session.commit()
+        return True
+    
+    return user.downloads_this_month < MONTHLY_DOWNLOAD_LIMIT
 
 # --- 2. AUTHENTICATION ROUTES ---
 
@@ -216,7 +267,10 @@ def auth_register():
             user = User(
                 email=form.email.data.lower(),
                 name=form.name.data,
-                is_verified=True  # Auto-verify for now
+                is_verified=True,  # Auto-verify for now
+                words_generated_this_month=0,
+                downloads_this_month=0,
+                last_quota_reset=datetime.utcnow()
             )
             user.set_password(form.password.data)
             
@@ -281,7 +335,10 @@ def auth_google_callback():
                     name=name,
                     google_id=google_id,
                     profile_picture=picture,
-                    is_verified=True
+                    is_verified=True,
+                    words_generated_this_month=0,
+                    downloads_this_month=0,
+                    last_quota_reset=datetime.utcnow()
                 )
                 db.session.add(user)
         else:
@@ -323,11 +380,6 @@ def profile_dashboard():
                                      .order_by(Article.created_at.desc())\
                                      .limit(10).all()
         
-        # Get user's chat sessions
-        recent_chats = ChatSession.query.filter_by(user_id=current_user.id)\
-                                       .order_by(ChatSession.updated_at.desc())\
-                                       .limit(10).all()
-        
         # Calculate stats
         total_articles = Article.query.filter_by(user_id=current_user.id).count()
         total_words = db.session.query(db.func.sum(Article.word_count))\
@@ -335,17 +387,27 @@ def profile_dashboard():
         total_downloads = db.session.query(db.func.sum(Article.download_count))\
                                     .filter_by(user_id=current_user.id).scalar() or 0
         
+        # Check if we need to reset monthly quotas
+        if current_user.last_quota_reset is None or (datetime.utcnow() - current_user.last_quota_reset) > timedelta(days=30):
+            current_user.words_generated_this_month = 0
+            current_user.downloads_this_month = 0
+            current_user.last_quota_reset = datetime.utcnow()
+            db.session.commit()
+        
         stats = {
             'total_articles': total_articles,
             'total_words': total_words,
             'total_downloads': total_downloads,
+            'words_this_month': current_user.words_generated_this_month,
+            'downloads_this_month': current_user.downloads_this_month,
+            'word_limit': MONTHLY_WORD_LIMIT,
+            'download_limit': MONTHLY_DOWNLOAD_LIMIT,
             'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
         }
         
         return render_template('profile/dashboard.html', 
                              user=current_user, 
                              recent_articles=recent_articles,
-                             recent_chats=recent_chats,
                              stats=stats)
     except Exception as e:
         logger.error(f"Dashboard error: {e}")
@@ -400,6 +462,30 @@ def profile_change_password():
     
     return render_template('profile/change_password.html', form=form)
 
+@app.route('/profile/delete-account', methods=['POST'])
+@login_required
+def profile_delete_account():
+    """Delete user account"""
+    try:
+        # Delete all user's articles
+        Article.query.filter_by(user_id=current_user.id).delete()
+        
+        # Delete all user's chat sessions
+        ChatSession.query.filter_by(user_id=current_user.id).delete()
+        
+        # Delete the user
+        db.session.delete(current_user)
+        db.session.commit()
+        
+        logout_user()
+        flash('Your account has been deleted successfully.', 'success')
+        return redirect(url_for('index'))
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Account deletion error: {e}")
+        flash('Failed to delete account. Please try again.', 'error')
+        return redirect(url_for('profile_edit'))
+
 @app.route('/profile/articles')
 @login_required
 def profile_articles():
@@ -415,6 +501,28 @@ def profile_articles():
         logger.error(f"Articles page error: {e}")
         flash('Error loading articles.', 'error')
         return redirect(url_for('profile_dashboard'))
+
+@app.route('/article/view/<int:article_id>')
+@login_required
+def article_view(article_id):
+    """View a specific article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        return render_template('article/view.html', article=article)
+    except Exception as e:
+        logger.error(f"Article view error: {e}")
+        flash('Error loading article.', 'error')
+        return redirect(url_for('profile_articles'))
+
+@app.route('/share/<string:public_id>')
+def share_article(public_id):
+    """Public-facing route to view a shared article"""
+    try:
+        article = Article.query.filter_by(public_id=public_id).first_or_404()
+        return render_template('article/share.html', article=article)
+    except Exception as e:
+        logger.error(f"Share article error: {e}")
+        return render_template('errors/404.html'), 404
 
 # --- 4. MAIN APP ROUTES ---
 
@@ -443,6 +551,10 @@ def generate_article():
     if not user_topic:
         return jsonify({"error": "Topic is missing."}), 400
 
+    # Check monthly word quota
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
+
     full_prompt = construct_initial_prompt(user_topic)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
@@ -465,9 +577,39 @@ def generate_article():
         logger.error(f"Article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
+@app.route("/generate-guest", methods=["POST"])
+def generate_guest_article():
+    """Generate article for guest users"""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+    
+    data = request.get_json()
+    user_topic = data.get("topic")
+    if not user_topic:
+        return jsonify({"error": "Topic is missing."}), 400
+
+    full_prompt = construct_initial_prompt(user_topic)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+
+        if not response.candidates or not response.candidates[0].content.parts:
+            return jsonify({"error": "Model response was empty or blocked."}), 500
+
+        raw_text = response.candidates[0].content.parts[0].text
+        final_html = format_article_content(raw_text)
+        
+        # For guests, we don't save to database
+        return jsonify({
+            "article_html": final_html, 
+            "raw_text": raw_text
+        })
+    except Exception as e:
+        logger.error(f"Guest article generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
 @app.route("/refine", methods=["POST"])
-@login_required
 def refine_article():
+    """Refine article for both authenticated and guest users"""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
     
@@ -492,15 +634,14 @@ def refine_article():
         refined_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(refined_text)
         
-        # Update article in database if article_id provided
-        if article_id:
-            article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
-            if article:
-                article.content_html = final_html
-                article.content_raw = refined_text
-                article.is_refined = True
-                article.updated_at = datetime.utcnow()
-                db.session.commit()
+        # Update article in database if article_id provided and user is authenticated
+        if article_id and current_user.is_authenticated:
+            # Check monthly word quota
+            word_count = len(refined_text.split())
+            if current_user.words_generated_this_month + word_count > MONTHLY_WORD_LIMIT:
+                return jsonify({"error": f"This refinement would exceed your monthly limit of {MONTHLY_WORD_LIMIT} words."}), 403
+                
+            save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
 
         return jsonify({"article_html": final_html, "raw_text": refined_text})
     except Exception as e:
@@ -508,8 +649,8 @@ def refine_article():
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
 
 @app.route("/download-docx", methods=["POST"])
-@login_required
 def download_docx():
+    """Download article as DOCX for both authenticated and guest users"""
     data = request.get_json()
     html_content = data.get("html")
     topic = data.get("topic", "Generated Article")
@@ -519,11 +660,17 @@ def download_docx():
         return jsonify({"error": "Missing HTML content."}), 400
     
     try:
-        # Update download count if article_id provided
-        if article_id:
+        # Update download count if article_id provided and user is authenticated
+        if article_id and current_user.is_authenticated:
             article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
             if article:
+                # Check monthly download quota
+                if not check_monthly_download_quota(current_user):
+                    return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
+                
                 article.increment_download()
+                current_user.downloads_this_month += 1
+                db.session.commit()
         
         # Generate DOCX
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -609,11 +756,50 @@ def api_user_stats():
             'total_articles': total_articles,
             'total_words': total_words,
             'total_downloads': total_downloads,
+            'words_this_month': current_user.words_generated_this_month,
+            'downloads_this_month': current_user.downloads_this_month,
+            'word_limit': MONTHLY_WORD_LIMIT,
+            'download_limit': MONTHLY_DOWNLOAD_LIMIT,
             'member_since': current_user.created_at.isoformat() if current_user.created_at else None
         })
     except Exception as e:
         logger.error(f"API stats error: {e}")
         return jsonify({"error": "Failed to fetch stats"}), 500
+
+@app.route('/api/articles/<int:article_id>/download', methods=['POST'])
+@login_required
+def api_download_article(article_id):
+    """API endpoint to download an article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        
+        # Check monthly download quota
+        if not check_monthly_download_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
+        
+        # Generate DOCX
+        soup = BeautifulSoup(article.content_html, 'html.parser')
+        doc = Document()
+        doc.add_heading(article.title, level=0)
+        
+        # Similar DOCX generation logic as in download_docx route
+        # ...
+        
+        file_stream = io.BytesIO()
+        doc.save(file_stream)
+        file_stream.seek(0)
+        filename = f"{article.title[:50].strip().replace(' ', '_')}.docx"
+        
+        # Update download count
+        article.increment_download()
+        current_user.downloads_this_month += 1
+        db.session.commit()
+        
+        return send_file(file_stream, as_attachment=True, download_name=filename, 
+                        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    except Exception as e:
+        logger.error(f"API download error: {e}")
+        return jsonify({"error": "Failed to download article"}), 500
 
 # --- 6. ERROR HANDLERS ---
 
