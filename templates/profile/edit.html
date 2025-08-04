@@ -270,6 +270,79 @@
                 justify-content: center;
             }
         }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    .modal {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 400px;
+        width: 100%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 500;
+        margin-bottom: 16px;
+        color: var(--on-surface);
+    }
+
+    .modal-message {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+        margin-bottom: 24px;
+        line-height: 1.5;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    .btn-danger {
+        background: var(--error-red);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c62828;
+    }
+
+    .danger-section {
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--outline-variant);
+    }
+
+    .danger-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--error-red);
+        margin-bottom: 16px;
+    }
+
+    .danger-text {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+        margin-bottom: 16px;
+        line-height: 1.5;
+    }
     </style>
 </head>
 <body>
@@ -320,12 +393,41 @@
                         <span class="material-symbols-outlined">close</span>
                         Cancel
                     </a>
+                    <a href="{{ url_for('profile_change_password') }}" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">lock</span>
+                        Change Password
+                    </a>
                     <button type="submit" class="btn btn-primary">
                         <span class="material-symbols-outlined">save</span>
                         Save Changes
                     </button>
                 </div>
             </form>
+        </div>
+
+        <div class="form-container" style="margin-top: 24px;">
+            <div class="danger-section">
+                <h2 class="danger-title">Danger Zone</h2>
+                <p class="danger-text">Once you delete your account, there is no going back. Please be certain.</p>
+                <button type="button" class="btn btn-danger" id="deleteAccountBtn">
+                    <span class="material-symbols-outlined">delete_forever</span>
+                    Delete Account
+                </button>
+            </div>
+        </div>
+
+        <!-- Add confirmation modal -->
+        <div class="modal-overlay" id="deleteAccountModal">
+            <div class="modal">
+                <h2 class="modal-title">Delete Account</h2>
+                <p class="modal-message">Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                    <form method="POST" action="{{ url_for('profile_delete_account') }}">
+                        <button type="submit" class="btn btn-danger">Delete Account</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -347,6 +449,25 @@
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
             if (savedTheme === 'auto') {
                 applyTheme('auto');
+            }
+        });
+
+        // Delete account modal functionality
+        const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+        const deleteAccountModal = document.getElementById('deleteAccountModal');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+
+        deleteAccountBtn.addEventListener('click', () => {
+            deleteAccountModal.style.display = 'flex';
+        });
+
+        cancelDeleteBtn.addEventListener('click', () => {
+            deleteAccountModal.style.display = 'none';
+        });
+
+        deleteAccountModal.addEventListener('click', (e) => {
+            if (e.target === deleteAccountModal) {
+                deleteAccountModal.style.display = 'none';
             }
         });
     </script>
