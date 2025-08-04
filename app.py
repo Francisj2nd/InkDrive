@@ -15,10 +15,15 @@ import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 from datetime import datetime
 import json
+import logging
 
 # Import our models and forms
 from models import db, User, Article, ChatSession
 from forms import LoginForm, RegisterForm, ProfileForm, ChangePasswordForm
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
@@ -27,6 +32,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Fix for Render PostgreSQL URLs
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
 
 # Google OAuth Configuration
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
@@ -50,24 +59,28 @@ login_manager.login_message_category = 'info'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Validation check - ensure the critical variables are set
-if not GCP_PROJECT_ID or not UNSPLASH_ACCESS_KEY or not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-    missing_vars = []
-    if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
-    if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
-    if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
-    print(f"⚠️  Warning: Missing environment variables: {', '.join(missing_vars)}")
+# Validation check - log missing variables but don't fail
+missing_vars = []
+if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
+if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
+if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
+
+if missing_vars:
+    logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
 
 # --- Initialize genai client with Vertex AI ---
+CLIENT = None
 try:
-    genai.configure()
-    CLIENT = genai.GenerativeModel(model_name=MODEL_NAME)
-    print(f"✅ Google AI Client Initialized Successfully via Vertex AI.")
+    if GCP_PROJECT_ID and os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        genai.configure()
+        CLIENT = genai.GenerativeModel(model_name=MODEL_NAME)
+        logger.info("Google AI Client Initialized Successfully via Vertex AI.")
+    else:
+        logger.warning("Google AI client not initialized - missing credentials")
 except Exception as e:
-    print(f"❌ Failed to initialize Google AI client. Error details: {e}")
-    CLIENT = None
+    logger.error(f"Failed to initialize Google AI client: {e}")
 
-# Helper functions (same as before)
+# Helper functions
 def construct_initial_prompt(topic):
     article_requirements = """
 **Article Requirements:**
@@ -96,7 +109,8 @@ def get_image_url(query):
             photo = data["results"][0]
             return {"url": photo["urls"]["regular"], "attribution": f"Photo by {photo['user']['name']} on Unsplash"}
         return None
-    except requests.RequestException:
+    except requests.RequestException as e:
+        logger.error(f"Error fetching image: {e}")
         return None
 
 def format_article_content(raw_markdown_text):
@@ -154,7 +168,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
         return article.id
     except Exception as e:
         db.session.rollback()
-        print(f"Error saving article: {e}")
+        logger.error(f"Error saving article: {e}")
         return None
 
 # --- 2. AUTHENTICATION ROUTES ---
@@ -166,17 +180,21 @@ def auth_login():
     
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.lower()).first()
-        
-        if user and user.check_password(form.password.data):
-            login_user(user, remember=form.remember_me.data)
-            user.update_last_login()
-            flash('Welcome back!', 'success')
+        try:
+            user = User.query.filter_by(email=form.email.data.lower()).first()
             
-            next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('index'))
-        else:
-            flash('Invalid email or password.', 'error')
+            if user and user.check_password(form.password.data):
+                login_user(user, remember=form.remember_me.data)
+                user.update_last_login()
+                flash('Welcome back!', 'success')
+                
+                next_page = request.args.get('next')
+                return redirect(next_page) if next_page else redirect(url_for('index'))
+            else:
+                flash('Invalid email or password.', 'error')
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            flash('An error occurred during login. Please try again.', 'error')
     
     return render_template('auth/login.html', form=form)
 
@@ -187,29 +205,31 @@ def auth_register():
     
     form = RegisterForm()
     if form.validate_on_submit():
-        # Check if user already exists
-        existing_user = User.query.filter_by(email=form.email.data.lower()).first()
-        if existing_user:
-            flash('Email address already registered.', 'error')
-            return render_template('auth/register.html', form=form)
-        
-        # Create new user
-        user = User(
-            email=form.email.data.lower(),
-            name=form.name.data,
-            is_verified=True  # Auto-verify for now
-        )
-        user.set_password(form.password.data)
-        
         try:
+            # Check if user already exists
+            existing_user = User.query.filter_by(email=form.email.data.lower()).first()
+            if existing_user:
+                flash('Email address already registered.', 'error')
+                return render_template('auth/register.html', form=form)
+            
+            # Create new user
+            user = User(
+                email=form.email.data.lower(),
+                name=form.name.data,
+                is_verified=True  # Auto-verify for now
+            )
+            user.set_password(form.password.data)
+            
             db.session.add(user)
             db.session.commit()
             
             login_user(user)
             flash('Registration successful! Welcome to InkDrive!', 'success')
             return redirect(url_for('index'))
+            
         except Exception as e:
             db.session.rollback()
+            logger.error(f"Registration error: {e}")
             flash('Registration failed. Please try again.', 'error')
     
     return render_template('auth/register.html', form=form)
@@ -221,8 +241,6 @@ def auth_google():
         flash('Google authentication is not configured.', 'error')
         return redirect(url_for('auth_login'))
     
-    # In a real implementation, you'd use a proper OAuth library
-    # For now, we'll handle it via JavaScript on the frontend
     return render_template('auth/google_auth.html')
 
 @app.route('/auth/google/callback', methods=['POST'])
@@ -278,20 +296,12 @@ def auth_google_callback():
         return jsonify({'success': True, 'redirect': url_for('index')})
         
     except ValueError as e:
+        logger.error(f"Google auth token error: {e}")
         return jsonify({'error': 'Invalid token'}), 400
     except Exception as e:
         db.session.rollback()
-         Return the actual error message to the browser
-        return jsonify({'error': f"An unexpected error occurred: {str(e)}"}), 500
-```This change will make the pop-up show you the real database error (e.g., "OperationalError: unable to open database file"), which can be very helpful for debugging.
-
-### Summary of Actions
-
-1.  **Add the `DATABASE_URL` environment variable in your Render dashboard.** This is the most critical step and will likely fix both errors.
-2.  Wait for your application to redeploy with the new setting.
-3.  Try registering with both email and Google again.
-
-If you continue to see errors, the improved error logging from Step 2, combined with checking the **"Logs"** tab for your service in Render, will give you the exact reason for the failure.
+        logger.error(f"Google auth error: {e}")
+        return jsonify({'error': 'Authentication failed'}), 500
 
 @app.route('/auth/logout')
 @login_required
@@ -307,35 +317,40 @@ def auth_logout():
 @login_required
 def profile_dashboard():
     """User profile dashboard"""
-    # Get user's recent articles
-    recent_articles = Article.query.filter_by(user_id=current_user.id)\
-                                 .order_by(Article.created_at.desc())\
-                                 .limit(10).all()
-    
-    # Get user's chat sessions
-    recent_chats = ChatSession.query.filter_by(user_id=current_user.id)\
-                                   .order_by(ChatSession.updated_at.desc())\
-                                   .limit(10).all()
-    
-    # Calculate stats
-    total_articles = Article.query.filter_by(user_id=current_user.id).count()
-    total_words = db.session.query(db.func.sum(Article.word_count))\
-                           .filter_by(user_id=current_user.id).scalar() or 0
-    total_downloads = db.session.query(db.func.sum(Article.download_count))\
-                                .filter_by(user_id=current_user.id).scalar() or 0
-    
-    stats = {
-        'total_articles': total_articles,
-        'total_words': total_words,
-        'total_downloads': total_downloads,
-        'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
-    }
-    
-    return render_template('profile/dashboard.html', 
-                         user=current_user, 
-                         recent_articles=recent_articles,
-                         recent_chats=recent_chats,
-                         stats=stats)
+    try:
+        # Get user's recent articles
+        recent_articles = Article.query.filter_by(user_id=current_user.id)\
+                                     .order_by(Article.created_at.desc())\
+                                     .limit(10).all()
+        
+        # Get user's chat sessions
+        recent_chats = ChatSession.query.filter_by(user_id=current_user.id)\
+                                       .order_by(ChatSession.updated_at.desc())\
+                                       .limit(10).all()
+        
+        # Calculate stats
+        total_articles = Article.query.filter_by(user_id=current_user.id).count()
+        total_words = db.session.query(db.func.sum(Article.word_count))\
+                               .filter_by(user_id=current_user.id).scalar() or 0
+        total_downloads = db.session.query(db.func.sum(Article.download_count))\
+                                    .filter_by(user_id=current_user.id).scalar() or 0
+        
+        stats = {
+            'total_articles': total_articles,
+            'total_words': total_words,
+            'total_downloads': total_downloads,
+            'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
+        }
+        
+        return render_template('profile/dashboard.html', 
+                             user=current_user, 
+                             recent_articles=recent_articles,
+                             recent_chats=recent_chats,
+                             stats=stats)
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}")
+        flash('Error loading dashboard.', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
@@ -344,15 +359,16 @@ def profile_edit():
     form = ProfileForm(obj=current_user)
     
     if form.validate_on_submit():
-        current_user.name = form.name.data
-        current_user.theme_preference = form.theme_preference.data
-        
         try:
+            current_user.name = form.name.data
+            current_user.theme_preference = form.theme_preference.data
+            
             db.session.commit()
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('profile_dashboard'))
         except Exception as e:
             db.session.rollback()
+            logger.error(f"Profile update error: {e}")
             flash('Failed to update profile.', 'error')
     
     return render_template('profile/edit.html', form=form)
@@ -368,18 +384,18 @@ def profile_change_password():
     form = ChangePasswordForm()
     
     if form.validate_on_submit():
-        if not current_user.check_password(form.current_password.data):
-            flash('Current password is incorrect.', 'error')
-            return render_template('profile/change_password.html', form=form)
-        
-        current_user.set_password(form.new_password.data)
-        
         try:
+            if not current_user.check_password(form.current_password.data):
+                flash('Current password is incorrect.', 'error')
+                return render_template('profile/change_password.html', form=form)
+            
+            current_user.set_password(form.new_password.data)
             db.session.commit()
             flash('Password changed successfully!', 'success')
             return redirect(url_for('profile_dashboard'))
         except Exception as e:
             db.session.rollback()
+            logger.error(f"Password change error: {e}")
             flash('Failed to change password.', 'error')
     
     return render_template('profile/change_password.html', form=form)
@@ -388,14 +404,19 @@ def profile_change_password():
 @login_required
 def profile_articles():
     """View all user articles"""
-    page = request.args.get('page', 1, type=int)
-    articles = Article.query.filter_by(user_id=current_user.id)\
-                           .order_by(Article.created_at.desc())\
-                           .paginate(page=page, per_page=20, error_out=False)
-    
-    return render_template('profile/articles.html', articles=articles)
+    try:
+        page = request.args.get('page', 1, type=int)
+        articles = Article.query.filter_by(user_id=current_user.id)\
+                               .order_by(Article.created_at.desc())\
+                               .paginate(page=page, per_page=20, error_out=False)
+        
+        return render_template('profile/articles.html', articles=articles)
+    except Exception as e:
+        logger.error(f"Articles page error: {e}")
+        flash('Error loading articles.', 'error')
+        return redirect(url_for('profile_dashboard'))
 
-# --- 4. MAIN APP ROUTES (Updated for Authentication) ---
+# --- 4. MAIN APP ROUTES ---
 
 @app.route("/")
 def index():
@@ -415,7 +436,7 @@ def app_main():
 @login_required
 def generate_article():
     if not CLIENT:
-        return jsonify({"error": "AI client is not initialized."}), 500
+        return jsonify({"error": "AI service is not available."}), 503
     
     data = request.get_json()
     user_topic = data.get("topic")
@@ -441,13 +462,14 @@ def generate_article():
             "article_id": article_id
         })
     except Exception as e:
+        logger.error(f"Article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/refine", methods=["POST"])
 @login_required
 def refine_article():
     if not CLIENT:
-        return jsonify({"error": "AI client is not initialized."}), 500
+        return jsonify({"error": "AI service is not available."}), 503
     
     data = request.get_json()
     raw_text, refinement_prompt = data.get("raw_text"), data.get("refinement_prompt")
@@ -482,6 +504,7 @@ def refine_article():
 
         return jsonify({"article_html": final_html, "raw_text": refined_text})
     except Exception as e:
+        logger.error(f"Article refinement error: {e}")
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
 
 @app.route("/download-docx", methods=["POST"])
@@ -495,63 +518,67 @@ def download_docx():
     if not html_content:
         return jsonify({"error": "Missing HTML content."}), 400
     
-    # Update download count if article_id provided
-    if article_id:
-        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
-        if article:
-            article.increment_download()
-    
-    # Same DOCX generation logic as before
-    soup = BeautifulSoup(html_content, 'html.parser')
-    doc = Document()
-    doc.add_heading(topic, level=0)
-    
-    for element in soup.find_all(['h2', 'h3', 'p', 'div']):
-        if element.name == 'h2':
-            doc.add_heading(element.get_text(), level=2)
-        elif element.name == 'h3':
-            doc.add_heading(element.get_text(), level=3)
-        elif element.name == 'p' and not element.find_parents("div"):
-            doc.add_paragraph(element.get_text())
-        elif element.name == 'div' and "real-image-container" in element.get('class', []):
-            title_p = element.find('p', class_='image-title')
-            img_tag = element.find('img')
-            alt_text_p = element.find('p', class_='alt-text-display')
-            attr_p = element.find('p', class_='attribution')
+    try:
+        # Update download count if article_id provided
+        if article_id:
+            article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
+            if article:
+                article.increment_download()
+        
+        # Generate DOCX
+        soup = BeautifulSoup(html_content, 'html.parser')
+        doc = Document()
+        doc.add_heading(topic, level=0)
+        
+        for element in soup.find_all(['h2', 'h3', 'p', 'div']):
+            if element.name == 'h2':
+                doc.add_heading(element.get_text(), level=2)
+            elif element.name == 'h3':
+                doc.add_heading(element.get_text(), level=3)
+            elif element.name == 'p' and not element.find_parents("div"):
+                doc.add_paragraph(element.get_text())
+            elif element.name == 'div' and "real-image-container" in element.get('class', []):
+                title_p = element.find('p', class_='image-title')
+                img_tag = element.find('img')
+                alt_text_p = element.find('p', class_='alt-text-display')
+                attr_p = element.find('p', class_='attribution')
 
-            if title_p:
-                p = doc.add_paragraph(title_p.get_text())
-                p.alignment = 1
-                p.bold = True
+                if title_p:
+                    p = doc.add_paragraph(title_p.get_text())
+                    p.alignment = 1
+                    p.bold = True
 
-            if img_tag and img_tag.get('src'):
-                try:
-                    img_response = requests.get(img_tag['src'], stream=True)
-                    img_response.raise_for_status()
-                    doc.add_picture(io.BytesIO(img_response.content), width=Inches(5.5))
-                except requests.RequestException:
-                    doc.add_paragraph(f"[Image failed to load from {img_tag['src']}]")
+                if img_tag and img_tag.get('src'):
+                    try:
+                        img_response = requests.get(img_tag['src'], stream=True, timeout=10)
+                        img_response.raise_for_status()
+                        doc.add_picture(io.BytesIO(img_response.content), width=Inches(5.5))
+                    except requests.RequestException:
+                        doc.add_paragraph(f"[Image failed to load from {img_tag['src']}]")
 
-            if alt_text_p:
-                p = doc.add_paragraph()
-                clean_alt_text = alt_text_p.get_text()
-                if clean_alt_text.lower().startswith("alt text:"):
-                    clean_alt_text = clean_alt_text[len("Alt Text:"):].strip()
-                run = p.add_run(clean_alt_text)
-                run.italic = True
-                p.alignment = 1
+                if alt_text_p:
+                    p = doc.add_paragraph()
+                    clean_alt_text = alt_text_p.get_text()
+                    if clean_alt_text.lower().startswith("alt text:"):
+                        clean_alt_text = clean_alt_text[len("Alt Text:"):].strip()
+                    run = p.add_run(clean_alt_text)
+                    run.italic = True
+                    p.alignment = 1
 
-            if attr_p:
-                p = doc.add_paragraph(attr_p.get_text())
-                p.alignment = 1
-                p.italic = True
+                if attr_p:
+                    p = doc.add_paragraph(attr_p.get_text())
+                    p.alignment = 1
+                    p.italic = True
 
-    file_stream = io.BytesIO()
-    doc.save(file_stream)
-    file_stream.seek(0)
-    filename = f"{topic[:50].strip().replace(' ', '_')}.docx"
-    return send_file(file_stream, as_attachment=True, download_name=filename, 
-                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        file_stream = io.BytesIO()
+        doc.save(file_stream)
+        file_stream.seek(0)
+        filename = f"{topic[:50].strip().replace(' ', '_')}.docx"
+        return send_file(file_stream, as_attachment=True, download_name=filename, 
+                        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    except Exception as e:
+        logger.error(f"DOCX generation error: {e}")
+        return jsonify({"error": "Failed to generate document."}), 500
 
 # --- 5. API ROUTES FOR USER DATA ---
 
@@ -559,31 +586,62 @@ def download_docx():
 @login_required
 def api_user_articles():
     """Get user's articles via API"""
-    articles = Article.query.filter_by(user_id=current_user.id)\
-                           .order_by(Article.created_at.desc()).all()
-    return jsonify([article.to_dict() for article in articles])
+    try:
+        articles = Article.query.filter_by(user_id=current_user.id)\
+                               .order_by(Article.created_at.desc()).all()
+        return jsonify([article.to_dict() for article in articles])
+    except Exception as e:
+        logger.error(f"API articles error: {e}")
+        return jsonify({"error": "Failed to fetch articles"}), 500
 
 @app.route('/api/user/stats')
 @login_required
 def api_user_stats():
     """Get user statistics"""
-    total_articles = Article.query.filter_by(user_id=current_user.id).count()
-    total_words = db.session.query(db.func.sum(Article.word_count))\
-                           .filter_by(user_id=current_user.id).scalar() or 0
-    total_downloads = db.session.query(db.func.sum(Article.download_count))\
-                                .filter_by(user_id=current_user.id).scalar() or 0
-    
-    return jsonify({
-        'total_articles': total_articles,
-        'total_words': total_words,
-        'total_downloads': total_downloads,
-        'member_since': current_user.created_at.isoformat() if current_user.created_at else None
-    })
+    try:
+        total_articles = Article.query.filter_by(user_id=current_user.id).count()
+        total_words = db.session.query(db.func.sum(Article.word_count))\
+                               .filter_by(user_id=current_user.id).scalar() or 0
+        total_downloads = db.session.query(db.func.sum(Article.download_count))\
+                                    .filter_by(user_id=current_user.id).scalar() or 0
+        
+        return jsonify({
+            'total_articles': total_articles,
+            'total_words': total_words,
+            'total_downloads': total_downloads,
+            'member_since': current_user.created_at.isoformat() if current_user.created_at else None
+        })
+    except Exception as e:
+        logger.error(f"API stats error: {e}")
+        return jsonify({"error": "Failed to fetch stats"}), 500
 
-# --- 6. DATABASE INITIALIZATION ---
+# --- 6. ERROR HANDLERS ---
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    logger.error(f"Internal server error: {error}")
+    return render_template('errors/500.html'), 500
+
+# --- 7. DATABASE INITIALIZATION ---
+
+def init_db():
+    """Initialize database tables"""
+    try:
+        with app.app_context():
+            db.create_all()
+            logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True, port=5001)
-
+    init_db()
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port, debug=False)
+else:
+    # For production deployment
+    init_db()
