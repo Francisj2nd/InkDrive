@@ -6,7 +6,6 @@ import markdown
 import secrets
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_sqlalchemy import SQLAlchemy
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from bs4 import BeautifulSoup
@@ -17,7 +16,6 @@ from google.api_core import exceptions as google_exceptions
 from datetime import datetime
 import json
 import logging
-from sqlalchemy.dialects import registry
 
 # Import our models and forms
 from models import db, User, Article, ChatSession
@@ -32,36 +30,12 @@ app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Log the database URI for debugging
-logger.info(f"SQLALCHEMY_DATABASE_URI before conversion: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
-# Update the database URI to use psycopg explicitly
-if app.config['SQLALCHEMY_DATABASE_URI']:
-    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
-        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql+psycopg://', 1)
-    elif app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql://'):
-        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgresql://', 'postgresql+psycopg://', 1)
-
-# Log the database URI after conversion
-logger.info(f"SQLALCHEMY_DATABASE_URI after conversion: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
-# Explicitly configure SQLAlchemy to use psycopg dialect
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'connect_args': {
-        'client_encoding': 'utf8'
-    }
-}
-
-# Force SQLAlchemy to use psycopg dialect
-registry.register("postgresql.psycopg", "sqlalchemy.dialects.postgresql.psycopg", "PsycopgDialect")
-logger.info("Registered psycopg dialect for PostgreSQL")
-
-# Initialize SQLAlchemy
-db = SQLAlchemy()
-db.init_app(app)
+# Fix for Render PostgreSQL URLs
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
 
 # Google OAuth Configuration
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
@@ -74,6 +48,7 @@ MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 # Initialize extensions
+db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth_login'
@@ -86,14 +61,9 @@ def load_user(user_id):
 
 # Validation check - log missing variables but don't fail
 missing_vars = []
-if not app.config['SQLALCHEMY_DATABASE_URI']:
-    missing_vars.append("DATABASE_URL")
-if not GCP_PROJECT_ID:
-    missing_vars.append("GCP_PROJECT_ID")
-if not UNSPLASH_ACCESS_KEY:
-    missing_vars.append("UNSPLASH_ACCESS_KEY")
-if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-    missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
+if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
+if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
+if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
 
 if missing_vars:
     logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
@@ -670,7 +640,7 @@ def init_db():
 
 if __name__ == "__main__":
     init_db()
-    port = int(os.environ.get('PORT', 10000))  # Default to 10000 for Render
+    port = int(os.environ.get('PORT', 5001))
     app.run(host='0.0.0.0', port=port, debug=False)
 else:
     # For production deployment
