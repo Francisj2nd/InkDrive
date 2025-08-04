@@ -8,6 +8,7 @@ gunicorn==22.0.0
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
 WTForms==3.1.1
+email_validator
 google-auth==2.25.2
 google-auth-oauthlib==1.1.0
 google-auth-httplib2==0.1.1
@@ -38,4 +39,5 @@ PyJWT==2.8.0
 
 # Build dependency for Pillow
 setuptools==75.1.0
+
 
