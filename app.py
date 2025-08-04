@@ -31,11 +31,14 @@ app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Log the database URI for debugging
+logger.info(f"SQLALCHEMY_DATABASE_URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
 # Update the database URI to use psycopg explicitly
-if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
     app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql+psycopg://', 1)
 
 # Explicitly configure SQLAlchemy to use psycopg dialect
@@ -60,7 +63,6 @@ MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 
 # Initialize extensions
-db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth_login'
@@ -73,9 +75,14 @@ def load_user(user_id):
 
 # Validation check - log missing variables but don't fail
 missing_vars = []
-if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
-if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
-if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    missing_vars.append("DATABASE_URL")
+if not GCP_PROJECT_ID:
+    missing_vars.append("GCP_PROJECT_ID")
+if not UNSPLASH_ACCESS_KEY:
+    missing_vars.append("UNSPLASH_ACCESS_KEY")
+if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
 
 if missing_vars:
     logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
@@ -652,9 +659,8 @@ def init_db():
 
 if __name__ == "__main__":
     init_db()
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 10000))  # Default to 10000 for Render
     app.run(host='0.0.0.0', port=port, debug=False)
 else:
     # For production deployment
     init_db()
-
