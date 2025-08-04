@@ -440,6 +440,55 @@
                 flex-direction: column;
             }
         }
+
+        /* Add footer to dashboard */
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            padding: 16px;
+            color: var(--on-surface-variant);
+            font-size: 14px;
+        }
+
+        /* Fix mobile view for cards */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 16px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 16px;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .user-name {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-actions {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -509,7 +558,7 @@
                     <div class="stat-title">Words Written</div>
                 </div>
                 <div class="stat-value">{{ "{:,}".format(stats.total_words) }}</div>
-                <div class="stat-label">Across all articles</div>
+                <div class="stat-label">{{ "{:,}".format(stats.words_this_month) }}/{{ "{:,}".format(stats.word_limit) }} this month</div>
             </div>
 
             <div class="stat-card">
@@ -520,7 +569,7 @@
                     <div class="stat-title">Downloads</div>
                 </div>
                 <div class="stat-value">{{ stats.total_downloads }}</div>
-                <div class="stat-label">Articles downloaded</div>
+                <div class="stat-label">{{ stats.downloads_this_month }}/{{ stats.download_limit }} this month</div>
             </div>
 
             <div class="stat-card">
@@ -560,10 +609,13 @@
                                 </div>
                             </div>
                             <div class="article-actions">
-                                <button class="action-btn" title="Download">
+                                <button class="action-btn" title="View" onclick="window.location.href='{{ url_for('article_view', article_id=article.id) }}'">
+                                    <span class="material-symbols-outlined">visibility</span>
+                                </button>
+                                <button class="action-btn" title="Download" onclick="window.location.href='{{ url_for('api_download_article', article_id=article.id) }}'">
                                     <span class="material-symbols-outlined">download</span>
                                 </button>
-                                <button class="action-btn" title="Share">
+                                <button class="action-btn" title="Share" onclick="shareArticle('{{ article.public_id }}')">
                                     <span class="material-symbols-outlined">share</span>
                                 </button>
                             </div>
@@ -578,37 +630,10 @@
                     </div>
                 {% endif %}
             </div>
+        </div>
 
-            <!-- Recent Activity -->
-            <div class="content-section">
-                <div class="section-header">
-                    <h2 class="section-title">Recent Activity</h2>
-                </div>
-
-                {% if recent_chats %}
-                    {% for chat in recent_chats %}
-                        <div class="article-item">
-                            <div class="article-icon">
-                                <span class="material-symbols-outlined">chat</span>
-                            </div>
-                            <div class="article-info">
-                                <div class="article-title">{{ chat.title }}</div>
-                                <div class="article-meta">
-                                    {{ chat.updated_at.strftime('%b %d, %Y at %I:%M %p') }}
-                                    {% if chat.has_refined %}• Refined{% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <span class="material-symbols-outlined">history</span>
-                        </div>
-                        <p>No recent activity</p>
-                    </div>
-                {% endif %}
-            </div>
+        <div class="footer">
+            © InkDrive 2025 · Built by Francisj2nd
         </div>
     </div>
 
@@ -636,6 +661,24 @@
 
         // Sync with localStorage for consistency
         localStorage.setItem('theme', userTheme);
+    </script>
+
+    <script>
+        // Share article function
+        function shareArticle(publicId) {
+            const shareUrl = `${window.location.origin}/share/${publicId}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Check out this article',
+                    url: shareUrl
+                });
+            } else {
+                // Fallback to clipboard
+                navigator.clipboard.writeText(shareUrl);
+                alert('Article link copied to clipboard!');
+            }
+        }
     </script>
 </body>
 </html>
