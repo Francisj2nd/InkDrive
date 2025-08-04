@@ -281,7 +281,17 @@ def auth_google_callback():
         return jsonify({'error': 'Invalid token'}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Authentication failed'}), 500
+         Return the actual error message to the browser
+        return jsonify({'error': f"An unexpected error occurred: {str(e)}"}), 500
+```This change will make the pop-up show you the real database error (e.g., "OperationalError: unable to open database file"), which can be very helpful for debugging.
+
+### Summary of Actions
+
+1.  **Add the `DATABASE_URL` environment variable in your Render dashboard.** This is the most critical step and will likely fix both errors.
+2.  Wait for your application to redeploy with the new setting.
+3.  Try registering with both email and Google again.
+
+If you continue to see errors, the improved error logging from Step 2, combined with checking the **"Logs"** tab for your service in Render, will give you the exact reason for the failure.
 
 @app.route('/auth/logout')
 @login_required
@@ -576,3 +586,4 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(debug=True, port=5001)
+
