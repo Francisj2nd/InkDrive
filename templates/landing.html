@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkDrive - AI-Powered Content Creation</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234285f4'/%3E%3Cstop offset='25%25' style='stop-color:%2334a853'/%3E%3Cstop offset='50%25' style='stop-color:%23fbbc05'/%3E%3Cstop offset='100%25' style='stop-color:%23ea4335'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23grad)'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='14' font-weight='600'%3EI%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        :root {
+            --primary-blue: #1a73e8;
+            --primary-blue-hover: #1557b0;
+            --surface: #ffffff;
+            --on-surface: #202124;
+            --on-surface-variant: #5f6368;
+            --surface-variant: #f8f9fa;
+            --surface-container: #f1f3f4;
+            --outline: #dadce0;
+            --outline-variant: #e8eaed;
+            --success-green: #34a853;
+            --error-red: #ea4335;
+        }
+
+        [data-theme="dark"] {
+            --surface: #131314;
+            --surface-variant: #1e1f20;
+            --surface-container: #232627;
+            --on-surface: #e8eaed;
+            --on-surface-variant: #9aa0a6;
+            --outline: #3c4043;
+            --outline-variant: #5f6368;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .landing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary-blue);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 400;
+            margin-bottom: 24px;
+            line-height: 1.2;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            opacity: 0.9;
+            margin-bottom: 48px;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 48px;
+        }
+
+        .demo-input-container {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 8px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .demo-input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+        }
+
+        .demo-input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            font-family: inherit;
+            color: white;
+            padding: 16px 20px;
+            resize: none;
+            min-height: 24px;
+            max-height: 120px;
+            line-height: 1.5;
+        }
+
+        .demo-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .demo-send-button {
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary-blue);
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .demo-send-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(255, 255, 255, 0.3);
+        }
+
+        .demo-send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .guest-info {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .guest-info .highlight {
+            color: #fbbc05;
+            font-weight: 500;
+        }
+
+        .demo-output {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            backdrop-filter: blur(10px);
+            text-align: left;
+        }
+
+        .demo-output.show {
+            display: block;
+        }
+
+        .demo-output h3 {
+            color: white;
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .demo-output .content {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+
+        .demo-actions {
+            display: none;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .demo-actions.show {
+            display: flex;
+        }
+
+        .demo-action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+        }
+
+        .demo-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .refinement-input {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .refinement-input.show {
+            display: block;
+        }
+
+        .refinement-input-wrapper {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 6px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .refinement-textarea {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            font-family: inherit;
+            color: white;
+            padding: 12px 16px;
+            resize: none;
+            min-height: 20px;
+            max-height: 80px;
+            line-height: 1.4;
+        }
+
+        .refinement-textarea::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .refinement-send-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .refinement-send-button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .refinement-send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .refinement-limit {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .refinement-limit.used {
+            color: #fbbc05;
+        }
+
+        .cta-section {
+            margin-top: 32px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .features-section {
+            padding: 80px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            margin: 60px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .features-title {
+            font-size: 36px;
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .features-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 48px;
+            padding: 0 40px;
+        }
+
+        .feature-card {
+            text-align: center;
+            padding: 32px 24px;
+        }
+
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 24px;
+        }
+
+        .feature-title {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .feature-description {
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .loading-indicator {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-style: italic;
+        }
+
+        .loading-indicator.show {
+            display: flex;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .landing-container {
+                padding: 20px 16px;
+            }
+
+            .header {
+                margin-bottom: 40px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .logo-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+
+            .auth-buttons {
+                gap: 8px;
+            }
+
+            .btn {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+
+            .hero-title {
+                font-size: 36px;
+            }
+
+            .hero-subtitle {
+                font-size: 18px;
+                margin-bottom: 32px;
+            }
+
+            .demo-section {
+                margin-bottom: 32px;
+            }
+
+            .features-section {
+                padding: 60px 0;
+                margin: 40px 0;
+            }
+
+            .features-title {
+                font-size: 28px;
+            }
+
+            .features-subtitle {
+                font-size: 16px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 32px;
+                padding: 0 20px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">I</div>
+                <span>InkDrive</span>
+            </div>
+            <div class="auth-buttons">
+                <a href="{{ url_for('auth_login') }}" class="btn btn-secondary">
+                    Sign In
+                </a>
+                <a href="{{ url_for('auth_register') }}" class="btn btn-primary">
+                    Get Started Free
+                </a>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <h1 class="hero-title">Transform Ideas into Articles</h1>
+            <p class="hero-subtitle">
+                Create comprehensive, SEO-optimized articles with AI assistance. 
+                Generate professional content in minutes, not hours.
+            </p>
+
+            <div class="demo-section">
+                <div class="guest-info">
+                    Try it now as a guest! You get <span class="highlight">1 free refinement</span> per session.
+                    <br>Sign up for a free account to get <span class="highlight">5 refinements</span> per article.
+                </div>
+
+                <div class="demo-input-container">
+                    <div class="demo-input-wrapper">
+                        <textarea 
+                            id="demoInput" 
+                            class="demo-input" 
+                            placeholder="Enter your article topic... (e.g., 'The Future of Remote Work')"
+                            rows="1"
+                        ></textarea>
+                        <button class="demo-send-button" id="demoSendButton">
+                            <span class="material-symbols-outlined">send</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                    <span>Generating your article...</span>
+                </div>
+
+                <div class="demo-output" id="demoOutput">
+                    <h3>Generated Article Preview</h3>
+                    <div class="content" id="demoContent">
+                        <!-- Generated content will appear here -->
+                    </div>
+                </div>
+
+                <div class="demo-actions" id="demoActions">
+                    <button class="demo-action-btn" id="downloadBtn">
+                        <span class="material-symbols-outlined">download</span>
+                        Download DOCX
+                    </button>
+                    <button class="demo-action-btn" id="refineBtn">
+                        <span class="material-symbols-outlined">edit</span>
+                        Refine Article
+                    </button>
+                    <button class="demo-action-btn" id="newArticleBtn">
+                        <span class="material-symbols-outlined">add</span>
+                        New Article
+                    </button>
+                </div>
+
+                <div class="refinement-input" id="refinementInput">
+                    <div class="refinement-input-wrapper">
+                        <textarea 
+                            id="refinementTextarea" 
+                            class="refinement-textarea" 
+                            placeholder="How would you like to refine this article?"
+                            rows="1"
+                        ></textarea>
+                        <button class="refinement-send-button" id="refinementSendButton">
+                            <span class="material-symbols-outlined">send</span>
+                        </button>
+                    </div>
+                    <div class="refinement-limit" id="refinementLimit">
+                        1 refinement remaining
+                    </div>
+                </div>
+            </div>
+
+            <div class="cta-section">
+                <div class="cta-buttons">
+                    <a href="{{ url_for('auth_register') }}" class="btn btn-primary">
+                        Get Started Free
+                    </a>
+                    <a href="{{ url_for('auth_login') }}" class="btn btn-secondary">
+                        Sign In
+                    </a>
+                </div>
+            </div>
+        </main>
+
+        <div class="features-section">
+            <h2 class="features-title">Why Choose InkDrive?</h2>
+            <p class="features-subtitle">Powerful features to supercharge your content creation</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">AI-Powered Writing</h3>
+                    <p class="feature-description">
+                        Generate high-quality, comprehensive articles on any topic with advanced AI technology.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3 class="feature-title">SEO Optimized</h3>
+                    <p class="feature-description">
+                        Every article includes SEO keywords, meta descriptions, and optimized structure for better rankings.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🖼️</div>
+                    <h3 class="feature-title">Smart Images</h3>
+                    <p class="feature-description">
+                        Automatically find and integrate relevant, high-quality images from Unsplash into your articles.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">✏️</div>
+                    <h3 class="feature-title">Refinement Tools</h3>
+                    <p class="feature-description">
+                        Fine-tune your articles with AI-powered refinement to match your exact requirements.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📄</div>
+                    <h3 class="feature-title">Export Options</h3>
+                    <p class="feature-description">
+                        Download your articles as DOCX files, ready for publishing or further editing.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">Analytics Dashboard</h3>
+                    <p class="feature-description">
+                        Track your writing progress with detailed analytics and article management tools.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elements
+            const demoInput = document.getElementById('demoInput');
+            const demoSendButton = document.getElementById('demoSendButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const demoOutput = document.getElementById('demoOutput');
+            const demoContent = document.getElementById('demoContent');
+            const demoActions = document.getElementById('demoActions');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const refineBtn = document.getElementById('refineBtn');
+            const newArticleBtn = document.getElementById('newArticleBtn');
+            const refinementInput = document.getElementById('refinementInput');
+            const refinementTextarea = document.getElementById('refinementTextarea');
+            const refinementSendButton = document.getElementById('refinementSendButton');
+            const refinementLimit = document.getElementById('refinementLimit');
+
+            // State
+            let currentArticleHtml = '';
+            let currentArticleRaw = '';
+            let currentTopic = '';
+            let refinementsUsed = 0;
+            const maxRefinements = 1; // Guest limit
+
+            // Auto-resize textareas
+            function autoResize(textarea) {
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+            }
+
+            demoInput.addEventListener('input', () => autoResize(demoInput));
+            refinementTextarea.addEventListener('input', () => autoResize(refinementTextarea));
+
+            // Generate article
+            async function generateArticle(topic) {
+                if (!topic.trim()) return;
+
+                currentTopic = topic;
+                loadingIndicator.classList.add('show');
+                demoSendButton.disabled = true;
+                demoOutput.classList.remove('show');
+                demoActions.classList.remove('show');
+
+                try {
+                    const response = await fetch('/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ topic: topic })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error);
+
+                    currentArticleHtml = data.article_html;
+                    currentArticleRaw = data.raw_text;
+
+                    // Show preview (first 500 characters)
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = currentArticleHtml;
+                    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+                    const preview = textContent.substring(0, 500) + (textContent.length > 500 ? '...' : '');
+                    
+                    demoContent.innerHTML = `
+                        <p><strong>Topic:</strong> ${topic}</p>
+                        <p><strong>Preview:</strong></p>
+                        <p>${preview}</p>
+                        <p><em>Full article available after download or refinement.</em></p>
+                    `;
+
+                    demoOutput.classList.add('show');
+                    demoActions.classList.add('show');
+
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    loadingIndicator.classList.remove('show');
+                    demoSendButton.disabled = false;
+                }
+            }
+
+            // Refine article
+            async function refineArticle(instruction) {
+                if (!instruction.trim() || refinementsUsed >= maxRefinements) return;
+
+                loadingIndicator.classList.add('show');
+                refinementSendButton.disabled = true;
+
+                try {
+                    const response = await fetch('/refine', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            raw_text: currentArticleRaw, 
+                            refinement_prompt: instruction 
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error);
+
+                    currentArticleHtml = data.article_html;
+                    currentArticleRaw = data.raw_text;
+                    refinementsUsed++;
+
+                    // Update preview
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = currentArticleHtml;
+                    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+                    const preview = textContent.substring(0, 500) + (textContent.length > 500 ? '...' : '');
+                    
+                    demoContent.innerHTML = `
+                        <p><strong>Topic:</strong> ${currentTopic}</p>
+                        <p><strong>Refined Preview:</strong></p>
+                        <p>${preview}</p>
+                        <p><em>Full refined article available for download.</em></p>
+                    `;
+
+                    // Update refinement UI
+                    updateRefinementUI();
+                    refinementInput.classList.remove('show');
+                    refinementTextarea.value = '';
+
+                    if (refinementsUsed >= maxRefinements) {
+                        alert('Refinement used! Sign up for a free account to get 5 refinements per article.');
+                    }
+
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    loadingIndicator.classList.remove('show');
+                    refinementSendButton.disabled = false;
+                }
+            }
+
+            // Download article
+            async function downloadArticle() {
+                if (!currentArticleHtml) return;
+
+                try {
+                    const response = await fetch('/download-docx', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            html: currentArticleHtml, 
+                            topic: currentTopic 
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Download failed.');
+                    }
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${currentTopic.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+
+            // Reset for new article
+            function resetDemo() {
+                currentArticleHtml = '';
+                currentArticleRaw = '';
+                currentTopic = '';
+                refinementsUsed = 0;
+                demoInput.value = '';
+                refinementTextarea.value = '';
+                demoOutput.classList.remove('show');
+                demoActions.classList.remove('show');
+                refinementInput.classList.remove('show');
+                updateRefinementUI();
+            }
+
+            // Update refinement UI
+            function updateRefinementUI() {
+                const remaining = maxRefinements - refinementsUsed;
+                refinementLimit.textContent = `${remaining} refinement${remaining === 1 ? '' : 's'} remaining`;
+                
+                if (remaining === 0) {
+                    refinementLimit.classList.add('used');
+                    refineBtn.disabled = true;
+                    refineBtn.style.opacity = '0.5';
+                } else {
+                    refinementLimit.classList.remove('used');
+                    refineBtn.disabled = false;
+                    refineBtn.style.opacity = '1';
+                }
+            }
+
+            // Event listeners
+            demoSendButton.addEventListener('click', () => {
+                generateArticle(demoInput.value.trim());
+            });
+
+            demoInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    generateArticle(demoInput.value.trim());
+                }
+            });
+
+            downloadBtn.addEventListener('click', downloadArticle);
+
+            refineBtn.addEventListener('click', () => {
+                if (refinementsUsed < maxRefinements) {
+                    refinementInput.classList.add('show');
+                    refinementTextarea.focus();
+                }
+            });
+
+            newArticleBtn.addEventListener('click', resetDemo);
+
+            refinementSendButton.addEventListener('click', () => {
+                refineArticle(refinementTextarea.value.trim());
+            });
+
+            refinementTextarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    refineArticle(refinementTextarea.value.trim());
+                }
+            });
+
+            // Theme detection
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+
+            // Initialize
+            updateRefinementUI();
+        });
+    </script>
+</body>
+</html>
