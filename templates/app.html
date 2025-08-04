@@ -573,6 +573,7 @@
             max-width: 85%;
             word-wrap: break-word;
             position: relative;
+            font-size: 15px; /* Reduced from default size */
         }
 
         .message.user .message-content {
@@ -1380,10 +1381,15 @@
                 <div class="version-header">Version 1.0.2</div>
                 <div class="version-date">August 2025</div>
                 <ul class="version-changes">
-                    <li>Removed New Article button from input area</li>
-                    <li>Added refinement limits: 1 for guests, 5 for free users</li>
-                    <li>Improved theme synchronization across profile pages</li>
-                    <li>Enhanced analytics display in dashboard</li>
+                    <li>Mobile optimization for landing page and dashboard</li>
+                    <li>Fixed chat auto-scrolling in message interface</li>
+                    <li>Improved user avatar display with personalized initials</li>
+                    <li>Added article sharing functionality with public links</li>
+                    <li>Implemented user account management with password change and deletion</li>
+                    <li>Added usage quotas for free plan (30,000 words/month, 10 downloads/month)</li>
+                    <li>Fixed guest article generation flow</li>
+                    <li>Added proper article viewing functionality</li>
+                    <li>Added footers to landing page and dashboard</li>
                 </ul>
             </div>
 
@@ -1809,9 +1815,12 @@
                 `;
             }
             
+            // Update user avatar to use first initial of user's name
+            const userInitial = isUser ? '{{ current_user.name[0].upper() if current_user.is_authenticated else "U" }}' : 'I';
+            
             messageDiv.innerHTML = `
                 <div class="message-avatar ${isUser ? 'user-avatar' : 'ai-avatar'}">
-                    ${isUser ? 'U' : 'I'}
+                    ${userInitial}
                 </div>
                 <div class="message-content">
                     ${content}
@@ -1820,6 +1829,8 @@
             `;
             
             chatMessages.appendChild(messageDiv);
+            
+            // Auto-scroll to the latest message
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
             return messageId;
