@@ -24,6 +24,11 @@ class User(UserMixin, db.Model):
     articles_generated = db.Column(db.Integer, default=0)
     subscription_tier = db.Column(db.String(20), default='free')  # 'free', 'premium', 'enterprise'
     
+    # Usage quotas
+    words_generated_this_month = db.Column(db.Integer, default=0)
+    downloads_this_month = db.Column(db.Integer, default=0)
+    last_quota_reset = db.Column(db.DateTime, nullable=True)
+    
     # Relationships
     articles = db.relationship('Article', backref='author', lazy=True, cascade='all, delete-orphan')
     chat_sessions = db.relationship('ChatSession', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -55,7 +60,9 @@ class User(UserMixin, db.Model):
             'last_login': self.last_login.isoformat() if self.last_login else None,
             'articles_generated': self.articles_generated,
             'subscription_tier': self.subscription_tier,
-            'theme_preference': self.theme_preference
+            'theme_preference': self.theme_preference,
+            'words_generated_this_month': self.words_generated_this_month,
+            'downloads_this_month': self.downloads_this_month
         }
 
 class Article(db.Model):
@@ -71,6 +78,7 @@ class Article(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_refined = db.Column(db.Boolean, default=False)
     word_count = db.Column(db.Integer, default=0)
+    public_id = db.Column(db.String(20), unique=True, nullable=False, default=lambda: str(datetime.utcnow().timestamp())[:10])
     
     # SEO and metadata
     meta_description = db.Column(db.String(160), nullable=True)
@@ -103,7 +111,8 @@ class Article(db.Model):
             'word_count': self.word_count,
             'rating': self.rating,
             'is_favorite': self.is_favorite,
-            'download_count': self.download_count
+            'download_count': self.download_count,
+            'public_id': self.public_id
         }
 
 class ChatSession(db.Model):
