@@ -612,7 +612,7 @@
                                 <button class="action-btn" title="View" onclick="window.location.href='{{ url_for('article_view', article_id=article.id) }}'">
                                     <span class="material-symbols-outlined">visibility</span>
                                 </button>
-                                <button class="action-btn" title="Download" onclick="window.location.href='{{ url_for('api_download_article', article_id=article.id) }}'">
+                                <button class="action-btn" title="Download" onclick="downloadArticle('{{ article.id }}')">
                                     <span class="material-symbols-outlined">download</span>
                                 </button>
                                 <button class="action-btn" title="Share" onclick="shareArticle('{{ article.public_id }}')">
@@ -661,9 +661,37 @@
 
         // Sync with localStorage for consistency
         localStorage.setItem('theme', userTheme);
-    </script>
 
-    <script>
+        // Download article function - Fixed to use POST request
+        async function downloadArticle(articleId) {
+            try {
+                const response = await fetch(`/api/articles/${articleId}/download`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Download failed');
+                }
+
+                // Handle the file download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `article_${articleId}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Failed to download article: ' + error.message);
+            }
+        }
+
         // Share article function
         function shareArticle(publicId) {
             const shareUrl = `${window.location.origin}/share/${publicId}`;
