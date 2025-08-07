@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Profile - InkDrive</title>
+    <title>Profile Settings - InkDrive</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234285f4'/%3E%3Cstop offset='25%25' style='stop-color:%2334a853'/%3E%3Cstop offset='50%25' style='stop-color:%23fbbc05'/%3E%3Cstop offset='100%25' style='stop-color:%23ea4335'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23grad)'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='14' font-weight='600'%3EI%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
@@ -95,11 +95,31 @@
             color: var(--on-surface);
         }
 
-        .form-container {
+        .settings-container {
             background: var(--surface);
             border-radius: 16px;
             padding: 32px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .settings-section {
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--outline-variant);
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 16px;
         }
 
         .form-group {
@@ -114,23 +134,7 @@
             margin-bottom: 8px;
         }
 
-        .form-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--outline-variant);
-            border-radius: 8px;
-            font-size: 16px;
-            font-family: inherit;
-            background: var(--surface);
-            color: var(--on-surface);
-            transition: border-color 0.2s;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary-blue);
-        }
-
+        .form-input,
         .form-select {
             width: 100%;
             padding: 12px 16px;
@@ -140,10 +144,10 @@
             font-family: inherit;
             background: var(--surface);
             color: var(--on-surface);
-            cursor: pointer;
             transition: border-color 0.2s;
         }
 
+        .form-input:focus,
         .form-select:focus {
             outline: none;
             border-color: var(--primary-blue);
@@ -153,15 +157,6 @@
             font-size: 12px;
             color: var(--on-surface-variant);
             margin-top: 4px;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid var(--outline-variant);
         }
 
         .btn {
@@ -195,6 +190,21 @@
 
         .btn-secondary:hover {
             background: var(--outline);
+        }
+
+        .btn-danger {
+            background: var(--error-red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c62828;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
         }
 
         .flash-messages {
@@ -244,6 +254,32 @@
             border-color: #1d4ed8;
         }
 
+        .danger-zone {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+
+        [data-theme="dark"] .danger-zone {
+            background: #7f1d1d;
+            border-color: #991b1b;
+        }
+
+        .danger-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--error-red);
+            margin-bottom: 8px;
+        }
+
+        .danger-description {
+            font-size: 14px;
+            color: var(--on-surface-variant);
+            margin-bottom: 16px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 16px;
@@ -257,7 +293,7 @@
                 font-size: 20px;
             }
 
-            .form-container {
+            .settings-container {
                 padding: 24px;
             }
 
@@ -270,79 +306,6 @@
                 justify-content: center;
             }
         }
-
-    /* Modal styles */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 20px;
-    }
-
-    .modal {
-        background: var(--surface);
-        border-radius: 16px;
-        padding: 24px;
-        max-width: 400px;
-        width: 100%;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    }
-
-    .modal-title {
-        font-size: 18px;
-        font-weight: 500;
-        margin-bottom: 16px;
-        color: var(--on-surface);
-    }
-
-    .modal-message {
-        font-size: 14px;
-        color: var(--on-surface-variant);
-        margin-bottom: 24px;
-        line-height: 1.5;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-    }
-
-    .btn-danger {
-        background: var(--error-red);
-        color: white;
-    }
-
-    .btn-danger:hover {
-        background: #c62828;
-    }
-
-    .danger-section {
-        margin-top: 48px;
-        padding-top: 24px;
-        border-top: 1px solid var(--outline-variant);
-    }
-
-    .danger-title {
-        font-size: 16px;
-        font-weight: 500;
-        color: var(--error-red);
-        margin-bottom: 16px;
-    }
-
-    .danger-text {
-        font-size: 14px;
-        color: var(--on-surface-variant);
-        margin-bottom: 16px;
-        line-height: 1.5;
-    }
     </style>
 </head>
 <body>
@@ -362,30 +325,38 @@
                 <button class="back-btn" onclick="window.location.href='{{ url_for('profile_dashboard') }}'">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </button>
-                <h1 class="header-title">Edit Profile</h1>
+                <h1 class="header-title">Profile Settings</h1>
             </div>
         </div>
 
-        <div class="form-container">
+        <div class="settings-container">
             <form method="POST">
                 {{ form.hidden_tag() }}
                 
-                <div class="form-group">
-                    {{ form.name.label(class="form-label") }}
-                    {{ form.name(class="form-input") }}
-                    {% if form.name.errors %}
-                        <div class="form-help" style="color: var(--error-red);">
-                            {% for error in form.name.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
+                <div class="settings-section">
+                    <h2 class="section-title">Personal Information</h2>
+                    
+                    <div class="form-group">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-input") }}
+                        {% if form.name.errors %}
+                            <div class="form-help" style="color: var(--error-red);">
+                                {% for error in form.name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    {{ form.theme_preference.label(class="form-label") }}
-                    {{ form.theme_preference(class="form-select") }}
-                    <div class="form-help">Choose your preferred theme for the application</div>
+                <div class="settings-section">
+                    <h2 class="section-title">Appearance</h2>
+                    
+                    <div class="form-group">
+                        {{ form.theme_preference.label(class="form-label") }}
+                        {{ form.theme_preference(class="form-select") }}
+                        <div class="form-help">Choose your preferred theme. Changes will apply across all pages.</div>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -393,51 +364,52 @@
                         <span class="material-symbols-outlined">close</span>
                         Cancel
                     </a>
-                    <a href="{{ url_for('profile_change_password') }}" class="btn btn-secondary">
-                        <span class="material-symbols-outlined">lock</span>
-                        Change Password
-                    </a>
                     <button type="submit" class="btn btn-primary">
                         <span class="material-symbols-outlined">save</span>
                         Save Changes
                     </button>
                 </div>
             </form>
-        </div>
 
-        <div class="form-container" style="margin-top: 24px;">
-            <div class="danger-section">
-                <h2 class="danger-title">Danger Zone</h2>
-                <p class="danger-text">Once you delete your account, there is no going back. Please be certain.</p>
-                <button type="button" class="btn btn-danger" id="deleteAccountBtn">
-                    <span class="material-symbols-outlined">delete_forever</span>
-                    Delete Account
-                </button>
-            </div>
-        </div>
-
-        <!-- Add confirmation modal -->
-        <div class="modal-overlay" id="deleteAccountModal">
-            <div class="modal">
-                <h2 class="modal-title">Delete Account</h2>
-                <p class="modal-message">Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.</p>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
-                    <form method="POST" action="{{ url_for('profile_delete_account') }}">
-                        <button type="submit" class="btn btn-danger">Delete Account</button>
-                    </form>
+            <div class="settings-section">
+                <h2 class="section-title">Security</h2>
+                <div class="form-group">
+                    <a href="{{ url_for('profile_change_password') }}" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">lock</span>
+                        Change Password
+                    </a>
                 </div>
+            </div>
+
+            <div class="danger-zone">
+                <h3 class="danger-title">Danger Zone</h3>
+                <p class="danger-description">
+                    Once you delete your account, there is no going back. Please be certain.
+                </p>
+                <form method="POST" action="{{ url_for('profile_delete_account') }}" 
+                      onsubmit="return confirm('Are you absolutely sure? This action cannot be undone and will permanently delete your account and all your articles.')">
+                    <button type="submit" class="btn btn-danger">
+                        <span class="material-symbols-outlined">delete_forever</span>
+                        Delete Account
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
     <script>
-        // Apply theme based on user preference or system preference
-        const savedTheme = localStorage.getItem('theme') || '{{ current_user.theme_preference if current_user.is_authenticated else "auto" }}';
+        // Apply theme based on user preference
+        const savedTheme = '{{ current_user.theme_preference if current_user.is_authenticated else "light" }}';
         
         function applyTheme(theme) {
-            if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            if (theme === 'dark') {
                 document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (theme === 'auto') {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                }
             } else {
                 document.documentElement.removeAttribute('data-theme');
             }
@@ -445,30 +417,9 @@
 
         applyTheme(savedTheme);
 
-        // Listen for system theme changes
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-            if (savedTheme === 'auto') {
-                applyTheme('auto');
-            }
-        });
-
-        // Delete account modal functionality
-        const deleteAccountBtn = document.getElementById('deleteAccountBtn');
-        const deleteAccountModal = document.getElementById('deleteAccountModal');
-        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-
-        deleteAccountBtn.addEventListener('click', () => {
-            deleteAccountModal.style.display = 'flex';
-        });
-
-        cancelDeleteBtn.addEventListener('click', () => {
-            deleteAccountModal.style.display = 'none';
-        });
-
-        deleteAccountModal.addEventListener('click', (e) => {
-            if (e.target === deleteAccountModal) {
-                deleteAccountModal.style.display = 'none';
-            }
+        // Listen for theme changes
+        document.querySelector('select[name="theme_preference"]').addEventListener('change', function() {
+            applyTheme(this.value);
         });
     </script>
 </body>
