@@ -317,6 +317,12 @@
             color: var(--on-surface-variant);
         }
 
+        .topic-input:disabled {
+            background: var(--surface-variant);
+            color: var(--on-surface-variant);
+            cursor: not-allowed;
+        }
+
         .input-actions {
             display: flex;
             justify-content: space-between;
@@ -338,6 +344,7 @@
         .generate-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            pointer-events: none;
         }
 
         /* Article Display */
@@ -696,7 +703,8 @@
             
             .container {
                 grid-template-columns: 1fr;
-                padding-left: 60px;
+                padding: 16px;
+                padding-top: 70px; /* Add space for hamburger menu */
             }
         }
     </style>
@@ -867,6 +875,7 @@
         let refinementsUsed = 0;
         let maxRefinements = {{ '5' if user else '1' }};
         let isAuthenticated = {{ 'true' if user else 'false' }};
+        let articleGenerated = false; // Track if article has been generated
 
         // DOM elements
         const topicInput = document.getElementById('topicInput');
@@ -893,7 +902,14 @@
             }
             
             // Event listeners
-            generateBtn.addEventListener('click', generateArticle);
+            generateBtn.addEventListener('click', function(e) {
+                // Prevent clicks when article is already generated
+                if (articleGenerated) {
+                    e.preventDefault();
+                    return false;
+                }
+                generateArticle();
+            });
             refineBtn.addEventListener('click', refineArticle);
             downloadBtn.addEventListener('click', downloadArticle);
             if (publishBtn) {
@@ -910,7 +926,7 @@
 
             // Enter key handling
             topicInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey && !articleGenerated) {
                     e.preventDefault();
                     generateArticle();
                 }
@@ -998,6 +1014,28 @@
             confirmBtn.onclick = null;
         }
 
+        function disableGenerateSection() {
+            articleGenerated = true;
+            generateBtn.disabled = true;
+            topicInput.disabled = true;
+            generateBtn.innerHTML = `
+                <span class="material-symbols-outlined">check</span>
+                Article Generated
+            `;
+            generateBtn.style.pointerEvents = 'none';
+        }
+
+        function enableGenerateSection() {
+            articleGenerated = false;
+            generateBtn.disabled = false;
+            topicInput.disabled = false;
+            generateBtn.innerHTML = `
+                <span class="material-symbols-outlined">auto_awesome</span>
+                Generate Article
+            `;
+            generateBtn.style.pointerEvents = 'auto';
+        }
+
         // Main functions
         async function generateArticle() {
             const topic = topicInput.value.trim();
@@ -1042,12 +1080,7 @@
                     showNotification('Article generated successfully!');
 
                     // Disable generate button and input after successful generation
-                    generateBtn.disabled = true;
-                    topicInput.disabled = true;
-                    generateBtn.innerHTML = `
-                        <span class="material-symbols-outlined">check</span>
-                        Article Generated
-                    `;
+                    disableGenerateSection();
                 } else {
                     throw new Error(data.error || 'Failed to generate article');
                 }
@@ -1055,7 +1088,6 @@
                 console.error('Error generating article:', error);
                 showNotification(error.message, 'error');
                 showEmptyState();
-            } finally {
                 generateBtn.disabled = false;
             }
         }
@@ -1325,6 +1357,9 @@
                             showArticleActions();
                             updateRefinementsDisplay();
                             
+                            // Disable generate section since article is already loaded
+                            disableGenerateSection();
+                            
                             // Update active chat in UI
                             document.querySelectorAll('.chat-item').forEach(item => {
                                 item.classList.remove('active');
@@ -1368,6 +1403,7 @@
                                 currentArticleData = null;
                                 refinementsUsed = 0;
                                 topicInput.value = '';
+                                enableGenerateSection();
                                 showEmptyState();
                             }
                             
@@ -1389,12 +1425,7 @@
             currentChatSessionId = null;
             refinementsUsed = 0;
             topicInput.value = '';
-            topicInput.disabled = false;
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = `
-                <span class="material-symbols-outlined">auto_awesome</span>
-                Generate Article
-            `;
+            enableGenerateSection();
             showEmptyState();
             
             // Remove active state from all chat items
