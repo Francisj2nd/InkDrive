@@ -1,8 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from datetime import datetime
-import bcrypt
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timezone
 import json
+import re
+from bs4 import BeautifulSoup
 
 db = SQLAlchemy()
 
@@ -12,106 +14,110 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
-    password_hash = db.Column(db.String(128), nullable=True)  # Nullable for OAuth users
-    google_id = db.Column(db.String(100), unique=True, nullable=True)
-    profile_picture = db.Column(db.String(200), nullable=True)
-    is_verified = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime, nullable=True)
+    password_hash = db.Column(db.String(255))
+    
+    # Google OAuth fields
+    google_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    profile_picture = db.Column(db.String(255))
     
     # User preferences
-    theme_preference = db.Column(db.String(10), default='auto')  # 'light', 'dark', 'auto'
-    articles_generated = db.Column(db.Integer, default=0)
-    subscription_tier = db.Column(db.String(20), default='free')  # 'free', 'premium', 'enterprise'
+    theme_preference = db.Column(db.String(20), default='light')  # 'light', 'dark', 'auto'
     
-    # Usage quotas
+    # Account status
+    is_verified = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Usage tracking - Fixed: Total words should never decrease
+    articles_generated = db.Column(db.Integer, default=0)
+    total_words_generated = db.Column(db.Integer, default=0)  # Cumulative total (never decreases)
     words_generated_this_month = db.Column(db.Integer, default=0)
     downloads_this_month = db.Column(db.Integer, default=0)
-    last_quota_reset = db.Column(db.DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_login = db.Column(db.DateTime)
+    last_quota_reset = db.Column(db.DateTime)
     
     # Relationships
-    articles = db.relationship('Article', backref='author', lazy=True, cascade='all, delete-orphan')
-    chat_sessions = db.relationship('ChatSession', backref='user', lazy=True, cascade='all, delete-orphan')
+    articles = db.relationship('Article', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    chat_sessions = db.relationship('ChatSession', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
-        """Hash and set password"""
-        if password:
-            self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        """Set password hash"""
+        self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        """Check if provided password matches hash"""
+        """Check password against hash"""
         if not self.password_hash:
             return False
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        return check_password_hash(self.password_hash, password)
     
     def update_last_login(self):
         """Update last login timestamp"""
-        self.last_login = datetime.utcnow()
-        db.session.commit()
+        try:
+            self.last_login = datetime.now(timezone.utc)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
     
     def to_dict(self):
-        """Convert user to dictionary for JSON serialization"""
+        """Convert user to dictionary"""
         return {
             'id': self.id,
             'email': self.email,
             'name': self.name,
-            'profile_picture': self.profile_picture,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'articles_generated': self.articles_generated,
-            'subscription_tier': self.subscription_tier,
             'theme_preference': self.theme_preference,
-            'words_generated_this_month': self.words_generated_this_month,
-            'downloads_this_month': self.downloads_this_month
+            'is_verified': self.is_verified,
+            'articles_generated': self.articles_generated or 0,
+            'total_words_generated': self.total_words_generated or 0,
+            'words_generated_this_month': self.words_generated_this_month or 0,
+            'downloads_this_month': self.downloads_this_month or 0,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
 class Article(db.Model):
     __tablename__ = 'articles'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_sessions.id'), nullable=True)
-    title = db.Column(db.String(200), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    
+    # Article content
+    title = db.Column(db.String(500), nullable=False)
     content_html = db.Column(db.Text, nullable=False)
-    content_raw = db.Column(db.Text, nullable=False)  # Raw markdown/text
-    topic = db.Column(db.String(500), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_refined = db.Column(db.Boolean, default=False)
+    content_raw = db.Column(db.Text, nullable=False)  # Raw markdown/text for refinements
+    topic = db.Column(db.String(500))
+    
+    # Article metadata
     word_count = db.Column(db.Integer, default=0)
-    public_id = db.Column(db.String(20), unique=True, nullable=False, default=lambda: str(datetime.utcnow().timestamp())[:10])
+    is_refined = db.Column(db.Boolean, default=False)
     
-    # Publishing fields
+    # Publishing
     is_public = db.Column(db.Boolean, default=False)
-    published_at = db.Column(db.DateTime, nullable=True)
+    public_id = db.Column(db.String(50), unique=True, nullable=True, index=True)
+    published_at = db.Column(db.DateTime)
+    
+    # SEO fields
+    meta_description = db.Column(db.Text)
+    seo_keywords = db.Column(db.Text)
+    
+    # Analytics
     view_count = db.Column(db.Integer, default=0)
-    
-    # SEO and metadata
-    meta_description = db.Column(db.String(160), nullable=True)
-    keywords = db.Column(db.Text, nullable=True)  # JSON array of keywords
-    
-    # User interactions
-    rating = db.Column(db.String(10), nullable=True)  # 'up', 'down', null
-    is_favorite = db.Column(db.Boolean, default=False)
     download_count = db.Column(db.Integer, default=0)
     
-    # Relationship
-    chat_session = db.relationship('ChatSession', backref='articles')
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    def increment_download(self):
-        """Increment download counter"""
-        self.download_count += 1
-        db.session.commit()
-    
-    def increment_view(self):
-        """Increment view counter"""
-        self.view_count += 1
-        db.session.commit()
+    # Link to chat session
+    chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_sessions.id'), nullable=True)
     
     def publish(self):
         """Publish the article"""
         self.is_public = True
-        self.published_at = datetime.utcnow()
+        self.published_at = datetime.now(timezone.utc)
         db.session.commit()
     
     def unpublish(self):
@@ -120,85 +126,128 @@ class Article(db.Model):
         self.published_at = None
         db.session.commit()
     
-    def set_rating(self, rating):
-        """Set article rating"""
-        self.rating = rating if rating in ['up', 'down'] else None
-        db.session.commit()
-    
-    def get_first_image_url(self):
-        """Extract the first image URL from content_html"""
-        import re
-        from bs4 import BeautifulSoup
-        
+    def increment_view(self):
+        """Increment view count"""
         try:
-            soup = BeautifulSoup(self.content_html, 'html.parser')
-            img_tag = soup.find('img')
-            if img_tag and img_tag.get('src'):
-                return img_tag['src']
+            self.view_count = (self.view_count or 0) + 1
+            db.session.commit()
         except Exception:
-            pass
-        return None
+            db.session.rollback()
+    
+    def increment_download(self):
+        """Increment download count"""
+        try:
+            self.download_count = (self.download_count or 0) + 1
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
     
     def get_excerpt(self, length=150):
-        """Get a plain text excerpt from the article"""
-        from bs4 import BeautifulSoup
+        """Get article excerpt from content"""
+        if not self.content_html:
+            return ""
         
-        try:
-            soup = BeautifulSoup(self.content_html, 'html.parser')
-            text = soup.get_text()
-            # Remove extra whitespace
-            text = ' '.join(text.split())
-            if len(text) > length:
-                return text[:length] + '...'
+        # Remove HTML tags and get plain text
+        soup = BeautifulSoup(self.content_html, 'html.parser')
+        text = soup.get_text()
+        
+        # Clean up whitespace
+        text = ' '.join(text.split())
+        
+        if len(text) <= length:
             return text
-        except Exception:
-            return self.title
+        
+        # Find the last complete word within the length limit
+        excerpt = text[:length]
+        last_space = excerpt.rfind(' ')
+        if last_space > 0:
+            excerpt = excerpt[:last_space]
+        
+        return excerpt + "..."
+    
+    def get_first_image_url(self):
+        """Extract the first image URL from content"""
+        if not self.content_html:
+            return None
+        
+        soup = BeautifulSoup(self.content_html, 'html.parser')
+        img_tag = soup.find('img')
+        
+        if img_tag and img_tag.get('src'):
+            return img_tag['src']
+        
+        return None
+    
+    def extract_seo_data(self):
+        """Extract SEO keywords and meta description from content"""
+        if not self.content_raw:
+            return
+        
+        # Look for SEO Keywords and Meta Description in the raw content
+        seo_keywords_match = re.search(r'SEO Keywords?:\s*(.+)', self.content_raw, re.IGNORECASE)
+        meta_desc_match = re.search(r'Meta Description:\s*(.+)', self.content_raw, re.IGNORECASE)
+        
+        if seo_keywords_match:
+            self.seo_keywords = seo_keywords_match.group(1).strip()
+        
+        if meta_desc_match:
+            self.meta_description = meta_desc_match.group(1).strip()
     
     def to_dict(self):
         """Convert article to dictionary"""
         return {
             'id': self.id,
             'title': self.title,
+            'content_html': self.content_html,
+            'content_raw': self.content_raw,
             'topic': self.topic,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
+            'word_count': self.word_count or 0,
             'is_refined': self.is_refined,
-            'word_count': self.word_count,
-            'rating': self.rating,
-            'is_favorite': self.is_favorite,
-            'download_count': self.download_count,
-            'public_id': self.public_id,
-            'chat_session_id': self.chat_session_id,
             'is_public': self.is_public,
+            'public_id': self.public_id,
+            'view_count': self.view_count or 0,
+            'download_count': self.download_count or 0,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'published_at': self.published_at.isoformat() if self.published_at else None,
-            'view_count': self.view_count
+            'excerpt': self.get_excerpt(),
+            'first_image_url': self.get_first_image_url()
         }
 
 class ChatSession(db.Model):
     __tablename__ = 'chat_sessions'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    session_id = db.Column(db.String(100), unique=True, nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    session_id = db.Column(db.String(100), nullable=False, index=True)  # Unique session identifier
     
-    # Session data
-    messages = db.Column(db.Text, nullable=False)  # JSON array of messages
-    raw_text = db.Column(db.Text, nullable=True)
+    # Chat content
+    title = db.Column(db.String(500), nullable=False)  # Topic/title of the chat
+    messages = db.Column(db.Text)  # JSON string of messages
+    raw_text = db.Column(db.Text)  # Latest raw text for refinements
+    
+    # Chat metadata
     has_refined = db.Column(db.Boolean, default=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    articles = db.relationship('Article', backref='chat_session', lazy='dynamic')
+    
+    def set_messages(self, messages_list):
+        """Set messages as JSON string"""
+        self.messages = json.dumps(messages_list) if messages_list else None
     
     def get_messages(self):
         """Get messages as Python list"""
-        try:
-            return json.loads(self.messages) if self.messages else []
-        except json.JSONDecodeError:
+        if not self.messages:
             return []
-    
-    def set_messages(self, messages_list):
-        """Set messages from Python list"""
-        self.messages = json.dumps(messages_list)
+        try:
+            return json.loads(self.messages)
+        except (json.JSONDecodeError, TypeError):
+            return []
     
     def to_dict(self):
         """Convert chat session to dictionary"""
@@ -206,9 +255,9 @@ class ChatSession(db.Model):
             'id': self.id,
             'session_id': self.session_id,
             'title': self.title,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
             'messages': self.get_messages(),
+            'raw_text': self.raw_text,
             'has_refined': self.has_refined,
-            'raw_text': self.raw_text
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
