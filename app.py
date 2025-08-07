@@ -367,19 +367,28 @@ def auth_login():
         try:
             user = User.query.filter_by(email=form.email.data.lower()).first()
             
-            if user and user.check_password(form.password.data):
-                login_user(user, remember=form.remember_me.data)
-                
-                # Safely update last login with error handling
+            if user:
                 try:
-                    user.update_last_login()
+                    password_valid = user.check_password(form.password.data)
                 except Exception as e:
-                    logger.warning(f"Failed to update last login for user {user.id}: {e}")
+                    logger.error(f"Password check error for user {user.id}: {e}")
+                    password_valid = False
                 
-                flash('Welcome back!', 'success')
-                
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('index'))
+                if password_valid:
+                    login_user(user, remember=form.remember_me.data)
+                    
+                    # Safely update last login with error handling
+                    try:
+                        user.update_last_login()
+                    except Exception as e:
+                        logger.warning(f"Failed to update last login for user {user.id}: {e}")
+                    
+                    flash('Welcome back!', 'success')
+                    
+                    next_page = request.args.get('next')
+                    return redirect(next_page) if next_page else redirect(url_for('index'))
+                else:
+                    flash('Invalid email or password.', 'error')
             else:
                 flash('Invalid email or password.', 'error')
         except (OperationalError, DatabaseError) as e:
@@ -417,7 +426,13 @@ def auth_register():
                 total_words_generated=0,
                 last_quota_reset=datetime.utcnow()
             )
-            user.set_password(form.password.data)
+            
+            # Set password with error handling
+            try:
+                user.set_password(form.password.data)
+            except ValueError as e:
+                flash('Invalid password format.', 'error')
+                return render_template('auth/register.html', form=form)
             
             db.session.add(user)
             db.session.commit()
