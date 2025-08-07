@@ -96,6 +96,22 @@ def add_missing_article_columns():
         {
             'column': 'public_id',
             'sql': 'ALTER TABLE articles ADD COLUMN public_id VARCHAR(20)'
+        },
+        {
+            'column': 'is_public',
+            'sql': 'ALTER TABLE articles ADD COLUMN is_public BOOLEAN DEFAULT FALSE'
+        },
+        {
+            'column': 'published_at',
+            'sql': 'ALTER TABLE articles ADD COLUMN published_at TIMESTAMP'
+        },
+        {
+            'column': 'view_count',
+            'sql': 'ALTER TABLE articles ADD COLUMN view_count INTEGER DEFAULT 0'
+        },
+        {
+            'column': 'chat_session_id',
+            'sql': 'ALTER TABLE articles ADD COLUMN chat_session_id INTEGER'
         }
     ]
     
