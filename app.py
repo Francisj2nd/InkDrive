@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from sqlalchemy.exc import OperationalError, DatabaseError
+from sqlalchemy import func
 import time
 
 # Import our models and forms
@@ -482,6 +483,7 @@ def profile_dashboard():
     try:
         # Get user's recent articles with error handling
         recent_articles = []
+        published_articles = []
         total_articles = 0
         total_words = 0
         total_downloads = 0
@@ -490,6 +492,11 @@ def profile_dashboard():
             recent_articles = Article.query.filter_by(user_id=current_user.id)\
                                          .order_by(Article.created_at.desc())\
                                          .limit(10).all()
+            
+            # Get published articles
+            published_articles = Article.query.filter_by(user_id=current_user.id, is_public=True)\
+                                             .order_by(Article.published_at.desc())\
+                                             .limit(10).all()
             
             # Calculate stats
             total_articles = Article.query.filter_by(user_id=current_user.id).count()
@@ -525,6 +532,7 @@ def profile_dashboard():
         return render_template('profile/dashboard.html', 
                              user=current_user, 
                              recent_articles=recent_articles,
+                             published_articles=published_articles,
                              stats=stats)
     except Exception as e:
         logger.error(f"Dashboard error: {e}")
@@ -652,12 +660,75 @@ def article_view(article_id):
         flash('Error loading article.', 'error')
         return redirect(url_for('profile_articles'))
 
+@app.route('/article/<int:article_id>/publish', methods=['POST'])
+@login_required
+def publish_article(article_id):
+    """Publish an article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        
+        if article.is_public:
+            return jsonify({"error": "Article is already published"}), 400
+        
+        article.publish()
+        
+        public_url = url_for('share_article', public_id=article.public_id, _external=True)
+        
+        return jsonify({
+            "success": True,
+            "message": "Article published successfully!",
+            "public_url": public_url
+        })
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error publishing article {article_id}: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        logger.error(f"Article publish error: {e}")
+        return jsonify({"error": "Failed to publish article"}), 500
+
+@app.route('/article/<int:article_id>/unpublish', methods=['POST'])
+@login_required
+def unpublish_article(article_id):
+    """Unpublish an article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        
+        if not article.is_public:
+            return jsonify({"error": "Article is not published"}), 400
+        
+        article.unpublish()
+        
+        return jsonify({
+            "success": True,
+            "message": "Article unpublished successfully!"
+        })
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error unpublishing article {article_id}: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        logger.error(f"Article unpublish error: {e}")
+        return jsonify({"error": "Failed to unpublish article"}), 500
+
 @app.route('/share/<string:public_id>')
 def share_article(public_id):
-    """Public-facing route to view a shared article"""
+    """Public-facing route to view a published article"""
     try:
-        article = Article.query.filter_by(public_id=public_id).first_or_404()
-        return render_template('article/share.html', article=article)
+        article = Article.query.filter_by(public_id=public_id, is_public=True).first_or_404()
+        
+        # Increment view count
+        article.increment_view()
+        
+        # Get random published articles for social proof (excluding current article)
+        try:
+            featured_articles = Article.query.filter(
+                Article.is_public == True,
+                Article.id != article.id
+            ).order_by(func.random()).limit(5).all()
+        except Exception as e:
+            logger.warning(f"Error fetching featured articles: {e}")
+            featured_articles = []
+        
+        return render_template('article/share.html', article=article, featured_articles=featured_articles)
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error loading shared article {public_id}: {e}")
         return render_template('errors/500.html'), 500
@@ -673,7 +744,16 @@ def index():
     if current_user.is_authenticated:
         return render_template("app.html", user=current_user)
     else:
-        return render_template("landing.html")
+        # Get random published articles for social proof
+        try:
+            featured_articles = Article.query.filter_by(is_public=True)\
+                                           .order_by(func.random())\
+                                           .limit(5).all()
+        except Exception as e:
+            logger.warning(f"Error fetching featured articles for landing: {e}")
+            featured_articles = []
+        
+        return render_template("landing.html", featured_articles=featured_articles)
 
 @app.route("/app")
 @login_required
