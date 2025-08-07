@@ -133,6 +133,15 @@
             background: var(--outline);
         }
 
+        .btn-success {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2e7d32;
+        }
+
         .article-container {
             background: var(--surface);
             border-radius: 16px;
@@ -231,26 +240,26 @@
             margin-top: 4px;
         }
 
-        .share-section {
+        .publish-section {
             margin-top: 32px;
             padding-top: 24px;
             border-top: 1px solid var(--outline-variant);
         }
 
-        .share-title {
+        .publish-title {
             font-size: 16px;
             font-weight: 500;
             margin-bottom: 16px;
             color: var(--on-surface);
         }
 
-        .share-url {
+        .publish-url {
             display: flex;
             gap: 8px;
             margin-bottom: 16px;
         }
 
-        .share-input {
+        .publish-input {
             flex: 1;
             padding: 12px 16px;
             border: 1px solid var(--outline-variant);
@@ -281,14 +290,14 @@
             background: var(--outline);
         }
 
-        .share-buttons {
+        .publish-buttons {
             display: flex;
             gap: 12px;
         }
 
-        .share-btn {
-            background: var(--surface-container);
-            border: 1px solid var(--outline-variant);
+        .publish-btn {
+            background: var(--success-green);
+            border: none;
             border-radius: 8px;
             padding: 10px 16px;
             font-size: 14px;
@@ -298,11 +307,47 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: var(--on-surface);
+            color: white;
         }
 
-        .share-btn:hover {
-            background: var(--outline);
+        .publish-btn:hover {
+            background: #2e7d32;
+        }
+
+        .unpublish-btn {
+            background: var(--error-red);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+        }
+
+        .unpublish-btn:hover {
+            background: #c62828;
+        }
+
+        .published-status {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        [data-theme="dark"] .published-status {
+            background: #1b5e20;
+            color: #a5d6a7;
         }
 
         @media (max-width: 768px) {
@@ -342,11 +387,11 @@
                 font-size: 18px;
             }
 
-            .share-url {
+            .publish-url {
                 flex-direction: column;
             }
 
-            .share-buttons {
+            .publish-buttons {
                 flex-wrap: wrap;
             }
         }
@@ -362,11 +407,7 @@
                 <h1 class="header-title">View Article</h1>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="shareArticle()">
-                    <span class="material-symbols-outlined">share</span>
-                    Share
-                </button>
-                <button class="btn btn-primary" onclick="downloadArticle()">
+                <button class="btn btn-secondary" onclick="downloadArticle()">
                     <span class="material-symbols-outlined">download</span>
                     Download
                 </button>
@@ -387,6 +428,12 @@
                     <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
                     {{ article.download_count }} downloads
                 </div>
+                {% if article.is_public %}
+                <div class="article-meta-item">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">visibility</span>
+                    {{ article.view_count }} views
+                </div>
+                {% endif %}
                 {% if article.is_refined %}
                 <div class="article-meta-item">
                     <span class="material-symbols-outlined" style="font-size: 16px;">auto_fix_high</span>
@@ -400,29 +447,38 @@
                 {{ article.content_html|safe }}
             </div>
 
-            <div class="share-section">
-                <h2 class="share-title">Share this article</h2>
-                <div class="share-url">
-                    <input type="text" class="share-input" id="shareUrl" readonly value="{{ url_for('share_article', public_id=article.public_id, _external=True) }}">
-                    <button class="copy-btn" onclick="copyShareUrl()">
-                        <span class="material-symbols-outlined">content_copy</span>
-                        Copy
-                    </button>
-                </div>
-                <div class="share-buttons">
-                    <button class="share-btn" onclick="shareViaTwitter()">
-                        <span class="material-symbols-outlined">alternate_email</span>
-                        Twitter
-                    </button>
-                    <button class="share-btn" onclick="shareViaLinkedIn()">
-                        <span class="material-symbols-outlined">work</span>
-                        LinkedIn
-                    </button>
-                    <button class="share-btn" onclick="shareViaEmail()">
-                        <span class="material-symbols-outlined">mail</span>
-                        Email
-                    </button>
-                </div>
+            <div class="publish-section">
+                <h2 class="publish-title">Publishing</h2>
+                
+                {% if article.is_public %}
+                    <div class="published-status">
+                        <span class="material-symbols-outlined">public</span>
+                        Article is published and publicly accessible
+                    </div>
+                    <div class="publish-url">
+                        <input type="text" class="publish-input" id="publishUrl" readonly value="{{ url_for('share_article', public_id=article.public_id, _external=True) }}">
+                        <button class="copy-btn" onclick="copyPublishUrl()">
+                            <span class="material-symbols-outlined">content_copy</span>
+                            Copy
+                        </button>
+                    </div>
+                    <div class="publish-buttons">
+                        <button class="unpublish-btn" onclick="unpublishArticle()">
+                            <span class="material-symbols-outlined">public_off</span>
+                            Unpublish
+                        </button>
+                    </div>
+                {% else %}
+                    <p style="color: var(--on-surface-variant); margin-bottom: 16px;">
+                        Make this article publicly accessible by publishing it. Published articles can be viewed by anyone with the link.
+                    </p>
+                    <div class="publish-buttons">
+                        <button class="publish-btn" onclick="publishArticle()">
+                            <span class="material-symbols-outlined">public</span>
+                            Publish Article
+                        </button>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -441,42 +497,64 @@
 
         applyTheme(savedTheme);
 
-        // Copy share URL to clipboard
-        function copyShareUrl() {
-            const shareUrl = document.getElementById('shareUrl');
-            shareUrl.select();
-            document.execCommand('copy');
-            alert('Share URL copied to clipboard!');
-        }
-
-        // Share functions
-        function shareArticle() {
-            if (navigator.share) {
-                navigator.share({
-                    title: '{{ article.title }}',
-                    url: document.getElementById('shareUrl').value
-                });
-            } else {
-                copyShareUrl();
+        // Copy publish URL to clipboard
+        function copyPublishUrl() {
+            const publishUrl = document.getElementById('publishUrl');
+            if (publishUrl) {
+                publishUrl.select();
+                document.execCommand('copy');
+                alert('Public URL copied to clipboard!');
             }
         }
 
-        function shareViaTwitter() {
-            const url = encodeURIComponent(document.getElementById('shareUrl').value);
-            const text = encodeURIComponent('Check out this article: {{ article.title }}');
-            window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
+        // Publish article
+        async function publishArticle() {
+            try {
+                const response = await fetch(`/article/{{ article.id }}/publish`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to publish article: ' + error.message);
+            }
         }
 
-        function shareViaLinkedIn() {
-            const url = encodeURIComponent(document.getElementById('shareUrl').value);
-            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
-        }
+        // Unpublish article
+        async function unpublishArticle() {
+            if (!confirm('Are you sure you want to unpublish this article? It will no longer be publicly accessible.')) {
+                return;
+            }
 
-        function shareViaEmail() {
-            const url = document.getElementById('shareUrl').value;
-            const subject = encodeURIComponent('Check out this article: {{ article.title }}');
-            const body = encodeURIComponent(`I thought you might be interested in this article:\n\n{{ article.title }}\n\n${url}`);
-            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+            try {
+                const response = await fetch(`/article/{{ article.id }}/unpublish`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to unpublish article: ' + error.message);
+            }
         }
 
         function downloadArticle() {
