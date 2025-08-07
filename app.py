@@ -182,7 +182,7 @@ def format_article_content(raw_markdown_text):
     return final_html
 
 @retry_db_operation(max_retries=3)
-def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None):
+def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None, chat_session_id=None):
     """Save article to database with retry logic"""
     try:
         # Extract word count (rough estimate)
@@ -210,7 +210,8 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                 topic=topic,
                 is_refined=is_refined,
                 word_count=word_count,
-                public_id=str(uuid.uuid4())[:8]  # Generate a short public ID for sharing
+                public_id=str(uuid.uuid4())[:8],  # Generate a short public ID for sharing
+                chat_session_id=chat_session_id  # Link to chat session
             )
             
             db.session.add(article)
@@ -233,6 +234,37 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error saving article: {e}")
+        return None
+
+@retry_db_operation(max_retries=3)
+def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
+    """Save or update chat session to database"""
+    try:
+        # Check if chat session exists
+        chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=user_id).first()
+        
+        if chat_session:
+            # Update existing session
+            chat_session.title = title[:200]
+            chat_session.set_messages(messages)
+            chat_session.raw_text = raw_text
+            chat_session.updated_at = datetime.utcnow()
+        else:
+            # Create new session
+            chat_session = ChatSession(
+                user_id=user_id,
+                session_id=session_id,
+                title=title[:200],
+                raw_text=raw_text
+            )
+            chat_session.set_messages(messages)
+            db.session.add(chat_session)
+        
+        db.session.commit()
+        return chat_session.id
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving chat session: {e}")
         return None
 
 @retry_db_operation(max_retries=2)
@@ -657,6 +689,8 @@ def generate_article():
     
     data = request.get_json()
     user_topic = data.get("topic")
+    chat_session_id = data.get("chat_session_id")
+    
     if not user_topic:
         return jsonify({"error": "Topic is missing."}), 400
 
@@ -674,13 +708,26 @@ def generate_article():
         raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text)
         
-        # Save article to database
-        article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text)
+        # Save chat session to database
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+        
+        messages = [
+            {"content": user_topic, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": final_html, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+        
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text)
+        
+        # Save article to database with chat session link
+        article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id)
 
         return jsonify({
             "article_html": final_html, 
             "raw_text": raw_text,
-            "article_id": article_id
+            "article_id": article_id,
+            "chat_session_id": chat_session_id,
+            "refinements_remaining": 5  # Always 5 for authenticated users on new article
         })
     except Exception as e:
         logger.error(f"Article generation error: {e}")
@@ -710,7 +757,8 @@ def generate_guest_article():
         # For guests, we don't save to database
         return jsonify({
             "article_html": final_html, 
-            "raw_text": raw_text
+            "raw_text": raw_text,
+            "refinements_remaining": 1  # Only 1 for guests
         })
     except Exception as e:
         logger.error(f"Guest article generation error: {e}")
@@ -725,9 +773,23 @@ def refine_article():
     data = request.get_json()
     raw_text, refinement_prompt = data.get("raw_text"), data.get("refinement_prompt")
     article_id = data.get("article_id")
+    chat_session_id = data.get("chat_session_id")
+    refinements_used = data.get("refinements_used", 0)
     
     if not all([raw_text, refinement_prompt]):
         return jsonify({"error": "Missing data for refinement."}), 400
+
+    # Check refinement limits and word quota for authenticated users
+    if current_user.is_authenticated:
+        if refinements_used >= 5:
+            return jsonify({"error": "You've used all 5 refinements for this article."}), 403
+        
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
+    else:
+        # Guest users get only 1 refinement
+        if refinements_used >= 1:
+            return jsonify({"error": "You've used your 1 refinement. Sign up for a free account to get 5 refinements per article."}), 403
 
     try:
         history = [
@@ -743,17 +805,37 @@ def refine_article():
         refined_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(refined_text)
         
-        # Update article in database if article_id provided and user is authenticated
-        if article_id and current_user.is_authenticated:
-            # Check monthly word quota
+        # Update word count for authenticated users
+        if current_user.is_authenticated:
             word_count = len(refined_text.split())
-            current_words = getattr(current_user, 'words_generated_this_month', 0) or 0
-            if current_words + word_count > MONTHLY_WORD_LIMIT:
-                return jsonify({"error": f"This refinement would exceed your monthly limit of {MONTHLY_WORD_LIMIT} words."}), 403
-                
-            save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
+            current_user.words_generated_this_month = (current_user.words_generated_this_month or 0) + word_count
+            db.session.commit()
+            
+            # Update article in database if article_id provided
+            if article_id:
+                save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
+            
+            # Update chat session
+            if chat_session_id:
+                chat_session = ChatSession.query.filter_by(session_id=chat_session_id, user_id=current_user.id).first()
+                if chat_session:
+                    messages = chat_session.get_messages()
+                    messages.append({"content": refinement_prompt, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"})
+                    messages.append({"content": final_html, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"})
+                    chat_session.set_messages(messages)
+                    chat_session.raw_text = refined_text
+                    chat_session.has_refined = True
+                    db.session.commit()
 
-        return jsonify({"article_html": final_html, "raw_text": refined_text})
+        new_refinements_used = refinements_used + 1
+        remaining_refinements = (5 if current_user.is_authenticated else 1) - new_refinements_used
+
+        return jsonify({
+            "article_html": final_html, 
+            "raw_text": refined_text,
+            "refinements_used": new_refinements_used,
+            "refinements_remaining": remaining_refinements
+        })
     except Exception as e:
         logger.error(f"Article refinement error: {e}")
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
@@ -773,12 +855,12 @@ def download_docx():
         # Update download count if article_id provided and user is authenticated
         if article_id and current_user.is_authenticated:
             try:
+                # Check monthly download quota
+                if not check_monthly_download_quota(current_user):
+                    return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
+                
                 article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
                 if article:
-                    # Check monthly download quota
-                    if not check_monthly_download_quota(current_user):
-                        return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
-                    
                     article.increment_download()
                     current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
                     db.session.commit()
@@ -842,6 +924,21 @@ def download_docx():
 
 # --- 5. API ROUTES FOR USER DATA ---
 
+@app.route('/api/user/chat-history')
+@login_required
+def api_user_chat_history():
+    """Get user's chat history from database"""
+    try:
+        chat_sessions = ChatSession.query.filter_by(user_id=current_user.id)\
+                                        .order_by(ChatSession.updated_at.desc()).all()
+        return jsonify([session.to_dict() for session in chat_sessions])
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error in API chat history: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        logger.error(f"API chat history error: {e}")
+        return jsonify({"error": "Failed to fetch chat history"}), 500
+
 @app.route('/api/user/articles')
 @login_required
 def api_user_articles():
@@ -901,8 +998,45 @@ def api_download_article(article_id):
         doc = Document()
         doc.add_heading(article.title, level=0)
         
-        # Similar DOCX generation logic as in download_docx route
-        # ...
+        for element in soup.find_all(['h2', 'h3', 'p', 'div']):
+            if element.name == 'h2':
+                doc.add_heading(element.get_text(), level=2)
+            elif element.name == 'h3':
+                doc.add_heading(element.get_text(), level=3)
+            elif element.name == 'p' and not element.find_parents("div"):
+                doc.add_paragraph(element.get_text())
+            elif element.name == 'div' and "real-image-container" in element.get('class', []):
+                title_p = element.find('p', class_='image-title')
+                img_tag = element.find('img')
+                alt_text_p = element.find('p', class_='alt-text-display')
+                attr_p = element.find('p', class_='attribution')
+
+                if title_p:
+                    p = doc.add_paragraph(title_p.get_text())
+                    p.alignment = 1
+                    p.bold = True
+
+                if img_tag and img_tag.get('src'):
+                    try:
+                        img_response = requests.get(img_tag['src'], stream=True, timeout=10)
+                        img_response.raise_for_status()
+                        doc.add_picture(io.BytesIO(img_response.content), width=Inches(5.5))
+                    except requests.RequestException:
+                        doc.add_paragraph(f"[Image failed to load from {img_tag['src']}]")
+
+                if alt_text_p:
+                    p = doc.add_paragraph()
+                    clean_alt_text = alt_text_p.get_text()
+                    if clean_alt_text.lower().startswith("alt text:"):
+                        clean_alt_text = clean_alt_text[len("Alt Text:"):].strip()
+                    run = p.add_run(clean_alt_text)
+                    run.italic = True
+                    p.alignment = 1
+
+                if attr_p:
+                    p = doc.add_paragraph(attr_p.get_text())
+                    p.alignment = 1
+                    p.italic = True
         
         file_stream = io.BytesIO()
         doc.save(file_stream)
@@ -922,6 +1056,33 @@ def api_download_article(article_id):
     except Exception as e:
         logger.error(f"API download error: {e}")
         return jsonify({"error": "Failed to download article"}), 500
+
+@app.route('/api/chat-sessions/<string:session_id>', methods=['DELETE'])
+@login_required
+def delete_chat_session(session_id):
+    """Delete a chat session and all associated articles"""
+    try:
+        # Find the chat session
+        chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
+        if not chat_session:
+            return jsonify({"error": "Chat session not found"}), 404
+        
+        # Delete all articles associated with this chat session
+        Article.query.filter_by(chat_session_id=chat_session.id, user_id=current_user.id).delete()
+        
+        # Delete the chat session
+        db.session.delete(chat_session)
+        db.session.commit()
+        
+        return jsonify({"success": True, "message": "Chat session and associated articles deleted"})
+    except (OperationalError, DatabaseError) as e:
+        db.session.rollback()
+        logger.error(f"Database error deleting chat session: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Chat session deletion error: {e}")
+        return jsonify({"error": "Failed to delete chat session"}), 500
 
 # --- 6. ERROR HANDLERS ---
 
