@@ -462,6 +462,111 @@
             40% { transform: scale(1); opacity: 1; }
         }
 
+        /* Social Proof Section */
+        .social-proof-section {
+            padding: 80px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            margin: 60px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .social-proof-title {
+            font-size: 36px;
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .social-proof-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            padding: 0 20px;
+        }
+
+        .article-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .article-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .article-image {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 48px;
+        }
+
+        .article-content {
+            padding: 20px;
+        }
+
+        .article-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: white;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .article-excerpt {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .article-link {
+            color: #fbbc05;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .article-link:hover {
+            color: white;
+        }
+
+        .no-articles {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+            grid-column: 1 / -1;
+            padding: 40px;
+        }
+
         @media (max-width: 768px) {
             .landing-container {
                 padding: 20px 16px;
@@ -503,16 +608,16 @@
                 margin-bottom: 32px;
             }
 
-            .features-section {
+            .features-section, .social-proof-section {
                 padding: 60px 0;
                 margin: 40px 0;
             }
 
-            .features-title {
+            .features-title, .social-proof-title {
                 font-size: 28px;
             }
 
-            .features-subtitle {
+            .features-subtitle, .social-proof-subtitle {
                 font-size: 16px;
             }
 
@@ -520,6 +625,11 @@
                 grid-template-columns: 1fr;
                 gap: 32px;
                 padding: 0 20px;
+            }
+
+            .articles-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
             }
 
             .cta-buttons {
@@ -716,7 +826,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- Social Proof Section -->
+        <div class="social-proof-section">
+            <h2 class="social-proof-title">See What Users Are Creating</h2>
+            <p class="social-proof-subtitle">Discover amazing articles created by our community</p>
+            
+            <div class="articles-grid">
+                {% if featured_articles %}
+                    {% for article in featured_articles %}
+                        <div class="article-card">
+                            {% set image_url = article.get_first_image_url() %}
+                            {% if image_url %}
+                                <img src="{{ image_url }}" alt="{{ article.title }}" class="article-image">
+                            {% else %}
+                                <div class="article-image">
+                                    <span class="material-symbols-outlined">article</span>
+                                </div>
+                            {% endif %}
+                            <div class="article-content">
+                                <h3 class="article-title">{{ article.title }}</h3>
+                                <p class="article-excerpt">{{ article.get_excerpt() }}</p>
+                                <a href="{{ url_for('share_article', public_id=article.public_id) }}" class="article-link">
+                                    Read Article
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-articles">
+                        No published articles yet. Be the first to share your creation!
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
+    
     <div class="footer" style="text-align: center; margin-top: 40px; padding: 20px; color: rgba(255, 255, 255, 0.7);">
         <div class="social-icons" style="margin-bottom: 16px;">
             <a href="https://github.com/francisj2nd" style="color: white; margin: 0 10px; text-decoration: none; font-size: 24px;" aria-label="GitHub">
