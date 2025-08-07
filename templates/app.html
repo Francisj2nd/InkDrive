@@ -1447,19 +1447,22 @@
         let currentState = 'welcome';
         let rawArticleText = '';
         let currentChatId = null;
-        let chats = JSON.parse(localStorage.getItem('inkdrive_chats') || '[]');
+        let currentArticleId = null;
         let historyExpanded = true;
         
         // Refinement limits
         const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         const maxRefinements = isAuthenticated ? 5 : 1;
         let remainingRefinements = maxRefinements;
+        let refinementsUsed = 0;
 
         // Article ratings storage
         let articleRatings = JSON.parse(localStorage.getItem('inkdrive_ratings') || '{}');
 
         // Initialize
-        loadChatHistory();
+        if (isAuthenticated) {
+            loadChatHistoryFromDB();
+        }
         updateRefinementDisplay();
         
         // Apply theme based on user preference
@@ -1592,8 +1595,10 @@
             if (remainingRefinements === 0) {
                 refinementLimit.classList.add('error');
                 refinementLimit.classList.remove('warning');
-                chatInput.placeholder = 'No refinements remaining. Start a new article to continue.';
-                sendButton.disabled = currentState === 'article-ready';
+                if (currentState === 'article-ready') {
+                    chatInput.placeholder = 'No refinements remaining. Start a new article to continue.';
+                    sendButton.disabled = true;
+                }
             } else if (remainingRefinements === 1) {
                 refinementLimit.classList.add('warning');
                 refinementLimit.classList.remove('error');
@@ -1602,65 +1607,73 @@
                 }
             } else {
                 refinementLimit.classList.remove('warning', 'error');
+                if (currentState === 'article-ready') {
+                    chatInput.placeholder = 'Enter refinement instruction...';
+                }
             }
         }
 
         function resetRefinements() {
             remainingRefinements = maxRefinements;
+            refinementsUsed = 0;
             updateRefinementDisplay();
         }
 
-        // Chat history functions
-        function generateChatId() {
-            return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        function generateMessageId() {
-            return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        function saveChat(chatId, title, messages, rawText = '', refinementsUsed = 0) {
-            const existingIndex = chats.findIndex(chat => chat.id === chatId);
-            const chatData = {
-                id: chatId,
-                title: title.substring(0, 30),
-                messages: messages,
-                rawText: rawText,
-                refinementsUsed: refinementsUsed,
-                timestamp: Date.now(),
-                date: new Date().toLocaleDateString()
-            };
-
-            if (existingIndex >= 0) {
-                chats[existingIndex] = chatData;
-            } else {
-                chats.unshift(chatData);
+        // Database-backed chat history functions
+        async function loadChatHistoryFromDB() {
+            if (!isAuthenticated) return;
+            
+            try {
+                const response = await fetch('/api/user/chat-history');
+                if (response.ok) {
+                    const chatSessions = await response.json();
+                    displayChatHistory(chatSessions);
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
             }
-
-            if (chats.length > 50) {
-                chats = chats.slice(0, 50);
-            }
-
-            localStorage.setItem('inkdrive_chats', JSON.stringify(chats));
-            loadChatHistory();
         }
 
-        function loadChat(chatId) {
-            const chat = chats.find(c => c.id === chatId);
-            if (!chat) return;
+        function displayChatHistory(chatSessions) {
+            historyItems.innerHTML = '';
+            
+            chatSessions.forEach(session => {
+                const historyItem = document.createElement('div');
+                historyItem.className = `history-item ${currentChatId === session.session_id ? 'active' : ''}`;
+                historyItem.innerHTML = `
+                    <div class="history-item-title">${session.title}</div>
+                    <div class="history-item-date">${new Date(session.created_at).toLocaleDateString()}</div>
+                    <button class="delete-history-btn" onclick="event.stopPropagation(); deleteChatSession('${session.session_id}')">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
+                    </button>
+                `;
+                
+                historyItem.addEventListener('click', () => {
+                    loadChatSession(session);
+                });
+                
+                historyItems.appendChild(historyItem);
+            });
+        }
 
-            currentChatId = chatId;
-            rawArticleText = chat.rawText;
-            remainingRefinements = maxRefinements - (chat.refinementsUsed || 0);
+        async function loadChatSession(session) {
+            currentChatId = session.session_id;
+            rawArticleText = session.raw_text || '';
+            
+            // Calculate refinements used from messages
+            const messages = session.messages || [];
+            const userMessages = messages.filter(msg => msg.isUser);
+            refinementsUsed = Math.max(0, userMessages.length - 1); // First message is topic, rest are refinements
+            remainingRefinements = maxRefinements - refinementsUsed;
             
             switchToChatView();
             chatMessages.innerHTML = '';
             
-            chat.messages.forEach(msg => {
+            messages.forEach(msg => {
                 addMessage(msg.content, msg.isUser, msg.id);
             });
 
-            if (chat.messages.length > 0 && !chat.messages[chat.messages.length - 1].isUser) {
+            if (messages.length > 0 && !messages[messages.length - 1].isUser) {
                 currentState = 'article-ready';
                 updateRefinementDisplay();
             }
@@ -1669,37 +1682,29 @@
             closeMobileSidebar();
         }
 
-        function deleteChat(chatId) {
-            chats = chats.filter(chat => chat.id !== chatId);
-            localStorage.setItem('inkdrive_chats', JSON.stringify(chats));
-            
-            if (currentChatId === chatId) {
-                resetToWelcome();
+        async function deleteChatSession(sessionId) {
+            if (!confirm('Are you sure you want to delete this chat session? This will also delete all associated articles.')) {
+                return;
             }
             
-            loadChatHistory();
-        }
-
-        function loadChatHistory() {
-            historyItems.innerHTML = '';
-            
-            chats.forEach(chat => {
-                const historyItem = document.createElement('div');
-                historyItem.className = `history-item ${currentChatId === chat.id ? 'active' : ''}`;
-                historyItem.innerHTML = `
-                    <div class="history-item-title">${chat.title}</div>
-                    <div class="history-item-date">${chat.date}</div>
-                    <button class="delete-history-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">
-                        <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
-                    </button>
-                `;
-                
-                historyItem.addEventListener('click', () => {
-                    loadChat(chat.id);
+            try {
+                const response = await fetch(`/api/chat-sessions/${sessionId}`, {
+                    method: 'DELETE'
                 });
                 
-                historyItems.appendChild(historyItem);
-            });
+                if (response.ok) {
+                    if (currentChatId === sessionId) {
+                        resetToWelcome();
+                    }
+                    loadChatHistoryFromDB(); // Reload history
+                } else {
+                    const error = await response.json();
+                    alert('Error deleting chat session: ' + error.error);
+                }
+            } catch (error) {
+                console.error('Error deleting chat session:', error);
+                alert('Error deleting chat session');
+            }
         }
 
         function updateChatHistoryUI() {
@@ -1716,7 +1721,7 @@
         }
 
         // Make functions available globally
-        window.deleteChat = deleteChat;
+        window.deleteChatSession = deleteChatSession;
         window.rateArticle = rateArticle;
         window.downloadArticle = downloadArticle;
 
@@ -1752,15 +1757,15 @@
 
             try {
                 const htmlContent = messageElement.querySelector('.message-content').innerHTML;
-                const chat = chats.find(c => c.id === currentChatId);
-                const title = chat ? chat.title : 'Generated Article';
+                const title = currentChatId ? `Article_${currentChatId}` : 'Generated Article';
                 
                 const response = await fetch('/download-docx', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         html: htmlContent, 
-                        topic: title 
+                        topic: title,
+                        article_id: currentArticleId
                     })
                 });
 
@@ -1787,7 +1792,7 @@
         // Add message to chat with individual actions
         function addMessage(content, isUser = false, messageId = null) {
             if (!messageId) {
-                messageId = generateMessageId();
+                messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
             
             const messageDiv = document.createElement('div');
@@ -1850,6 +1855,7 @@
             currentState = 'welcome';
             rawArticleText = '';
             currentChatId = null;
+            currentArticleId = null;
             chatInput.value = '';
             chatInput.placeholder = 'Enter your article topic...';
             sendButton.disabled = false;
@@ -1860,7 +1866,7 @@
         // Generate article
         async function generateArticle(topic) {
             currentState = 'generating';
-            currentChatId = generateChatId();
+            currentChatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             
             switchToChatView();
             const userMessageId = addMessage(topic, true);
@@ -1880,10 +1886,14 @@
             sendButton.disabled = true;
 
             try {
-                const response = await fetch('/generate', {
+                const endpoint = isAuthenticated ? '/generate' : '/generate-guest';
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: topic })
+                    body: JSON.stringify({ 
+                        topic: topic,
+                        chat_session_id: currentChatId
+                    })
                 });
 
                 const data = await response.json();
@@ -1896,14 +1906,17 @@
                 }
 
                 rawArticleText = data.raw_text;
+                currentArticleId = data.article_id;
                 const aiMessageId = addMessage(data.article_html);
                 currentState = 'article-ready';
                 
-                const messages = [
-                    { content: topic, isUser: true, id: userMessageId },
-                    { content: data.article_html, isUser: false, id: aiMessageId }
-                ];
-                saveChat(currentChatId, topic, messages, rawArticleText, 0);
+                // Set refinements correctly
+                remainingRefinements = data.refinements_remaining || (isAuthenticated ? 5 : 1);
+                refinementsUsed = 0;
+                
+                if (isAuthenticated) {
+                    loadChatHistoryFromDB(); // Reload history to show new chat
+                }
                 
                 chatInput.placeholder = remainingRefinements > 0 ? 'Enter refinement instruction...' : 'No refinements remaining';
                 updateRefinementDisplay();
@@ -1951,7 +1964,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         raw_text: rawArticleText, 
-                        refinement_prompt: instruction 
+                        refinement_prompt: instruction,
+                        article_id: currentArticleId,
+                        chat_session_id: currentChatId,
+                        refinements_used: refinementsUsed
                     })
                 });
 
@@ -1966,17 +1982,11 @@
 
                 rawArticleText = data.raw_text;
                 const aiMessageId = addMessage(data.article_html);
-                remainingRefinements--;
-                currentState = 'article-ready';
                 
-                const chat = chats.find(c => c.id === currentChatId);
-                if (chat) {
-                    chat.messages.push({ content: instruction, isUser: true, id: userMessageId });
-                    chat.messages.push({ content: data.article_html, isUser: false, id: aiMessageId });
-                    chat.rawText = rawArticleText;
-                    chat.refinementsUsed = maxRefinements - remainingRefinements;
-                    saveChat(currentChatId, chat.title, chat.messages, rawArticleText, chat.refinementsUsed);
-                }
+                // Update refinement counts from server response
+                refinementsUsed = data.refinements_used;
+                remainingRefinements = data.refinements_remaining;
+                currentState = 'article-ready';
                 
                 updateRefinementDisplay();
                 
