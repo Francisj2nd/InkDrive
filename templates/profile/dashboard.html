@@ -239,7 +239,7 @@
 
         .content-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 24px;
         }
 
@@ -343,6 +343,24 @@
             color: var(--on-surface);
         }
 
+        .action-btn.publish {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .action-btn.publish:hover {
+            background: #c8e6c9;
+        }
+
+        [data-theme="dark"] .action-btn.publish {
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+
+        [data-theme="dark"] .action-btn.publish:hover {
+            background: #2e7d32;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -402,46 +420,6 @@
             border-color: #1d4ed8;
         }
 
-        @media (max-width: 768px) {
-            .dashboard-container {
-                padding: 16px;
-            }
-
-            .header-content {
-                flex-direction: column;
-                text-align: center;
-                gap: 16px;
-            }
-
-            .header-actions {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .user-name {
-                font-size: 24px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .header-actions {
-                flex-direction: column;
-            }
-        }
-
-        /* Add footer to dashboard */
         .footer {
             text-align: center;
             margin-top: 32px;
@@ -450,7 +428,6 @@
             font-size: 14px;
         }
 
-        /* Fix mobile view for cards */
         @media (max-width: 768px) {
             .dashboard-container {
                 padding: 16px;
@@ -615,9 +592,15 @@
                                 <button class="action-btn" title="Download" onclick="downloadArticle('{{ article.id }}')">
                                     <span class="material-symbols-outlined">download</span>
                                 </button>
-                                <button class="action-btn" title="Share" onclick="shareArticle('{{ article.public_id }}')">
-                                    <span class="material-symbols-outlined">share</span>
-                                </button>
+                                {% if article.is_public %}
+                                    <button class="action-btn publish" title="Published" onclick="window.open('{{ url_for('share_article', public_id=article.public_id) }}', '_blank')">
+                                        <span class="material-symbols-outlined">public</span>
+                                    </button>
+                                {% else %}
+                                    <button class="action-btn" title="Publish" onclick="publishArticle('{{ article.id }}')">
+                                        <span class="material-symbols-outlined">publish</span>
+                                    </button>
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}
@@ -627,6 +610,45 @@
                             <span class="material-symbols-outlined">article</span>
                         </div>
                         <p>No articles yet. <a href="{{ url_for('app_main') }}">Create your first article</a>!</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Published Articles -->
+            <div class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">Published Articles</h2>
+                </div>
+
+                {% if published_articles %}
+                    {% for article in published_articles %}
+                        <div class="article-item">
+                            <div class="article-icon">
+                                <span class="material-symbols-outlined">public</span>
+                            </div>
+                            <div class="article-info">
+                                <div class="article-title">{{ article.title }}</div>
+                                <div class="article-meta">
+                                    Published {{ article.published_at.strftime('%b %d, %Y') }} • 
+                                    {{ article.view_count }} views
+                                </div>
+                            </div>
+                            <div class="article-actions">
+                                <button class="action-btn" title="View Public Page" onclick="window.open('{{ url_for('share_article', public_id=article.public_id) }}', '_blank')">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </button>
+                                <button class="action-btn" title="Copy Link" onclick="copyArticleLink('{{ url_for('share_article', public_id=article.public_id, _external=True) }}')">
+                                    <span class="material-symbols-outlined">link</span>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <span class="material-symbols-outlined">public</span>
+                        </div>
+                        <p>No published articles yet. Publish an article to share it with the world!</p>
                     </div>
                 {% endif %}
             </div>
@@ -692,20 +714,43 @@
             }
         }
 
-        // Share article function
-        function shareArticle(publicId) {
-            const shareUrl = `${window.location.origin}/share/${publicId}`;
-            
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Check out this article',
-                    url: shareUrl
+        // Publish article function
+        async function publishArticle(articleId) {
+            try {
+                const response = await fetch(`/article/${articleId}/publish`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
-            } else {
-                // Fallback to clipboard
-                navigator.clipboard.writeText(shareUrl);
-                alert('Article link copied to clipboard!');
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message + '\n\nPublic URL: ' + data.public_url);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to publish article: ' + error.message);
             }
+        }
+
+        // Copy article link function
+        function copyArticleLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Article link copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Article link copied to clipboard!');
+            });
         }
     </script>
 </body>
