@@ -11,6 +11,7 @@
         :root {
             --primary-blue: #1a73e8;
             --primary-blue-hover: #1557b0;
+            --primary-green: #34a853;
             --surface: #ffffff;
             --surface-variant: #f8f9fa;
             --surface-container: #f1f3f4;
@@ -18,9 +19,8 @@
             --on-surface-variant: #5f6368;
             --outline: #dadce0;
             --outline-variant: #e8eaed;
-            --success-green: #34a853;
-            --warning-orange: #fbbc05;
-            --error-red: #ea4335;
+            --success: #34a853;
+            --error: #ea4335;
         }
 
         [data-theme="dark"] {
@@ -54,64 +54,65 @@
         }
 
         .header {
-            background: var(--surface);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--outline-variant);
         }
 
-        .header-left {
+        .logo {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 8px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--on-surface);
+            text-decoration: none;
         }
 
-        .back-btn {
-            background: var(--surface-container);
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            color: var(--on-surface-variant);
-            transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-            background: var(--outline);
-            color: var(--on-surface);
-        }
-
-        .header-title {
-            font-size: 20px;
-            font-weight: 500;
-            color: var(--on-surface);
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
         }
 
         .header-actions {
             display: flex;
             gap: 12px;
+            align-items: center;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
             text-decoration: none;
-            cursor: pointer;
-            border: none;
+            font-weight: 500;
+            font-size: 14px;
             transition: all 0.2s;
+            border: none;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--on-surface);
+            border: 1px solid var(--outline);
+        }
+
+        .btn-secondary:hover {
+            background: var(--surface-variant);
         }
 
         .btn-primary {
@@ -123,23 +124,13 @@
             background: var(--primary-blue-hover);
         }
 
-        .btn-secondary {
-            background: var(--surface-container);
-            color: var(--on-surface);
-            border: 1px solid var(--outline-variant);
-        }
-
-        .btn-secondary:hover {
-            background: var(--outline);
-        }
-
         .btn-success {
-            background: var(--success-green);
+            background: var(--primary-green);
             color: white;
         }
 
         .btn-success:hover {
-            background: #2e7d32;
+            background: #2d8f47;
         }
 
         .article-container {
@@ -147,21 +138,60 @@
             border-radius: 16px;
             padding: 32px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
         }
 
         .article-meta {
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--outline-variant);
             flex-wrap: wrap;
             gap: 16px;
-            margin-bottom: 24px;
+        }
+
+        .meta-info {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
             color: var(--on-surface-variant);
             font-size: 14px;
         }
 
-        .article-meta-item {
+        .article-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .publish-status {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .publish-status.published {
+            background: rgba(52, 168, 83, 0.1);
+            color: var(--primary-green);
+        }
+
+        .publish-status.unpublished {
+            background: var(--surface-container);
+            color: var(--on-surface-variant);
         }
 
         .article-content {
@@ -240,135 +270,54 @@
             margin-top: 4px;
         }
 
-        .publish-section {
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid var(--outline-variant);
-        }
-
-        .publish-title {
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 16px;
-            color: var(--on-surface);
-        }
-
-        .publish-url {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .publish-input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid var(--outline-variant);
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 20px;
             border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.success {
+            background: var(--success);
+        }
+
+        .notification.error {
+            background: var(--error);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .url-display {
+            background: var(--surface-container);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
             font-size: 14px;
-            font-family: inherit;
-            background: var(--surface-variant);
-            color: var(--on-surface);
-            cursor: text;
+            margin-top: 8px;
+            word-break: break-all;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
         }
 
         .copy-btn {
-            background: var(--surface-container);
-            border: 1px solid var(--outline-variant);
-            border-radius: 8px;
-            padding: 0 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--on-surface);
-        }
-
-        .copy-btn:hover {
-            background: var(--outline);
-        }
-
-        .publish-buttons {
-            display: flex;
-            gap: 12px;
-        }
-
-        .publish-btn {
-            background: var(--success-green);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-        }
-
-        .publish-btn:hover {
-            background: #2e7d32;
-        }
-
-        .unpublish-btn {
-            background: var(--error-red);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-        }
-
-        .unpublish-btn:hover {
-            background: #c62828;
-        }
-
-        .published-status {
-            background: #e8f5e8;
-            color: #2e7d32;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        [data-theme="dark"] .published-status {
-            background: #1b5e20;
-            color: #a5d6a7;
+            padding: 4px 8px;
+            font-size: 12px;
+            min-width: auto;
         }
 
         @media (max-width: 768px) {
             .container {
                 padding: 16px;
-            }
-
-            .header {
-                padding: 16px;
-                flex-direction: column;
-                gap: 16px;
-                align-items: flex-start;
-            }
-
-            .header-left {
-                width: 100%;
-            }
-
-            .header-actions {
-                width: 100%;
-                justify-content: flex-end;
             }
 
             .article-container {
@@ -387,12 +336,23 @@
                 font-size: 18px;
             }
 
-            .publish-url {
+            .header {
                 flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
             }
 
-            .publish-buttons {
-                flex-wrap: wrap;
+            .header-actions {
+                justify-content: center;
+            }
+
+            .article-meta {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .article-actions {
+                justify-content: center;
             }
         }
     </style>
@@ -400,165 +360,215 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-left">
-                <button class="back-btn" onclick="window.location.href='{{ url_for('profile_articles') }}'">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                </button>
-                <h1 class="header-title">View Article</h1>
-            </div>
+            <a href="/profile/dashboard" class="logo">
+                <div class="logo-icon">I</div>
+                <span>InkDrive</span>
+            </a>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="downloadArticle()">
-                    <span class="material-symbols-outlined">download</span>
-                    Download
-                </button>
+                <a href="/profile/articles" class="btn btn-secondary">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+                    Back to Articles
+                </a>
+                <a href="/profile/dashboard" class="btn btn-secondary">Dashboard</a>
             </div>
         </div>
 
         <div class="article-container">
             <div class="article-meta">
-                <div class="article-meta-item">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">schedule</span>
-                    {{ article.created_at.strftime('%b %d, %Y') }}
+                <div class="meta-info">
+                    <div class="meta-item">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">schedule</span>
+                        Created {{ article.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                    </div>
+                    {% if article.updated_at != article.created_at %}
+                    <div class="meta-item">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+                        Updated {{ article.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                    </div>
+                    {% endif %}
+                    <div class="meta-item">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">text_fields</span>
+                        {{ "{:,}".format(article.word_count) }} words
+                    </div>
+                    {% if article.is_public %}
+                    <div class="meta-item">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">visibility</span>
+                        {{ article.view_count }} views
+                    </div>
+                    {% endif %}
                 </div>
-                <div class="article-meta-item">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">text_fields</span>
-                    {{ "{:,}".format(article.word_count) }} words
+                
+                <div class="article-actions">
+                    {% if article.is_public %}
+                        <div class="publish-status published">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">public</span>
+                            Published
+                        </div>
+                        <button class="btn btn-secondary" onclick="unpublishArticle({{ article.id }})">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">public_off</span>
+                            Unpublish
+                        </button>
+                        <a href="{{ url_for('share_article', public_id=article.public_id) }}" target="_blank" class="btn btn-primary">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
+                            View Public
+                        </a>
+                    {% else %}
+                        <div class="publish-status unpublished">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">lock</span>
+                            Private
+                        </div>
+                        <button class="btn btn-success" onclick="publishArticle({{ article.id }})">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">public</span>
+                            Publish
+                        </button>
+                    {% endif %}
+                    
+                    <button class="btn btn-secondary" onclick="downloadArticle({{ article.id }})">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
+                        Download
+                    </button>
                 </div>
-                <div class="article-meta-item">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
-                    {{ article.download_count }} downloads
-                </div>
-                {% if article.is_public %}
-                <div class="article-meta-item">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">visibility</span>
-                    {{ article.view_count }} views
-                </div>
-                {% endif %}
-                {% if article.is_refined %}
-                <div class="article-meta-item">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">auto_fix_high</span>
-                    Refined
-                </div>
-                {% endif %}
             </div>
 
             <div class="article-content">
                 <h1>{{ article.title }}</h1>
                 {{ article.content_html|safe }}
             </div>
-
-            <div class="publish-section">
-                <h2 class="publish-title">Publishing</h2>
-                
-                {% if article.is_public %}
-                    <div class="published-status">
-                        <span class="material-symbols-outlined">public</span>
-                        Article is published and publicly accessible
-                    </div>
-                    <div class="publish-url">
-                        <input type="text" class="publish-input" id="publishUrl" readonly value="{{ url_for('share_article', public_id=article.public_id, _external=True) }}">
-                        <button class="copy-btn" onclick="copyPublishUrl()">
-                            <span class="material-symbols-outlined">content_copy</span>
-                            Copy
-                        </button>
-                    </div>
-                    <div class="publish-buttons">
-                        <button class="unpublish-btn" onclick="unpublishArticle()">
-                            <span class="material-symbols-outlined">public_off</span>
-                            Unpublish
-                        </button>
-                    </div>
-                {% else %}
-                    <p style="color: var(--on-surface-variant); margin-bottom: 16px;">
-                        Make this article publicly accessible by publishing it. Published articles can be viewed by anyone with the link.
-                    </p>
-                    <div class="publish-buttons">
-                        <button class="publish-btn" onclick="publishArticle()">
-                            <span class="material-symbols-outlined">public</span>
-                            Publish Article
-                        </button>
-                    </div>
-                {% endif %}
-            </div>
         </div>
     </div>
 
     <script>
-        // Apply theme based on user preference
-        const savedTheme = localStorage.getItem('theme') || '{{ current_user.theme_preference if current_user.is_authenticated else "auto" }}';
-        
-        function applyTheme(theme) {
-            if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-                document.documentElement.removeAttribute('data-theme');
+        function showNotification(message, type = 'success') {
+            // Remove existing notifications
+            const existing = document.querySelector('.notification');
+            if (existing) {
+                existing.remove();
             }
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Show notification
+            setTimeout(() => notification.classList.add('show'), 100);
+
+            // Hide notification after 3 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
         }
 
-        applyTheme(savedTheme);
-
-        // Copy publish URL to clipboard
-        function copyPublishUrl() {
-            const publishUrl = document.getElementById('publishUrl');
-            if (publishUrl) {
-                publishUrl.select();
-                document.execCommand('copy');
-                alert('Public URL copied to clipboard!');
-            }
-        }
-
-        // Publish article
-        async function publishArticle() {
+        async function publishArticle(articleId) {
             try {
-                const response = await fetch(`/article/{{ article.id }}/publish`, {
+                const response = await fetch(`/article/${articleId}/publish`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     }
                 });
 
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    alert(data.message);
-                    location.reload();
+                    showNotification('Article published successfully!');
+                    
+                    // Show the public URL
+                    const urlDisplay = document.createElement('div');
+                    urlDisplay.className = 'url-display';
+                    urlDisplay.innerHTML = `
+                        <span>Public URL: ${data.public_url}</span>
+                        <button class="btn btn-secondary copy-btn" onclick="copyToClipboard('${data.public_url}')">Copy</button>
+                    `;
+                    
+                    // Insert after the article meta
+                    const articleMeta = document.querySelector('.article-meta');
+                    articleMeta.parentNode.insertBefore(urlDisplay, articleMeta.nextSibling);
+                    
+                    // Reload page after 2 seconds to update UI
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
                 } else {
-                    alert('Error: ' + data.error);
+                    showNotification(data.error || 'Failed to publish article', 'error');
                 }
             } catch (error) {
-                alert('Failed to publish article: ' + error.message);
+                console.error('Error publishing article:', error);
+                showNotification('Failed to publish article', 'error');
             }
         }
 
-        // Unpublish article
-        async function unpublishArticle() {
+        async function unpublishArticle(articleId) {
             if (!confirm('Are you sure you want to unpublish this article? It will no longer be publicly accessible.')) {
                 return;
             }
 
             try {
-                const response = await fetch(`/article/{{ article.id }}/unpublish`, {
+                const response = await fetch(`/article/${articleId}/unpublish`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     }
                 });
 
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    alert(data.message);
-                    location.reload();
+                    showNotification('Article unpublished successfully!');
+                    
+                    // Remove URL display if it exists
+                    const urlDisplay = document.querySelector('.url-display');
+                    if (urlDisplay) {
+                        urlDisplay.remove();
+                    }
+                    
+                    // Reload page after 1 second to update UI
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
                 } else {
-                    alert('Error: ' + data.error);
+                    showNotification(data.error || 'Failed to unpublish article', 'error');
                 }
             } catch (error) {
-                alert('Failed to unpublish article: ' + error.message);
+                console.error('Error unpublishing article:', error);
+                showNotification('Failed to unpublish article', 'error');
             }
         }
 
-        function downloadArticle() {
-            window.location.href = '{{ url_for("api_download_article", article_id=article.id) }}';
+        async function downloadArticle(articleId) {
+            try {
+                const response = await fetch(`/api/articles/${articleId}/download`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'article.docx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showNotification('Article downloaded successfully!');
+                } else {
+                    const errorData = await response.json();
+                    showNotification(errorData.error || 'Failed to download article', 'error');
+                }
+            } catch (error) {
+                console.error('Error downloading article:', error);
+                showNotification('Failed to download article', 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('URL copied to clipboard!');
+            }).catch(() => {
+                showNotification('Failed to copy URL', 'error');
+            });
         }
     </script>
 </body>
