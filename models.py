@@ -70,6 +70,7 @@ class Article(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_sessions.id'), nullable=True)
     title = db.Column(db.String(200), nullable=False)
     content_html = db.Column(db.Text, nullable=False)
     content_raw = db.Column(db.Text, nullable=False)  # Raw markdown/text
@@ -88,6 +89,9 @@ class Article(db.Model):
     rating = db.Column(db.String(10), nullable=True)  # 'up', 'down', null
     is_favorite = db.Column(db.Boolean, default=False)
     download_count = db.Column(db.Integer, default=0)
+    
+    # Relationship
+    chat_session = db.relationship('ChatSession', backref='articles')
     
     def increment_download(self):
         """Increment download counter"""
@@ -112,7 +116,8 @@ class Article(db.Model):
             'rating': self.rating,
             'is_favorite': self.is_favorite,
             'download_count': self.download_count,
-            'public_id': self.public_id
+            'public_id': self.public_id,
+            'chat_session_id': self.chat_session_id
         }
 
 class ChatSession(db.Model):
@@ -150,5 +155,6 @@ class ChatSession(db.Model):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'messages': self.get_messages(),
-            'has_refined': self.has_refined
+            'has_refined': self.has_refined,
+            'raw_text': self.raw_text
         }
