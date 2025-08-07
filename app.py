@@ -481,7 +481,7 @@ def auth_logout():
 def profile_dashboard():
     """User profile dashboard"""
     try:
-        # Get user's recent articles with error handling
+        # Get user's recent articles with error handling (limit to 5)
         recent_articles = []
         published_articles = []
         total_articles = 0
@@ -491,12 +491,12 @@ def profile_dashboard():
         try:
             recent_articles = Article.query.filter_by(user_id=current_user.id)\
                                          .order_by(Article.created_at.desc())\
-                                         .limit(10).all()
+                                         .limit(5).all()
             
-            # Get published articles
+            # Get published articles (limit to 5)
             published_articles = Article.query.filter_by(user_id=current_user.id, is_public=True)\
                                              .order_by(Article.published_at.desc())\
-                                             .limit(10).all()
+                                             .limit(5).all()
             
             # Calculate stats
             total_articles = Article.query.filter_by(user_id=current_user.id).count()
@@ -709,11 +709,39 @@ def unpublish_article(article_id):
         logger.error(f"Article unpublish error: {e}")
         return jsonify({"error": "Failed to unpublish article"}), 500
 
+@app.route('/article/<int:article_id>/delete', methods=['POST'])
+@login_required
+def delete_article(article_id):
+    """Delete an article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        
+        db.session.delete(article)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Article deleted successfully!"
+        })
+    except (OperationalError, DatabaseError) as e:
+        db.session.rollback()
+        logger.error(f"Database error deleting article {article_id}: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Article delete error: {e}")
+        return jsonify({"error": "Failed to delete article"}), 500
+
 @app.route('/share/<string:public_id>')
 def share_article(public_id):
     """Public-facing route to view a published article"""
     try:
-        article = Article.query.filter_by(public_id=public_id, is_public=True).first_or_404()
+        # Fixed query: Only get articles that are both matching public_id AND published
+        article = Article.query.filter_by(public_id=public_id, is_public=True).first()
+        
+        if not article:
+            # Article doesn't exist or is not published
+            abort(404)
         
         # Increment view count
         article.increment_view()
@@ -1019,6 +1047,23 @@ def api_user_chat_history():
         logger.error(f"API chat history error: {e}")
         return jsonify({"error": "Failed to fetch chat history"}), 500
 
+@app.route('/api/chat-session/<string:session_id>')
+@login_required
+def api_get_chat_session(session_id):
+    """Get a specific chat session"""
+    try:
+        chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
+        if not chat_session:
+            return jsonify({"error": "Chat session not found"}), 404
+        
+        return jsonify(chat_session.to_dict())
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error getting chat session: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        logger.error(f"API get chat session error: {e}")
+        return jsonify({"error": "Failed to fetch chat session"}), 500
+
 @app.route('/api/user/articles')
 @login_required
 def api_user_articles():
@@ -1164,7 +1209,29 @@ def delete_chat_session(session_id):
         logger.error(f"Chat session deletion error: {e}")
         return jsonify({"error": "Failed to delete chat session"}), 500
 
-# --- 6. ERROR HANDLERS ---
+# --- 6. LEGAL PAGES ---
+
+@app.route('/privacy')
+def privacy_policy():
+    """Privacy Policy page"""
+    return render_template('legal/privacy.html')
+
+@app.route('/terms')
+def terms_of_service():
+    """Terms of Service page"""
+    return render_template('legal/terms.html')
+
+@app.route('/support')
+def support():
+    """Support page"""
+    return render_template('legal/support.html')
+
+@app.route('/contact')
+def contact():
+    """Contact page"""
+    return render_template('legal/contact.html')
+
+# --- 7. ERROR HANDLERS ---
 
 @app.errorhandler(404)
 def not_found_error(error):
@@ -1183,7 +1250,7 @@ def database_error(error):
     flash('Database connection issue. Please try again in a moment.', 'error')
     return redirect(url_for('index'))
 
-# --- 7. DATABASE INITIALIZATION ---
+# --- 8. DATABASE INITIALIZATION ---
 
 def init_db():
     """Initialize database tables"""
