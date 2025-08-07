@@ -81,6 +81,11 @@ class Article(db.Model):
     word_count = db.Column(db.Integer, default=0)
     public_id = db.Column(db.String(20), unique=True, nullable=False, default=lambda: str(datetime.utcnow().timestamp())[:10])
     
+    # Publishing fields
+    is_public = db.Column(db.Boolean, default=False)
+    published_at = db.Column(db.DateTime, nullable=True)
+    view_count = db.Column(db.Integer, default=0)
+    
     # SEO and metadata
     meta_description = db.Column(db.String(160), nullable=True)
     keywords = db.Column(db.Text, nullable=True)  # JSON array of keywords
@@ -98,10 +103,56 @@ class Article(db.Model):
         self.download_count += 1
         db.session.commit()
     
+    def increment_view(self):
+        """Increment view counter"""
+        self.view_count += 1
+        db.session.commit()
+    
+    def publish(self):
+        """Publish the article"""
+        self.is_public = True
+        self.published_at = datetime.utcnow()
+        db.session.commit()
+    
+    def unpublish(self):
+        """Unpublish the article"""
+        self.is_public = False
+        self.published_at = None
+        db.session.commit()
+    
     def set_rating(self, rating):
         """Set article rating"""
         self.rating = rating if rating in ['up', 'down'] else None
         db.session.commit()
+    
+    def get_first_image_url(self):
+        """Extract the first image URL from content_html"""
+        import re
+        from bs4 import BeautifulSoup
+        
+        try:
+            soup = BeautifulSoup(self.content_html, 'html.parser')
+            img_tag = soup.find('img')
+            if img_tag and img_tag.get('src'):
+                return img_tag['src']
+        except Exception:
+            pass
+        return None
+    
+    def get_excerpt(self, length=150):
+        """Get a plain text excerpt from the article"""
+        from bs4 import BeautifulSoup
+        
+        try:
+            soup = BeautifulSoup(self.content_html, 'html.parser')
+            text = soup.get_text()
+            # Remove extra whitespace
+            text = ' '.join(text.split())
+            if len(text) > length:
+                return text[:length] + '...'
+            return text
+        except Exception:
+            return self.title
     
     def to_dict(self):
         """Convert article to dictionary"""
@@ -117,7 +168,10 @@ class Article(db.Model):
             'is_favorite': self.is_favorite,
             'download_count': self.download_count,
             'public_id': self.public_id,
-            'chat_session_id': self.chat_session_id
+            'chat_session_id': self.chat_session_id,
+            'is_public': self.is_public,
+            'published_at': self.published_at.isoformat() if self.published_at else None,
+            'view_count': self.view_count
         }
 
 class ChatSession(db.Model):
