@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -45,13 +47,20 @@ class User(UserMixin, db.Model):
     
     def set_password(self, password):
         """Set password hash"""
-        self.password_hash = generate_password_hash(password)
+        if not password:
+            raise ValueError("Password cannot be empty")
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
     
     def check_password(self, password):
         """Check password against hash"""
-        if not self.password_hash:
+        if not self.password_hash or not password:
             return False
-        return check_password_hash(self.password_hash, password)
+        try:
+            return check_password_hash(self.password_hash, password)
+        except ValueError as e:
+            # Handle invalid hash format
+            logger.error(f"Invalid password hash format for user {self.id}: {e}")
+            return False
     
     def update_last_login(self):
         """Update last login timestamp"""
