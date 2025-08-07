@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ article.title }} - InkDrive</title>
+    <title>Profile Dashboard - InkDrive</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234285f4'/%3E%3Cstop offset='25%25' style='stop-color:%2334a853'/%3E%3Cstop offset='50%25' style='stop-color:%23fbbc05'/%3E%3Cstop offset='100%25' style='stop-color:%23ea4335'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23grad)'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='14' font-weight='600'%3EI%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <meta property="og:title" content="{{ article.title }}">
-    <meta property="og:description" content="{{ article.meta_description if article.meta_description else 'Read this article on InkDrive' }}">
-    <meta property="og:type" content="article">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <style>
         :root {
             --primary-blue: #1a73e8;
@@ -20,6 +18,9 @@
             --on-surface-variant: #5f6368;
             --outline: #dadce0;
             --outline-variant: #e8eaed;
+            --success-green: #34a853;
+            --warning-orange: #fbbc05;
+            --error-red: #ea4335;
         }
 
         [data-theme="dark"] {
@@ -43,134 +44,380 @@
             background-color: var(--surface-variant);
             color: var(--on-surface);
             line-height: 1.6;
-            min-height: 100vh;
         }
 
-        .container {
-            max-width: 800px;
+        .dashboard-container {
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
-            padding-top: 20px;
+        .dashboard-header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .logo {
-            display: inline-flex;
+        .header-content {
+            display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--on-surface);
-            text-decoration: none;
-            margin-bottom: 16px;
+            gap: 24px;
         }
 
-        .logo-icon {
-            width: 32px;
-            height: 32px;
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
             background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
-            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
+            font-size: 32px;
             font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-size: 28px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--on-surface);
+        }
+
+        .user-email {
+            color: var(--on-surface-variant);
             font-size: 16px;
+            margin-bottom: 4px;
         }
 
-        .article-container {
-            background: var(--surface);
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .article-meta {
-            text-align: center;
-            margin-bottom: 24px;
+        .user-meta {
             color: var(--on-surface-variant);
             font-size: 14px;
         }
 
-        .article-content {
-            font-size: 16px;
-            line-height: 1.7;
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
         }
 
-        .article-content h1 {
-            font-size: 32px;
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 500;
-            margin-bottom: 24px;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-blue-hover);
+        }
+
+        .btn-secondary {
+            background: var(--surface-container);
             color: var(--on-surface);
-            text-align: center;
-        }
-
-        .article-content h2 {
-            font-size: 24px;
-            font-weight: 500;
-            margin-top: 32px;
-            margin-bottom: 16px;
-            color: var(--on-surface);
-        }
-
-        .article-content h3 {
-            font-size: 20px;
-            font-weight: 500;
-            margin-top: 24px;
-            margin-bottom: 12px;
-            color: var(--on-surface);
-        }
-
-        .article-content p {
-            margin-bottom: 16px;
-        }
-
-        .article-content ul, .article-content ol {
-            margin-bottom: 16px;
-            padding-left: 24px;
-        }
-
-        .article-content li {
-            margin-bottom: 8px;
-        }
-
-        .real-image-container {
-            margin: 32px 0;
-            text-align: center;
-            background: var(--surface-variant);
-            border-radius: 12px;
-            padding: 16px;
             border: 1px solid var(--outline-variant);
         }
 
-        .real-image-container img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        .btn-secondary:hover {
+            background: var(--outline);
         }
 
-        .image-title {
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-icon.articles {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .stat-icon.words {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .stat-icon.downloads {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+
+        .stat-icon.member {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        [data-theme="dark"] .stat-icon.articles {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
+
+        [data-theme="dark"] .stat-icon.words {
+            background: #581c87;
+            color: #e9d5ff;
+        }
+
+        [data-theme="dark"] .stat-icon.downloads {
+            background: #14532d;
+            color: #bbf7d0;
+        }
+
+        [data-theme="dark"] .stat-icon.member {
+            background: #9a3412;
+            color: #fed7aa;
+        }
+
+        .stat-title {
+            font-size: 14px;
+            color: var(--on-surface-variant);
             font-weight: 500;
-            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--on-surface);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .content-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 500;
             color: var(--on-surface);
         }
 
-        .alt-text-display {
-            font-size: 13px;
-            color: var(--on-surface-variant);
-            margin-top: 8px;
-            font-style: italic;
+        .section-link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
         }
 
-        .attribution {
+        .section-link:hover {
+            text-decoration: underline;
+        }
+
+        .article-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--outline-variant);
+        }
+
+        .article-item:last-child {
+            border-bottom: none;
+        }
+
+        .article-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--surface-container);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--on-surface-variant);
+            flex-shrink: 0;
+        }
+
+        .article-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .article-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .article-meta {
             font-size: 12px;
             color: var(--on-surface-variant);
-            margin-top: 4px;
+        }
+
+        .article-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: var(--surface-container);
+            color: var(--on-surface-variant);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--outline);
+            color: var(--on-surface);
+        }
+
+        .action-btn.publish {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .action-btn.publish:hover {
+            background: #c8e6c9;
+        }
+
+        [data-theme="dark"] .action-btn.publish {
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+
+        [data-theme="dark"] .action-btn.publish:hover {
+            background: #2e7d32;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--on-surface-variant);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .flash-messages {
+            margin-bottom: 24px;
+        }
+
+        .flash-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .flash-message.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .flash-message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .flash-message.info {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+
+        [data-theme="dark"] .flash-message.success {
+            background: #14532d;
+            color: #bbf7d0;
+            border-color: #166534;
+        }
+
+        [data-theme="dark"] .flash-message.error {
+            background: #7f1d1d;
+            color: #fecaca;
+            border-color: #991b1b;
+        }
+
+        [data-theme="dark"] .flash-message.info {
+            background: #1e3a8a;
+            color: #bfdbfe;
+            border-color: #1d4ed8;
         }
 
         .footer {
@@ -181,119 +428,330 @@
             font-size: 14px;
         }
 
-        .footer a {
-            color: var(--primary-blue);
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
-
-        .theme-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 1px solid var(--outline-variant);
-            color: var(--on-surface-variant);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-        }
-
         @media (max-width: 768px) {
-            .container {
+            .dashboard-container {
                 padding: 16px;
             }
 
-            .article-container {
-                padding: 20px;
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 16px;
             }
 
-            .article-content h1 {
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .user-name {
                 font-size: 24px;
             }
+        }
 
-            .article-content h2 {
-                font-size: 20px;
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
 
-            .article-content h3 {
-                font-size: 18px;
+            .header-actions {
+                flex-direction: column;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <a href="/" class="logo">
-                <div class="logo-icon">I</div>
-                <span>InkDrive</span>
-            </a>
+    <div class="dashboard-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Profile Header -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <div class="profile-avatar">
+                    {% if user.profile_picture %}
+                        <img src="{{ user.profile_picture }}" alt="{{ user.name }}">
+                    {% else %}
+                        {{ user.name[0].upper() }}
+                    {% endif %}
+                </div>
+                <div class="header-info">
+                    <h1 class="user-name">{{ user.name }}</h1>
+                    <div class="user-email">{{ user.email }}</div>
+                    <div class="user-meta">
+                        Member since {{ stats.member_since }} • {{ user.subscription_tier.title() }} Plan
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a href="{{ url_for('app_main') }}" class="btn btn-primary">
+                        <span class="material-symbols-outlined">edit</span>
+                        Create Article
+                    </a>
+                    <a href="{{ url_for('profile_edit') }}" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">settings</span>
+                        Settings
+                    </a>
+                    <a href="{{ url_for('auth_logout') }}" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">logout</span>
+                        Logout
+                    </a>
+                </div>
+            </div>
         </div>
 
-        <div class="article-container">
-            <div class="article-meta">
-                Published on {{ article.created_at.strftime('%B %d, %Y') }}
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon articles">
+                        <span class="material-symbols-outlined">article</span>
+                    </div>
+                    <div class="stat-title">Articles Created</div>
+                </div>
+                <div class="stat-value">{{ stats.total_articles }}</div>
+                <div class="stat-label">Total articles generated</div>
             </div>
 
-            <div class="article-content">
-                <h1>{{ article.title }}</h1>
-                {{ article.content_html|safe }}
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon words">
+                        <span class="material-symbols-outlined">text_fields</span>
+                    </div>
+                    <div class="stat-title">Words Written</div>
+                </div>
+                <div class="stat-value">{{ "{:,}".format(stats.total_words) }}</div>
+                <div class="stat-label">{{ "{:,}".format(stats.words_this_month) }}/{{ "{:,}".format(stats.word_limit) }} this month</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon downloads">
+                        <span class="material-symbols-outlined">download</span>
+                    </div>
+                    <div class="stat-title">Downloads</div>
+                </div>
+                <div class="stat-value">{{ stats.total_downloads }}</div>
+                <div class="stat-label">{{ stats.downloads_this_month }}/{{ stats.download_limit }} this month</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon member">
+                        <span class="material-symbols-outlined">schedule</span>
+                    </div>
+                    <div class="stat-title">Member Since</div>
+                </div>
+                <div class="stat-value">{{ stats.member_since.split()[1] if stats.member_since != 'Unknown' else 'N/A' }}</div>
+                <div class="stat-label">{{ stats.member_since.split()[0] if stats.member_since != 'Unknown' else 'Unknown' }}</div>
+            </div>
+        </div>
+
+        <!-- Content Grid -->
+        <div class="content-grid">
+            <!-- Recent Articles -->
+            <div class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">Recent Articles</h2>
+                    <a href="{{ url_for('profile_articles') }}" class="section-link">View all</a>
+                </div>
+
+                {% if recent_articles %}
+                    {% for article in recent_articles %}
+                        <div class="article-item">
+                            <div class="article-icon">
+                                <span class="material-symbols-outlined">article</span>
+                            </div>
+                            <div class="article-info">
+                                <div class="article-title">{{ article.title }}</div>
+                                <div class="article-meta">
+                                    {{ article.created_at.strftime('%b %d, %Y') }} • 
+                                    {{ article.word_count }} words • 
+                                    {{ article.download_count }} downloads
+                                    {% if article.is_refined %}• Refined{% endif %}
+                                </div>
+                            </div>
+                            <div class="article-actions">
+                                <button class="action-btn" title="View" onclick="window.location.href='{{ url_for('article_view', article_id=article.id) }}'">
+                                    <span class="material-symbols-outlined">visibility</span>
+                                </button>
+                                <button class="action-btn" title="Download" onclick="downloadArticle('{{ article.id }}')">
+                                    <span class="material-symbols-outlined">download</span>
+                                </button>
+                                {% if article.is_public %}
+                                    <button class="action-btn publish" title="Published" onclick="window.open('{{ url_for('share_article', public_id=article.public_id) }}', '_blank')">
+                                        <span class="material-symbols-outlined">public</span>
+                                    </button>
+                                {% else %}
+                                    <button class="action-btn" title="Publish" onclick="publishArticle('{{ article.id }}')">
+                                        <span class="material-symbols-outlined">publish</span>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <span class="material-symbols-outlined">article</span>
+                        </div>
+                        <p>No articles yet. <a href="{{ url_for('app_main') }}">Create your first article</a>!</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Published Articles -->
+            <div class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">Published Articles</h2>
+                </div>
+
+                {% if published_articles %}
+                    {% for article in published_articles %}
+                        <div class="article-item">
+                            <div class="article-icon">
+                                <span class="material-symbols-outlined">public</span>
+                            </div>
+                            <div class="article-info">
+                                <div class="article-title">{{ article.title }}</div>
+                                <div class="article-meta">
+                                    Published {{ article.published_at.strftime('%b %d, %Y') }} • 
+                                    {{ article.view_count }} views
+                                </div>
+                            </div>
+                            <div class="article-actions">
+                                <button class="action-btn" title="View Public Page" onclick="window.open('{{ url_for('share_article', public_id=article.public_id) }}', '_blank')">
+                                    <span class="material-symbols-outlined">open_in_new</span>
+                                </button>
+                                <button class="action-btn" title="Copy Link" onclick="copyArticleLink('{{ url_for('share_article', public_id=article.public_id, _external=True) }}')">
+                                    <span class="material-symbols-outlined">link</span>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <span class="material-symbols-outlined">public</span>
+                        </div>
+                        <p>No published articles yet. Publish an article to share it with the world!</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
         <div class="footer">
-            <p>This article was created with <a href="/">InkDrive</a></p>
-            <p>© InkDrive 2025 · Built by Francisj2nd</p>
+            © InkDrive 2025 · Built by Francisj2nd
         </div>
     </div>
 
-    <button class="theme-toggle" id="themeToggle">
-        🌙
-    </button>
-
     <script>
-        // Theme toggle functionality
-        const themeToggle = document.getElementById('themeToggle');
+        // Apply theme based on user preference
+        const userTheme = '{{ user.theme_preference if user.is_authenticated else "auto" }}';
         
-        // Check for system preference
-        function getPreferredTheme() {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                return 'dark';
-            }
-            return 'light';
-        }
-        
-        // Apply theme
         function applyTheme(theme) {
-            if (theme === 'dark') {
+            if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.setAttribute('data-theme', 'dark');
-                themeToggle.textContent = '☀️';
             } else {
                 document.documentElement.removeAttribute('data-theme');
-                themeToggle.textContent = '🌙';
             }
-            localStorage.setItem('share-theme', theme);
         }
-        
-        // Initialize theme
-        const savedTheme = localStorage.getItem('share-theme') || getPreferredTheme();
-        applyTheme(savedTheme);
-        
-        // Toggle theme
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
-        });
+
+        // Apply initial theme
+        applyTheme(userTheme);
+
+        // Listen for system theme changes if user preference is auto
+        if (userTheme === 'auto') {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                applyTheme('auto');
+            });
+        }
+
+        // Sync with localStorage for consistency
+        localStorage.setItem('theme', userTheme);
+
+        // Download article function - Fixed to use POST request
+        async function downloadArticle(articleId) {
+            try {
+                const response = await fetch(`/api/articles/${articleId}/download`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Download failed');
+                }
+
+                // Handle the file download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `article_${articleId}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Failed to download article: ' + error.message);
+            }
+        }
+
+        // Publish article function
+        async function publishArticle(articleId) {
+            try {
+                const response = await fetch(`/article/${articleId}/publish`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message + '\n\nPublic URL: ' + data.public_url);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to publish article: ' + error.message);
+            }
+        }
+
+        // Copy article link function
+        function copyArticleLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Article link copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Article link copied to clipboard!');
+            });
+        }
     </script>
 </body>
 </html>
