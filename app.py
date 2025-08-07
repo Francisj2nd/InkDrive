@@ -410,9 +410,11 @@ def auth_register():
                 email=form.email.data.lower(),
                 name=form.name.data,
                 is_verified=True,  # Auto-verify for now
+                is_active=True,
                 words_generated_this_month=0,
                 downloads_this_month=0,
                 articles_generated=0,
+                total_words_generated=0,
                 last_quota_reset=datetime.utcnow()
             )
             user.set_password(form.password.data)
@@ -483,9 +485,11 @@ def auth_google_callback():
                     google_id=google_id,
                     profile_picture=picture,
                     is_verified=True,
+                    is_active=True,
                     words_generated_this_month=0,
                     downloads_this_month=0,
                     articles_generated=0,
+                    total_words_generated=0,
                     last_quota_reset=datetime.utcnow()
                 )
                 db.session.add(user)
@@ -809,10 +813,11 @@ def share_article(public_id):
         
         # Get random published articles for social proof (excluding current article)
         try:
+            # Use a simpler query that works with both SQLite and PostgreSQL
             featured_articles = Article.query.filter(
                 Article.is_public == True,
                 Article.id != article.id
-            ).order_by(func.random()).limit(5).all()
+            ).limit(5).all()
         except Exception as e:
             logger.warning(f"Error fetching featured articles: {e}")
             featured_articles = []
@@ -835,9 +840,8 @@ def index():
     else:
         # Get random published articles for social proof
         try:
-            featured_articles = Article.query.filter_by(is_public=True)\
-                                           .order_by(func.random())\
-                                           .limit(5).all()
+            # Use a simpler query that works with both SQLite and PostgreSQL
+            featured_articles = Article.query.filter_by(is_public=True).limit(5).all()
         except Exception as e:
             logger.warning(f"Error fetching featured articles for landing: {e}")
             featured_articles = []
