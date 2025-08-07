@@ -20,6 +20,9 @@ import logging
 from sqlalchemy.exc import OperationalError, DatabaseError
 from sqlalchemy import func
 import time
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Import our models and forms
 from models import db, User, Article, ChatSession
@@ -52,6 +55,14 @@ if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
 # Google OAuth Configuration
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
+
+# Email Configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['CONTACT_EMAIL'] = 'francisj2nd@gmail.com'
 
 # Load environment variables from Render
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
@@ -304,6 +315,46 @@ def check_monthly_download_quota(user):
         logger.error(f"Error checking download quota for user {user.id}: {e}")
         return True  # Allow operation if check fails
 
+def send_contact_email(name, email, subject, message):
+    """Send contact form email"""
+    try:
+        if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+            logger.warning("Email credentials not configured")
+            return False
+            
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = app.config['CONTACT_EMAIL']
+        msg['Subject'] = f"InkDrive Contact Form: {subject}"
+        
+        body = f"""
+New contact form submission from InkDrive:
+
+Name: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}
+
+---
+This message was sent from the InkDrive contact form.
+        """
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        text = msg.as_string()
+        server.sendmail(app.config['MAIL_USERNAME'], app.config['CONTACT_EMAIL'], text)
+        server.quit()
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error sending contact email: {e}")
+        return False
+
 # --- 2. AUTHENTICATION ROUTES ---
 
 @app.route('/auth/login', methods=['GET', 'POST'])
@@ -500,8 +551,11 @@ def profile_dashboard():
             
             # Calculate stats
             total_articles = Article.query.filter_by(user_id=current_user.id).count()
+            
+            # Total words should be cumulative (never decrease)
             total_words = db.session.query(db.func.sum(Article.word_count))\
                                    .filter_by(user_id=current_user.id).scalar() or 0
+            
             total_downloads = db.session.query(db.func.sum(Article.download_count))\
                                         .filter_by(user_id=current_user.id).scalar() or 0
         except (OperationalError, DatabaseError) as e:
@@ -712,16 +766,23 @@ def unpublish_article(article_id):
 @app.route('/article/<int:article_id>/delete', methods=['POST'])
 @login_required
 def delete_article(article_id):
-    """Delete an article"""
+    """Delete an article and its associated chat session"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
         
+        # Find and delete associated chat session if it exists
+        if article.chat_session_id:
+            chat_session = ChatSession.query.filter_by(id=article.chat_session_id, user_id=current_user.id).first()
+            if chat_session:
+                db.session.delete(chat_session)
+        
+        # Delete the article
         db.session.delete(article)
         db.session.commit()
         
         return jsonify({
             "success": True,
-            "message": "Article deleted successfully!"
+            "message": "Article and associated chat deleted successfully!"
         })
     except (OperationalError, DatabaseError) as e:
         db.session.rollback()
@@ -1226,9 +1287,30 @@ def support():
     """Support page"""
     return render_template('legal/support.html')
 
-@app.route('/contact')
+@app.route('/contact', methods=['GET', 'POST'])
 def contact():
     """Contact page"""
+    if request.method == 'POST':
+        try:
+            name = request.form.get('name', '').strip()
+            email = request.form.get('email', '').strip()
+            subject = request.form.get('subject', '').strip()
+            message = request.form.get('message', '').strip()
+            
+            if not all([name, email, subject, message]):
+                flash('Please fill in all required fields.', 'error')
+                return render_template('legal/contact.html')
+            
+            # Send email
+            if send_contact_email(name, email, subject, message):
+                flash('Thank you for your message! We\'ll get back to you soon.', 'success')
+            else:
+                flash('Sorry, there was an error sending your message. Please try again later.', 'error')
+                
+        except Exception as e:
+            logger.error(f"Contact form error: {e}")
+            flash('Sorry, there was an error processing your request.', 'error')
+    
     return render_template('legal/contact.html')
 
 # --- 7. ERROR HANDLERS ---
