@@ -37,6 +37,8 @@ def run_migrations():
             migrations_needed.append('add_public_id_field')
         
         # Check for missing users fields
+        if 'updated_at' not in users_columns:
+            migrations_needed.append('add_users_updated_at_field')
         if 'is_active' not in users_columns:
             migrations_needed.append('add_is_active_field')
         if 'total_words_generated' not in users_columns:
@@ -59,6 +61,8 @@ def run_migrations():
                 add_seo_keywords_field()
             elif migration == 'add_public_id_field':
                 add_public_id_field()
+            elif migration == 'add_users_updated_at_field':
+                add_users_updated_at_field()
             elif migration == 'add_is_active_field':
                 add_is_active_field()
             elif migration == 'add_total_words_generated_field':
@@ -69,10 +73,12 @@ def run_migrations():
         else:
             logger.info("No migrations needed")
             
+        return True
+            
     except Exception as e:
         logger.error(f"Migration error: {e}")
         db.session.rollback()
-        raise
+        return False
 
 def add_is_public_field():
     """Add is_public field to articles table"""
@@ -149,6 +155,18 @@ def add_public_id_field():
         logger.info("Added public_id field to articles table")
     except Exception as e:
         logger.error(f"Error adding public_id field: {e}")
+        raise
+
+def add_users_updated_at_field():
+    """Add updated_at field to users table"""
+    try:
+        with db.engine.connect() as conn:
+            # Add the column with a default value of current timestamp
+            conn.execute(text('ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+            conn.commit()
+        logger.info("Added updated_at field to users table")
+    except Exception as e:
+        logger.error(f"Error adding updated_at field: {e}")
         raise
 
 def add_is_active_field():
