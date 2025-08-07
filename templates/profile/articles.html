@@ -419,7 +419,7 @@
                                     <span class="material-symbols-outlined" style="font-size: 16px;">visibility</span>
                                     View
                                 </button>
-                                <button class="action-btn" onclick="shareArticle('{{ article.id }}')">
+                                <button class="action-btn" onclick="shareArticle('{{ article.public_id }}')">
                                     <span class="material-symbols-outlined" style="font-size: 16px;">share</span>
                                     Share
                                 </button>
@@ -494,10 +494,31 @@
 
         applyTheme(savedTheme);
 
-        // Article actions
+        // Article actions - Fixed to use POST request for downloads
         async function downloadArticle(articleId) {
             try {
-                window.location.href = '{{ url_for("api_download_article", article_id=0) }}'.replace('0', articleId);
+                const response = await fetch(`/api/articles/${articleId}/download`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Download failed');
+                }
+
+                // Handle the file download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `article_${articleId}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
             } catch (error) {
                 alert('Failed to download article: ' + error.message);
             }
@@ -507,28 +528,19 @@
             window.location.href = '{{ url_for("article_view", article_id=0) }}'.replace('0', articleId);
         }
 
-        function shareArticle(articleId) {
-            // Get the article's public ID
-            fetch(`/api/articles/${articleId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const shareUrl = `${window.location.origin}/share/${data.public_id}`;
-                    
-                    if (navigator.share) {
-                        navigator.share({
-                            title: 'Check out this article',
-                            url: shareUrl
-                        });
-                    } else {
-                        // Fallback to clipboard
-                        navigator.clipboard.writeText(shareUrl);
-                        alert('Article link copied to clipboard!');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching article:', error);
-                    alert('Failed to share article');
+        function shareArticle(publicId) {
+            const shareUrl = `${window.location.origin}/share/${publicId}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Check out this article',
+                    url: shareUrl
                 });
+            } else {
+                // Fallback to clipboard
+                navigator.clipboard.writeText(shareUrl);
+                alert('Article link copied to clipboard!');
+            }
         }
     </script>
 </body>
