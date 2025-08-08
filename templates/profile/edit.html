@@ -321,65 +321,23 @@
                             </div>
                         {% endif %}
                     </div>
+                </div>
 
+                <div class="form-section">
+                    <h2 class="section-title">Appearance</h2>
+                    
                     <div class="form-group">
-                        {{ form.email.label(class="form-label") }}
-                        {{ form.email(class="form-input") }}
-                        {% if form.email.errors %}
+                        {{ form.theme_preference.label(class="form-label") }}
+                        {{ form.theme_preference(class="form-select", id="themeSelect") }}
+                        {% if form.theme_preference.errors %}
                             <div class="form-help" style="color: var(--error-red);">
-                                {% for error in form.email.errors %}
+                                {% for error in form.theme_preference.errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% else %}
-                            <div class="form-help">We'll send you important updates about your account</div>
+                            <div class="form-help">Choose your preferred theme. Changes will apply across all pages.</div>
                         {% endif %}
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <h2 class="section-title">Preferences</h2>
-                    
-                    <div class="form-group">
-                        {{ form.theme.label(class="form-label") }}
-                        {{ form.theme(class="form-select", id="themeSelect") }}
-                        {% if form.theme.errors %}
-                            <div class="form-help" style="color: var(--error-red);">
-                                {% for error in form.theme.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <div class="form-help">Choose your preferred theme. Auto will match your system settings.</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group">
-                        {{ form.language.label(class="form-label") }}
-                        {{ form.language(class="form-select") }}
-                        {% if form.language.errors %}
-                            <div class="form-help" style="color: var(--error-red);">
-                                {% for error in form.language.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <h2 class="section-title">Security</h2>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Password</label>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <input type="password" value="••••••••••••" disabled class="form-input" style="flex: 1;">
-                            <a href="{{ url_for('change_password') }}" class="btn btn-secondary">
-                                <span class="material-symbols-outlined">edit</span>
-                                Change
-                            </a>
-                        </div>
-                        <div class="form-help">Last changed: Never</div>
                     </div>
                 </div>
 
@@ -395,22 +353,36 @@
                 </div>
             </form>
 
+            <div class="form-section" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--outline-variant);">
+                <h2 class="section-title">Security</h2>
+                <div class="form-group">
+                    <a href="{{ url_for('profile_change_password') }}" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">lock</span>
+                        Change Password
+                    </a>
+                </div>
+            </div>
+
             <div class="danger-zone">
                 <h3 class="danger-zone-title">Danger Zone</h3>
                 <p class="danger-zone-description">
                     Once you delete your account, there is no going back. Please be certain.
                 </p>
-                <button class="btn btn-danger" onclick="confirmDeleteAccount()">
-                    <span class="material-symbols-outlined">delete_forever</span>
-                    Delete Account
-                </button>
+                <form method="POST" action="{{ url_for('profile_delete_account') }}" 
+                      onsubmit="return confirm('Are you absolutely sure? This action cannot be undone and will permanently delete your account and all your articles.')">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-danger">
+                        <span class="material-symbols-outlined">delete_forever</span>
+                        Delete Account
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
     <script>
         // Store the original theme preference from server
-        const originalTheme = '{{ user.theme_preference or "auto" }}';
+        const originalTheme = '{{ current_user.theme_preference or "light" }}';
         let currentPreviewTheme = originalTheme;
         let hasUnsavedChanges = false;
 
@@ -492,31 +464,6 @@
                 });
             });
         });
-
-        function confirmDeleteAccount() {
-            if (confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently delete all your articles, chat history, and personal data.')) {
-                if (confirm('This is your final warning. Type "DELETE" in the next prompt to confirm account deletion.')) {
-                    const confirmation = prompt('Type "DELETE" to confirm account deletion:');
-                    if (confirmation === 'DELETE') {
-                        // Create a form to submit the delete request
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = '{{ url_for("delete_account") }}';
-                        
-                        const csrfToken = document.createElement('input');
-                        csrfToken.type = 'hidden';
-                        csrfToken.name = 'csrf_token';
-                        csrfToken.value = '{{ csrf_token() }}';
-                        form.appendChild(csrfToken);
-                        
-                        document.body.appendChild(form);
-                        form.submit();
-                    } else {
-                        alert('Account deletion cancelled. You must type "DELETE" exactly to confirm.');
-                    }
-                }
-            }
-        }
     </script>
 </body>
 </html>
