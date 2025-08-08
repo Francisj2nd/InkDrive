@@ -45,6 +45,7 @@
             color: var(--on-surface);
             line-height: 1.6;
             min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .container {
@@ -62,6 +63,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            transition: background-color 0.3s ease;
         }
 
         .header-left {
@@ -95,24 +97,16 @@
             color: var(--on-surface);
         }
 
-        .settings-container {
+        .form-container {
             background: var(--surface);
             border-radius: 16px;
             padding: 32px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 24px;
+            transition: background-color 0.3s ease;
         }
 
-        .settings-section {
+        .form-section {
             margin-bottom: 32px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid var(--outline-variant);
-        }
-
-        .settings-section:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
         }
 
         .section-title {
@@ -120,6 +114,8 @@
             font-weight: 500;
             color: var(--on-surface);
             margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--outline-variant);
         }
 
         .form-group {
@@ -134,8 +130,7 @@
             margin-bottom: 8px;
         }
 
-        .form-input,
-        .form-select {
+        .form-input, .form-select {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid var(--outline-variant);
@@ -144,11 +139,10 @@
             font-family: inherit;
             background: var(--surface);
             color: var(--on-surface);
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
 
-        .form-input:focus,
-        .form-select:focus {
+        .form-input:focus, .form-select:focus {
             outline: none;
             border-color: var(--primary-blue);
         }
@@ -157,6 +151,15 @@
             font-size: 12px;
             color: var(--on-surface-variant);
             margin-top: 4px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--outline-variant);
         }
 
         .btn {
@@ -201,12 +204,6 @@
             background: #c62828;
         }
 
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        }
-
         .flash-messages {
             margin-bottom: 24px;
         }
@@ -236,24 +233,6 @@
             border: 1px solid #bfdbfe;
         }
 
-        [data-theme="dark"] .flash-message.success {
-            background: #14532d;
-            color: #bbf7d0;
-            border-color: #166534;
-        }
-
-        [data-theme="dark"] .flash-message.error {
-            background: #7f1d1d;
-            color: #fecaca;
-            border-color: #991b1b;
-        }
-
-        [data-theme="dark"] .flash-message.info {
-            background: #1e3a8a;
-            color: #bfdbfe;
-            border-color: #1d4ed8;
-        }
-
         .danger-zone {
             background: #fef2f2;
             border: 1px solid #fecaca;
@@ -262,21 +241,16 @@
             margin-top: 32px;
         }
 
-        [data-theme="dark"] .danger-zone {
-            background: #7f1d1d;
-            border-color: #991b1b;
-        }
-
-        .danger-title {
+        .danger-zone-title {
             font-size: 16px;
             font-weight: 500;
-            color: var(--error-red);
+            color: #dc2626;
             margin-bottom: 8px;
         }
 
-        .danger-description {
+        .danger-zone-description {
             font-size: 14px;
-            color: var(--on-surface-variant);
+            color: #7f1d1d;
             margin-bottom: 16px;
         }
 
@@ -293,7 +267,7 @@
                 font-size: 20px;
             }
 
-            .settings-container {
+            .form-container {
                 padding: 24px;
             }
 
@@ -329,11 +303,11 @@
             </div>
         </div>
 
-        <div class="settings-container">
-            <form method="POST">
+        <div class="form-container">
+            <form method="POST" id="settingsForm">
                 {{ form.hidden_tag() }}
                 
-                <div class="settings-section">
+                <div class="form-section">
                     <h2 class="section-title">Personal Information</h2>
                     
                     <div class="form-group">
@@ -347,20 +321,70 @@
                             </div>
                         {% endif %}
                     </div>
+
+                    <div class="form-group">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-input") }}
+                        {% if form.email.errors %}
+                            <div class="form-help" style="color: var(--error-red);">
+                                {% for error in form.email.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="form-help">We'll send you important updates about your account</div>
+                        {% endif %}
+                    </div>
                 </div>
 
-                <div class="settings-section">
-                    <h2 class="section-title">Appearance</h2>
+                <div class="form-section">
+                    <h2 class="section-title">Preferences</h2>
                     
                     <div class="form-group">
-                        {{ form.theme_preference.label(class="form-label") }}
-                        {{ form.theme_preference(class="form-select") }}
-                        <div class="form-help">Choose your preferred theme. Changes will apply across all pages.</div>
+                        {{ form.theme.label(class="form-label") }}
+                        {{ form.theme(class="form-select", id="themeSelect") }}
+                        {% if form.theme.errors %}
+                            <div class="form-help" style="color: var(--error-red);">
+                                {% for error in form.theme.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="form-help">Choose your preferred theme. Auto will match your system settings.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.language.label(class="form-label") }}
+                        {{ form.language(class="form-select") }}
+                        {% if form.language.errors %}
+                            <div class="form-help" style="color: var(--error-red);">
+                                {% for error in form.language.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2 class="section-title">Security</h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="password" value="••••••••••••" disabled class="form-input" style="flex: 1;">
+                            <a href="{{ url_for('change_password') }}" class="btn btn-secondary">
+                                <span class="material-symbols-outlined">edit</span>
+                                Change
+                            </a>
+                        </div>
+                        <div class="form-help">Last changed: Never</div>
                     </div>
                 </div>
 
                 <div class="form-actions">
-                    <a href="{{ url_for('profile_dashboard') }}" class="btn btn-secondary">
+                    <a href="{{ url_for('profile_dashboard') }}" class="btn btn-secondary" id="cancelBtn">
                         <span class="material-symbols-outlined">close</span>
                         Cancel
                     </a>
@@ -371,76 +395,128 @@
                 </div>
             </form>
 
-            <div class="settings-section">
-                <h2 class="section-title">Security</h2>
-                <div class="form-group">
-                    <a href="{{ url_for('profile_change_password') }}" class="btn btn-secondary">
-                        <span class="material-symbols-outlined">lock</span>
-                        Change Password
-                    </a>
-                </div>
-            </div>
-
             <div class="danger-zone">
-                <h3 class="danger-title">Danger Zone</h3>
-                <p class="danger-description">
+                <h3 class="danger-zone-title">Danger Zone</h3>
+                <p class="danger-zone-description">
                     Once you delete your account, there is no going back. Please be certain.
                 </p>
-                <form method="POST" action="{{ url_for('profile_delete_account') }}" 
-                      onsubmit="return confirm('Are you absolutely sure? This action cannot be undone and will permanently delete your account and all your articles.')">
-                    <button type="submit" class="btn btn-danger">
-                        <span class="material-symbols-outlined">delete_forever</span>
-                        Delete Account
-                    </button>
-                </form>
+                <button class="btn btn-danger" onclick="confirmDeleteAccount()">
+                    <span class="material-symbols-outlined">delete_forever</span>
+                    Delete Account
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-    // Get the saved theme from the server
-    const savedTheme = '{{ current_user.theme_preference if current_user.is_authenticated else "light" }}';
-    let previewTheme = savedTheme;
-    
-    function applyTheme(theme) {
-        if (theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } else if (theme === 'auto') {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-                document.documentElement.removeAttribute('data-theme');
+        // Store the original theme preference from server
+        const originalTheme = '{{ user.theme_preference or "auto" }}';
+        let currentPreviewTheme = originalTheme;
+        let hasUnsavedChanges = false;
+
+        // Apply theme based on preference
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            
+            if (theme === 'dark') {
+                html.setAttribute('data-theme', 'dark');
+            } else if (theme === 'light') {
+                html.removeAttribute('data-theme');
+            } else { // auto
+                // Check system preference
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    html.setAttribute('data-theme', 'dark');
+                } else {
+                    html.removeAttribute('data-theme');
+                }
             }
-        } else {
-            document.documentElement.removeAttribute('data-theme');
         }
-    }
 
-    // Apply the saved theme on page load
-    applyTheme(savedTheme);
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            applyTheme(originalTheme);
+            
+            const themeSelect = document.getElementById('themeSelect');
+            const settingsForm = document.getElementById('settingsForm');
+            const cancelBtn = document.getElementById('cancelBtn');
 
-    // Preview theme changes without saving
-    document.querySelector('select[name="theme_preference"]').addEventListener('change', function() {
-        previewTheme = this.value;
-        applyTheme(previewTheme);
-    });
+            // Handle theme preview changes
+            themeSelect.addEventListener('change', function() {
+                const selectedTheme = this.value;
+                currentPreviewTheme = selectedTheme;
+                hasUnsavedChanges = (selectedTheme !== originalTheme);
+                
+                // Apply theme preview
+                applyTheme(selectedTheme);
+            });
 
-    // Handle form submission
-    document.querySelector('form').addEventListener('submit', function(e) {
-        // Theme will be saved by the server, no additional client-side action needed
-    });
+            // Handle form submission
+            settingsForm.addEventListener('submit', function(e) {
+                hasUnsavedChanges = false; // Reset flag on save
+            });
 
-    // Reset to saved theme if user cancels
-    document.querySelector('a[href*="profile_dashboard"]').addEventListener('click', function() {
-        applyTheme(savedTheme);
-    });
+            // Handle cancel button
+            cancelBtn.addEventListener('click', function(e) {
+                if (hasUnsavedChanges) {
+                    // Reset theme to original
+                    applyTheme(originalTheme);
+                    themeSelect.value = originalTheme;
+                    hasUnsavedChanges = false;
+                }
+            });
 
-    // Handle browser back/forward buttons
-    window.addEventListener('beforeunload', function() {
-        if (previewTheme !== savedTheme) {
-            applyTheme(savedTheme);
+            // Handle browser navigation/refresh
+            window.addEventListener('beforeunload', function(e) {
+                if (hasUnsavedChanges) {
+                    // Reset theme to original
+                    applyTheme(originalTheme);
+                }
+            });
+
+            // Listen for system theme changes when auto is selected
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+                    if (currentPreviewTheme === 'auto') {
+                        applyTheme('auto');
+                    }
+                });
+            }
+
+            // Track form changes
+            const formInputs = settingsForm.querySelectorAll('input, select');
+            formInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    if (this.id !== 'themeSelect') {
+                        hasUnsavedChanges = true;
+                    }
+                });
+            });
+        });
+
+        function confirmDeleteAccount() {
+            if (confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently delete all your articles, chat history, and personal data.')) {
+                if (confirm('This is your final warning. Type "DELETE" in the next prompt to confirm account deletion.')) {
+                    const confirmation = prompt('Type "DELETE" to confirm account deletion:');
+                    if (confirmation === 'DELETE') {
+                        // Create a form to submit the delete request
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '{{ url_for("delete_account") }}';
+                        
+                        const csrfToken = document.createElement('input');
+                        csrfToken.type = 'hidden';
+                        csrfToken.name = 'csrf_token';
+                        csrfToken.value = '{{ csrf_token() }}';
+                        form.appendChild(csrfToken);
+                        
+                        document.body.appendChild(form);
+                        form.submit();
+                    } else {
+                        alert('Account deletion cancelled. You must type "DELETE" exactly to confirm.');
+                    }
+                }
+            }
         }
-    });
-</script>
+    </script>
 </body>
 </html>
