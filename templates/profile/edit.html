@@ -398,29 +398,49 @@
     </div>
 
     <script>
-        // Apply theme based on user preference
-        const savedTheme = '{{ current_user.theme_preference if current_user.is_authenticated else "light" }}';
-        
-        function applyTheme(theme) {
-            if (theme === 'dark') {
+    // Get the saved theme from the server
+    const savedTheme = '{{ current_user.theme_preference if current_user.is_authenticated else "light" }}';
+    let previewTheme = savedTheme;
+    
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else if (theme === 'auto') {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
                 document.documentElement.setAttribute('data-theme', 'dark');
-            } else if (theme === 'auto') {
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else {
-                    document.documentElement.removeAttribute('data-theme');
-                }
             } else {
                 document.documentElement.removeAttribute('data-theme');
             }
+        } else {
+            document.documentElement.removeAttribute('data-theme');
         }
+    }
 
+    // Apply the saved theme on page load
+    applyTheme(savedTheme);
+
+    // Preview theme changes without saving
+    document.querySelector('select[name="theme_preference"]').addEventListener('change', function() {
+        previewTheme = this.value;
+        applyTheme(previewTheme);
+    });
+
+    // Handle form submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        // Theme will be saved by the server, no additional client-side action needed
+    });
+
+    // Reset to saved theme if user cancels
+    document.querySelector('a[href*="profile_dashboard"]').addEventListener('click', function() {
         applyTheme(savedTheme);
+    });
 
-        // Listen for theme changes
-        document.querySelector('select[name="theme_preference"]').addEventListener('change', function() {
-            applyTheme(this.value);
-        });
-    </script>
+    // Handle browser back/forward buttons
+    window.addEventListener('beforeunload', function() {
+        if (previewTheme !== savedTheme) {
+            applyTheme(savedTheme);
+        }
+    });
+</script>
 </body>
 </html>
