@@ -1,0 +1,206 @@
+{% extends "admin/base.html" %}
+
+{% block title %}User Management - InkDrive Admin{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block page_description %}Manage user accounts and permissions{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form method="GET" class="d-flex">
+            <input type="text" name="search" class="form-control me-2" placeholder="Search users..." value="{{ search }}">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        <span class="text-muted">Total: {{ users.total }} users</span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Articles</th>
+                        <th>Words This Month</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users.items %}
+                    <tr id="user-{{ user.id }}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture }}" class="rounded-circle me-2" width="32" height="32">
+                                {% else %}
+                                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                    <span class="text-white small">{{ user.name[0].upper() }}</span>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <strong>{{ user.name }}</strong>
+                                    {% if user.google_id %}
+                                    <i class="fab fa-google text-danger ms-1" title="Google Account"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.articles_generated or 0 }}</td>
+                        <td>{{ "{:,}".format(user.words_generated_this_month or 0) }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if user.is_active else 'secondary' }}">
+                                {{ 'Active' if user.is_active else 'Inactive' }}
+                            </span>
+                            {% if user.is_verified %}
+                            <span class="badge bg-info">Verified</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%m/%d/%Y') if user.created_at else 'N/A' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-warning" onclick="resetUserLimits({{ user.id }}, '{{ user.name }}')">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button class="btn btn-outline-{{ 'secondary' if user.is_active else 'success' }}" 
+                                        onclick="toggleUserActive({{ user.id }}, '{{ user.name }}', {{ user.is_active|lower }})">
+                                    <i class="fas fa-{{ 'pause' if user.is_active else 'play' }}"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }}, '{{ user.name }}', '{{ user.email }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+         Pagination 
+        {% if users.pages > 1 %}
+        <nav aria-label="User pagination">
+            <ul class="pagination justify-content-center">
+                {% if users.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.users', page=users.prev_num, search=search) }}">Previous</a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in users.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != users.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('admin.users', page=page_num, search=search) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if users.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.users', page=users.next_num, search=search) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteUser(userId, userName, userEmail) {
+    if (confirm(`Are you sure you want to delete user "${userName}" (${userEmail})? This will permanently delete their account and all associated data. This action cannot be undone.`)) {
+        fetch(`/admin/api/users/${userId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`user-${userId}`).remove();
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete user');
+        });
+    }
+}
+
+function toggleUserActive(userId, userName, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    if (confirm(`Are you sure you want to ${action} user "${userName}"?`)) {
+        fetch(`/admin/api/users/${userId}/toggle-active`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update user status');
+        });
+    }
+}
+
+function resetUserLimits(userId, userName) {
+    if (confirm(`Are you sure you want to reset monthly limits for user "${userName}"?`)) {
+        fetch(`/admin/api/users/${userId}/reset-limits`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to reset user limits');
+        });
+    }
+}
+</script>
+{% endblock %}

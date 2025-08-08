@@ -1,0 +1,371 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ user.name }} - User Details - InkDrive Admin{% endblock %}
+{% block page_title %}User Details: {{ user.name }}{% endblock %}
+{% block page_description %}Detailed information and management for {{ user.email }}{% endblock %}
+
+{% block content %}
+<div class="row">
+     User Information 
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">User Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if user.profile_picture %}
+                    <img src="{{ user.profile_picture }}" class="rounded-circle" width="80" height="80">
+                    {% else %}
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 80px; height: 80px;">
+                        <span class="text-white h3">{{ user.name[0].upper() }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{{ user.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if user.is_active else 'secondary' }}">
+                                {{ 'Active' if user.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Verified:</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if user.is_verified else 'warning' }}">
+                                {{ 'Yes' if user.is_verified else 'No' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Account Type:</strong></td>
+                        <td>
+                            {% if user.google_id %}
+                            <i class="fab fa-google text-danger me-1"></i>Google
+                            {% else %}
+                            <i class="fas fa-envelope text-primary me-1"></i>Email
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Joined:</strong></td>
+                        <td>{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Last Login:</strong></td>
+                        <td>{{ user.last_login.strftime('%B %d, %Y at %I:%M %p') if user.last_login else 'Never' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+         User Statistics 
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0 text-primary">{{ user_stats.total_articles }}</div>
+                        <div class="text-xs text-uppercase">Articles</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0 text-success">{{ "{:,}".format(user_stats.total_words) }}</div>
+                        <div class="text-xs text-uppercase">Total Words</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0 text-info">{{ "{:,}".format(user_stats.total_views) }}</div>
+                        <div class="text-xs text-uppercase">Total Views</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0 text-warning">{{ "{:,}".format(user_stats.total_downloads) }}</div>
+                        <div class="text-xs text-uppercase">Downloads</div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h5 mb-0">{{ "{:,}".format(user_stats.words_this_month) }}</div>
+                        <div class="text-xs text-uppercase">Words This Month</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="h5 mb-0">{{ user_stats.downloads_this_month }}</div>
+                        <div class="text-xs text-uppercase">Downloads This Month</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+     User Articles 
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Articles</h6>
+            </div>
+            <div class="card-body">
+                {% if articles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Words</th>
+                                <th>Views</th>
+                                <th>Downloads</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in articles %}
+                            <tr id="article-{{ article.id }}">
+                                <td>
+                                    <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="text-decoration-none">
+                                        {{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}
+                                    </a>
+                                </td>
+                                <td>{{ "{:,}".format(article.word_count or 0) }}</td>
+                                <td>{{ article.view_count or 0 }}</td>
+                                <td>{{ article.download_count or 0 }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
+                                        {{ 'Published' if article.is_public else 'Draft' }}
+                                    </span>
+                                </td>
+                                <td>{{ article.created_at.strftime('%m/%d/%Y') if article.created_at else 'N/A' }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-{{ 'secondary' if article.is_public else 'success' }}" 
+                                                onclick="toggleArticlePublic({{ article.id }}, '{{ article.title[:30] }}', {{ article.is_public|lower }})">
+                                            <i class="fas fa-{{ 'eye-slash' if article.is_public else 'eye' }}"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No articles found for this user.</p>
+                {% endif %}
+            </div>
+        </div>
+
+         Chat Sessions 
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Chat Sessions</h6>
+            </div>
+            <div class="card-body">
+                {% if chat_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Messages</th>
+                                <th>Refined</th>
+                                <th>Created</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in chat_sessions %}
+                            <tr>
+                                <td>{{ session.title[:50] }}{% if session.title|length > 50 %}...{% endif %}</td>
+                                <td>{{ session.get_messages()|length }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if session.has_refined else 'secondary' }}">
+                                        {{ 'Yes' if session.has_refined else 'No' }}
+                                    </span>
+                                </td>
+                                <td>{{ session.created_at.strftime('%m/%d/%Y') if session.created_at else 'N/A' }}</td>
+                                <td>{{ session.updated_at.strftime('%m/%d/%Y') if session.updated_at else 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No chat sessions found for this user.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+ Admin Actions 
+<div class="danger-zone">
+    <h5 class="text-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Danger Zone
+    </h5>
+    <p class="text-muted">These actions are permanent and cannot be undone.</p>
+    
+    <div class="row">
+        <div class="col-md-4 mb-2">
+            <button class="btn btn-warning w-100" onclick="resetUserLimits({{ user.id }}, '{{ user.name }}')">
+                <i class="fas fa-redo me-2"></i>
+                Reset Monthly Limits
+            </button>
+        </div>
+        <div class="col-md-4 mb-2">
+            <button class="btn btn-{{ 'secondary' if user.is_active else 'success' }} w-100" 
+                    onclick="toggleUserActive({{ user.id }}, '{{ user.name }}', {{ user.is_active|lower }})">
+                <i class="fas fa-{{ 'pause' if user.is_active else 'play' }} me-2"></i>
+                {{ 'Deactivate' if user.is_active else 'Activate' }} Account
+            </button>
+        </div>
+        <div class="col-md-4 mb-2">
+            <button class="btn btn-danger w-100" onclick="deleteUser({{ user.id }}, '{{ user.name }}', '{{ user.email }}')">
+                <i class="fas fa-trash me-2"></i>
+                Delete Account
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteUser(userId, userName, userEmail) {
+    if (confirm(`Are you sure you want to delete user "${userName}" (${userEmail})? This will permanently delete their account and all associated data. This action cannot be undone.`)) {
+        fetch(`/admin/api/users/${userId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = '{{ url_for("admin.users") }}';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete user');
+        });
+    }
+}
+
+function toggleUserActive(userId, userName, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    if (confirm(`Are you sure you want to ${action} user "${userName}"?`)) {
+        fetch(`/admin/api/users/${userId}/toggle-active`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update user status');
+        });
+    }
+}
+
+function resetUserLimits(userId, userName) {
+    if (confirm(`Are you sure you want to reset monthly limits for user "${userName}"?`)) {
+        fetch(`/admin/api/users/${userId}/reset-limits`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to reset user limits');
+        });
+    }
+}
+
+function deleteArticle(articleId, articleTitle) {
+    if (confirm(`Are you sure you want to delete the article "${articleTitle}"? This action cannot be undone.`)) {
+        fetch(`/admin/api/articles/${articleId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`article-${articleId}`).remove();
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete article');
+        });
+    }
+}
+
+function toggleArticlePublic(articleId, articleTitle, isPublic) {
+    const action = isPublic ? 'unpublish' : 'publish';
+    if (confirm(`Are you sure you want to ${action} the article "${articleTitle}"?`)) {
+        fetch(`/admin/api/articles/${articleId}/toggle-public`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update article status');
+        });
+    }
+}
+</script>
+{% endblock %}

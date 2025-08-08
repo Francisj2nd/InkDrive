@@ -1,0 +1,215 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ article.title }} - Article Details - InkDrive Admin{% endblock %}
+{% block page_title %}Article Details{% endblock %}
+{% block page_description %}{{ article.title[:100] }}{% if article.title|length > 100 %}...{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+     Article Information 
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Article Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Title:</strong></td>
+                        <td>{{ article.title }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Author:</strong></td>
+                        <td>
+                            <a href="{{ url_for('admin.user_detail', user_id=article.author.id) }}" class="text-decoration-none">
+                                {{ article.author.name }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Topic:</strong></td>
+                        <td>{{ article.topic or 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Word Count:</strong></td>
+                        <td>{{ "{:,}".format(article.word_count or 0) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
+                                {{ 'Published' if article.is_public else 'Draft' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Refined:</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if article.is_refined else 'secondary' }}">
+                                {{ 'Yes' if article.is_refined else 'No' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Created:</strong></td>
+                        <td>{{ article.created_at.strftime('%B %d, %Y at %I:%M %p') if article.created_at else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Updated:</strong></td>
+                        <td>{{ article.updated_at.strftime('%B %d, %Y at %I:%M %p') if article.updated_at else 'N/A' }}</td>
+                    </tr>
+                    {% if article.is_public and article.published_at %}
+                    <tr>
+                        <td><strong>Published:</strong></td>
+                        <td>{{ article.published_at.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+         Article Statistics 
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0 text-info">{{ article.view_count or 0 }}</div>
+                        <div class="text-xs text-uppercase">Views</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0 text-warning">{{ article.download_count or 0 }}</div>
+                        <div class="text-xs text-uppercase">Downloads</div>
+                    </div>
+                </div>
+                
+                {% if article.is_public and article.public_id %}
+                <hr>
+                <div class="text-center">
+                    <small class="text-muted">Public URL:</small><br>
+                    <a href="{{ url_for('share_article', public_id=article.public_id, _external=True) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-external-link-alt me-1"></i>View Public Page
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+     Article Content 
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Article Content</h6>
+            </div>
+            <div class="card-body">
+                <div class="article-content" style="max-height: 600px; overflow-y: auto;">
+                    {{ article.content_html|safe }}
+                </div>
+            </div>
+        </div>
+
+         SEO Information 
+        {% if article.seo_keywords or article.meta_description %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">SEO Information</h6>
+            </div>
+            <div class="card-body">
+                {% if article.seo_keywords %}
+                <div class="mb-3">
+                    <strong>Keywords:</strong>
+                    <p class="text-muted">{{ article.seo_keywords }}</p>
+                </div>
+                {% endif %}
+                {% if article.meta_description %}
+                <div class="mb-3">
+                    <strong>Meta Description:</strong>
+                    <p class="text-muted">{{ article.meta_description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+ Admin Actions 
+<div class="danger-zone">
+    <h5 class="text-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Admin Actions
+    </h5>
+    <p class="text-muted">Manage this article's visibility and content.</p>
+    
+    <div class="row">
+        <div class="col-md-6 mb-2">
+            <button class="btn btn-{{ 'secondary' if article.is_public else 'success' }} w-100" 
+                    onclick="toggleArticlePublic({{ article.id }}, '{{ article.title[:30] }}', {{ article.is_public|lower }})">
+                <i class="fas fa-{{ 'eye-slash' if article.is_public else 'eye' }} me-2"></i>
+                {{ 'Unpublish' if article.is_public else 'Publish' }} Article
+            </button>
+        </div>
+        <div class="col-md-6 mb-2">
+            <button class="btn btn-danger w-100" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')">
+                <i class="fas fa-trash me-2"></i>
+                Delete Article
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteArticle(articleId, articleTitle) {
+    if (confirm(`Are you sure you want to delete the article "${articleTitle}"? This action cannot be undone.`)) {
+        fetch(`/admin/api/articles/${articleId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = '{{ url_for("admin.articles") }}';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete article');
+        });
+    }
+}
+
+function toggleArticlePublic(articleId, articleTitle, isPublic) {
+    const action = isPublic ? 'unpublish' : 'publish';
+    if (confirm(`Are you sure you want to ${action} the article "${articleTitle}"?`)) {
+        fetch(`/admin/api/articles/${articleId}/toggle-public`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update article status');
+        });
+    }
+}
+</script>
+{% endblock %}
