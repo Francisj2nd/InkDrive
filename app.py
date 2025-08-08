@@ -28,12 +28,18 @@ from email.mime.multipart import MIMEMultipart
 from models import db, User, Article, ChatSession
 from forms import LoginForm, RegisterForm, ProfileForm, ChangePasswordForm
 
+# Import admin blueprint
+from admin import admin_bp
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
+
+# Register admin blueprint
+app.register_blueprint(admin_bp)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
