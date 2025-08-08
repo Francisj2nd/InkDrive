@@ -838,7 +838,7 @@ def share_article(public_id):
             featured_articles = Article.query.filter(
                 Article.is_public == True,
                 Article.id != article.id
-            ).limit(5).all()
+            ).limit(6).all()
         except Exception as e:
             logger.warning(f"Error fetching featured articles: {e}")
             featured_articles = []
@@ -862,7 +862,7 @@ def index():
         # Get random published articles for social proof
         try:
             # Use a simpler query that works with both SQLite and PostgreSQL
-            featured_articles = Article.query.filter_by(is_public=True).limit(5).all()
+            featured_articles = Article.query.filter_by(is_public=True).limit(6).all()
         except Exception as e:
             logger.warning(f"Error fetching featured articles for landing: {e}")
             featured_articles = []
@@ -1385,3 +1385,4 @@ if __name__ == "__main__":
 else:
     # For production deployment
     init_db()
+
