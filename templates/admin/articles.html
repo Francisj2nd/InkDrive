@@ -5,16 +5,16 @@
 {% block page_description %}Manage articles and content moderation{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-4">
+<div class="row mb-4 align-items-center">
+    <div class="col-md-5">
         <form method="GET" class="d-flex">
-            <input type="text" name="search" class="form-control me-2" placeholder="Search articles..." value="{{ search }}">
-            <button type="submit" class="btn btn-outline-primary">
+            <input type="text" name="search" class="form-control me-2" placeholder="Search by title or topic..." value="{{ search }}">
+            <button type="submit" class="btn btn-primary">
                 <i class="fas fa-search"></i>
             </button>
         </form>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <form method="GET">
             <input type="hidden" name="search" value="{{ search }}">
             <select name="filter" class="form-select" onchange="this.form.submit()">
@@ -29,57 +29,69 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card shadow-sm">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>Title</th>
+                        <th style="width: 25%;">Title</th>
+                        <th style="width: 25%;">Excerpt</th>
                         <th>Author</th>
-                        <th>Words</th>
-                        <th>Views</th>
-                        <th>Downloads</th>
-                        <th>Status</th>
+                        <th class="text-center">Stats</th>
+                        <th class="text-center">Status</th>
                         <th>Created</th>
-                        <th>Actions</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for article in articles.items %}
                     <tr id="article-{{ article.id }}">
                         <td>
-                            <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="text-decoration-none">
+                            <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="text-decoration-none fw-bold">
                                 {{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}
                             </a>
+                            <p class="text-muted small mb-0">{{ article.topic[:60] if article.topic else 'No topic' }}</p>
+                        </td>
+                        <td>
+                            <span class="text-muted fst-italic">"{{ article.get_excerpt(80) }}"</span>
                         </td>
                         <td>
                             <a href="{{ url_for('admin.user_detail', user_id=article.author.id) }}" class="text-decoration-none">
                                 {{ article.author.name }}
                             </a>
                         </td>
-                        <td>{{ "{:,}".format(article.word_count or 0) }}</td>
-                        <td>{{ article.view_count or 0 }}</td>
-                        <td>{{ article.download_count or 0 }}</td>
-                        <td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-eye me-1"></i>{{ article.view_count or 0 }}
+                            </span>
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-download me-1"></i>{{ article.download_count or 0 }}
+                            </span>
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-file-word me-1"></i>{{ "{:,}".format(article.word_count or 0) }}
+                            </span>
+                        </td>
+                        <td class="text-center">
                             <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
                                 {{ 'Published' if article.is_public else 'Draft' }}
                             </span>
                             {% if article.is_refined %}
-                            <span class="badge bg-info">Refined</span>
+                            <span class="badge bg-info mt-1">Refined</span>
                             {% endif %}
                         </td>
                         <td>{{ article.created_at.strftime('%m/%d/%Y') if article.created_at else 'N/A' }}</td>
-                        <td>
+                        <td class="text-center">
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="btn btn-outline-primary">
+                                <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="btn btn-outline-primary" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 <button class="btn btn-outline-{{ 'secondary' if article.is_public else 'success' }}" 
-                                        onclick="toggleArticlePublic({{ article.id }}, '{{ article.title[:30] }}', {{ article.is_public|lower }})">
+                                        onclick="toggleArticlePublic({{ article.id }}, '{{ article.title[:30] }}', {{ article.is_public|lower }})"
+                                        title="{{ 'Unpublish' if article.is_public else 'Publish' }}">
                                     <i class="fas fa-{{ 'eye-slash' if article.is_public else 'eye' }}"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')">
+                                <button class="btn btn-outline-danger" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')" title="Delete Article">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -90,17 +102,21 @@
             </table>
         </div>
 
-         Pagination 
+        <!-- Pagination -->
         {% if articles.pages > 1 %}
-        <nav aria-label="Article pagination">
+        <nav aria-label="Article pagination" class="mt-4">
             <ul class="pagination justify-content-center">
                 {% if articles.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.articles', page=articles.prev_num, search=search, filter=filter_type) }}">Previous</a>
+                    <a class="page-link" href="{{ url_for('admin.articles', page=articles.prev_num, search=search, filter=filter_type) }}">&laquo; Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&laquo; Previous</span>
                 </li>
                 {% endif %}
                 
-                {% for page_num in articles.iter_pages() %}
+                {% for page_num in articles.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
                         {% if page_num != articles.page %}
                         <li class="page-item">
@@ -120,7 +136,11 @@
                 
                 {% if articles.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.articles', page=articles.next_num, search=search, filter=filter_type) }}">Next</a>
+                    <a class="page-link" href="{{ url_for('admin.articles', page=articles.next_num, search=search, filter=filter_type) }}">Next &raquo;</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Next &raquo;</span>
                 </li>
                 {% endif %}
             </ul>

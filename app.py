@@ -187,7 +187,7 @@ def format_article_content(raw_markdown_text):
             new_image_tag = (
                 f'<div class="real-image-container">'
                 f'<p class="image-title">{title}</p>'
-                f'<img src="{image_data["url"]}" alt="">'
+                f'<img src="{image_data["url"]}" alt="{alt_text}">'
                 f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'
                 f'<p class="attribution">{image_data["attribution"]}</p>'
                 f'</div>'
