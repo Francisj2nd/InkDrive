@@ -74,7 +74,8 @@ app.config['CONTACT_EMAIL'] = 'francisj2nd@gmail.com'
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
 # Usage limits for free plan
 MONTHLY_WORD_LIMIT = 30000
@@ -121,7 +122,8 @@ def retry_db_operation(max_retries=3, delay=1):
 # Validation check - log missing variables but don't fail
 missing_vars = []
 if not GCP_PROJECT_ID: missing_vars.append("GCP_PROJECT_ID")
-if not UNSPLASH_ACCESS_KEY: missing_vars.append("UNSPLASH_ACCESS_KEY")
+if not GOOGLE_API_KEY: missing_vars.append("GOOGLE_API_KEY")
+if not GOOGLE_CSE_ID: missing_vars.append("GOOGLE_CSE_ID")
 if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_APPLICATION_CREDENTIALS")
 
 if missing_vars:
@@ -131,7 +133,7 @@ if missing_vars:
 CLIENT = None
 try:
     if GCP_PROJECT_ID and os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        genai.configure()
+        genai.configure(project=GCP_PROJECT_ID, location=GCP_LOCATION)
         CLIENT = genai.GenerativeModel(model_name=MODEL_NAME)
         logger.info("Google AI Client Initialized Successfully via Vertex AI.")
     else:
@@ -156,20 +158,28 @@ def construct_initial_prompt(topic):
 """
 
 def get_image_url(query):
-    if not UNSPLASH_ACCESS_KEY or "YOUR_KEY" in UNSPLASH_ACCESS_KEY:
+    if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
+        logger.warning("Google Search API credentials not configured.")
         return None
-    api_url = "https://api.unsplash.com/search/photos"
-    params = {"query": query, "per_page": 1, "client_id": UNSPLASH_ACCESS_KEY}
+
+    api_url = "https://www.googleapis.com/customsearch/v1"
+    params = {
+        "key": GOOGLE_API_KEY,
+        "cx": GOOGLE_CSE_ID,
+        "q": query,
+        "searchType": "image",
+        "num": 1
+    }
     try:
         response = requests.get(api_url, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
-        if data["results"]:
-            photo = data["results"][0]
-            return {"url": photo["urls"]["regular"], "attribution": f"Photo by {photo['user']['name']} on Unsplash"}
+        if "items" in data and len(data["items"]) > 0:
+            item = data["items"][0]
+            return {"url": item["link"], "source": item["image"]["contextLink"]}
         return None
     except requests.RequestException as e:
-        logger.error(f"Error fetching image: {e}")
+        logger.error(f"Error fetching image from Google: {e}")
         return None
 
 def format_article_content(raw_markdown_text):
@@ -189,7 +199,7 @@ def format_article_content(raw_markdown_text):
                 f'<p class="image-title">{title}</p>'
                 f'<img src="{image_data["url"]}" alt="{alt_text}">'
                 f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'
-                f'<p class="attribution">{image_data["attribution"]}</p>'
+                f'<p class="source-link"><a href="{image_data["source"]}" target="_blank">Source</a></p>'
                 f'</div>'
             )
             hybrid_content = hybrid_content.replace(original_placeholder, new_image_tag, 1)
