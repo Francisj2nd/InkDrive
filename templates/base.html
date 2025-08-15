@@ -318,6 +318,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="/studio/article" class="nav-link {% if 'studio/article' in request.path %}active{% endif %}">
+                        <span class="material-symbols-outlined">edit</span>
+                        Article Studio
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="/profile/articles" class="nav-link {% if request.path == '/profile/articles' %}active{% endif %}">
                         <span class="material-symbols-outlined">article</span>
                         My Articles
