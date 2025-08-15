@@ -211,7 +211,7 @@ def format_article_content(raw_markdown_text, topic=""):
     return final_html
 
 @retry_db_operation(max_retries=3)
-def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None, chat_session_id=None):
+def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None, chat_session_id=None, studio_type='ARTICLE'):
     """Save article to database with retry logic"""
     try:
         # Extract word count (rough estimate)
@@ -226,6 +226,8 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                 article.is_refined = is_refined
                 article.word_count = word_count
                 article.updated_at = datetime.utcnow()
+                if studio_type:
+                    article.studio_type = studio_type
             else:
                 # Article not found or doesn't belong to user
                 return None
@@ -240,7 +242,8 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                 is_refined=is_refined,
                 word_count=word_count,
                 public_id=str(uuid.uuid4())[:8],  # Generate a short public ID for sharing
-                chat_session_id=chat_session_id  # Link to chat session
+                chat_session_id=chat_session_id,  # Link to chat session
+                studio_type=studio_type  # Set studio_type for new articles
             )
             
             db.session.add(article)
@@ -319,7 +322,7 @@ def check_monthly_download_quota(user):
     """Check if user has exceeded monthly download quota"""
     try:
         # Reset quota if it's been more than 30 days
-        if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
+        if user.last_quota_reset is None or (datetime.utcnow() - current_user.last_quota_reset) > timedelta(days=30):
             user.words_generated_this_month = 0
             user.downloads_this_month = 0
             user.last_quota_reset = datetime.utcnow()
@@ -868,7 +871,7 @@ def share_article(public_id):
 def index():
     """Main application route"""
     if current_user.is_authenticated:
-        return render_template("app.html", user=current_user)
+        return render_template("dashboard.html", user=current_user)
     else:
         # Get random published articles for social proof
         try:
@@ -886,9 +889,10 @@ def app_main():
     """Main app interface (requires login)"""
     return render_template("app.html", user=current_user)
 
-@app.route("/generate", methods=["POST"])
+@app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
-def generate_article():
+def api_generate_article():
+    """New namespaced API endpoint for article generation"""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
     
@@ -924,8 +928,7 @@ def generate_article():
         
         db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text)
         
-        # Save article to database with chat session link
-        article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id)
+        article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id, 'ARTICLE')
 
         return jsonify({
             "article_html": final_html, 
@@ -937,6 +940,37 @@ def generate_article():
     except Exception as e:
         logger.error(f"Article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route("/studio/article")
+@login_required
+def studio_article():
+    """Article Studio interface"""
+    return render_template("article_studio.html", user=current_user)
+
+@app.route("/history")
+@login_required
+def history():
+    """Display user's content history"""
+    try:
+        # Get all user's articles ordered by creation date (newest first)
+        articles = Article.query.filter_by(user_id=current_user.id)\
+                               .order_by(Article.created_at.desc()).all()
+        
+        return render_template("history.html", articles=articles, user=current_user)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading history: {e}")
+        flash('Database connection issue loading history.', 'error')
+        return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f"History page error: {e}")
+        flash('Error loading content history.', 'error')
+        return redirect(url_for('index'))
+
+# @app.route("/generate", methods=["POST"])
+# @login_required
+# def generate_article():
+#     # This route is now disabled - use /api/v1/generate/article instead
+#     return jsonify({"error": "This endpoint has been deprecated. Use /api/v1/generate/article instead."}), 410
 
 @app.route("/generate-guest", methods=["POST"])
 def generate_guest_article():
@@ -1397,4 +1431,3 @@ if __name__ == "__main__":
 else:
     # For production deployment
     init_db()
-

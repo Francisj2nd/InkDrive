@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkDrive - Studio Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234285f4'/%3E%3Cstop offset='25%25' style='stop-color:%2334a853'/%3E%3Cstop offset='50%25' style='stop-color:%23fbbc05'/%3E%3Cstop offset='100%25' style='stop-color:%23ea4335'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23grad)'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='14' font-weight='600'%3EI%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        :root {
+            --primary-blue: #1a73e8;
+            --primary-blue-hover: #1557b0;
+            --primary-green: #34a853;
+            --surface: #ffffff;
+            --surface-variant: #f8f9fa;
+            --surface-container: #f1f3f4;
+            --on-surface: #202124;
+            --on-surface-variant: #5f6368;
+            --outline: #dadce0;
+            --outline-variant: #e8eaed;
+            --success: #34a853;
+            --warning: #fbbc05;
+            --error: #ea4335;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--surface-variant);
+            color: var(--on-surface);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--outline-variant);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--on-surface);
+            text-decoration: none;
+            margin-bottom: 24px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .user-info {
+            padding: 16px;
+            background: var(--surface-variant);
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--outline-variant);
+        }
+
+        .user-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: var(--on-surface);
+        }
+
+        .user-email {
+            font-size: 14px;
+            color: var(--on-surface-variant);
+        }
+
+        .nav-menu {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+
+        .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--on-surface);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: var(--surface-variant);
+        }
+
+        .nav-link.active {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--outline-variant);
+            padding: 32px;
+        }
+
+        .main-header {
+            margin-bottom: 32px;
+        }
+
+        .main-title {
+            font-size: 32px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 8px;
+        }
+
+        .main-subtitle {
+            font-size: 16px;
+            color: var(--on-surface-variant);
+        }
+
+        /* Studios Grid */
+        .studios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .studio-card {
+            background: var(--surface);
+            border: 2px solid var(--outline-variant);
+            border-radius: 16px;
+            padding: 24px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .studio-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .studio-card.active {
+            border-color: var(--primary-blue);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-green) 100%);
+            color: white;
+        }
+
+        .studio-card.active:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 32px rgba(26, 115, 232, 0.3);
+        }
+
+        .studio-card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: var(--surface-variant);
+        }
+
+        .studio-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .studio-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 16px;
+            background: var(--surface-variant);
+            color: var(--on-surface);
+        }
+
+        .studio-card.active .studio-icon {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .studio-card.disabled .studio-icon {
+            background: var(--outline-variant);
+            color: var(--on-surface-variant);
+        }
+
+        .studio-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .studio-description {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            opacity: 0.8;
+        }
+
+        .studio-card.active .studio-description {
+            opacity: 0.9;
+        }
+
+        .studio-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .studio-status.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .studio-status.coming-soon {
+            background: var(--warning);
+            color: var(--on-surface);
+        }
+
+        .studio-card.disabled .studio-status.coming-soon {
+            background: var(--outline);
+            color: var(--on-surface-variant);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .sidebar {
+                position: static;
+                order: 2;
+            }
+
+            .main-content {
+                order: 1;
+            }
+
+            .studios-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 24px;
+            }
+
+            .studios-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .studio-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <a href="/" class="logo">
+                <div class="logo-icon">I</div>
+                <span>InkDrive</span>
+            </a>
+
+            {% if user %}
+            <div class="user-info">
+                <div class="user-name">{{ user.name }}</div>
+                <div class="user-email">{{ user.email }}</div>
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/" class="nav-link active">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        Studio Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/profile/dashboard" class="nav-link">
+                        <span class="material-symbols-outlined">person</span>
+                        Profile
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/profile/articles" class="nav-link">
+                        <span class="material-symbols-outlined">article</span>
+                        My Articles
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/history" class="nav-link">
+                        <span class="material-symbols-outlined">history</span>
+                        Content History
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/profile/edit" class="nav-link">
+                        <span class="material-symbols-outlined">settings</span>
+                        Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/auth/logout" class="nav-link">
+                        <span class="material-symbols-outlined">logout</span>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+            {% endif %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="main-header">
+                <h1 class="main-title">Welcome to InkDrive Studios</h1>
+                <p class="main-subtitle">Choose a studio to start creating amazing content with AI assistance</p>
+            </div>
+
+            <div class="studios-grid">
+                <!-- Article Studio - Active -->
+                <a href="/studio/article" class="studio-card active">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">article</span>
+                    </div>
+                    <h3 class="studio-title">Article Studio</h3>
+                    <p class="studio-description">Create comprehensive, SEO-optimized articles on any topic with AI assistance and smart refinement tools.</p>
+                    <div class="studio-status active">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">check_circle</span>
+                        Available
+                    </div>
+                </a>
+
+                <!-- Social & Comms Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">campaign</span>
+                    </div>
+                    <h3 class="studio-title">Social & Comms Studio</h3>
+                    <p class="studio-description">Generate engaging social media posts, email campaigns, and communication content optimized for different platforms.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- Editing & Refinement Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">edit</span>
+                    </div>
+                    <h3 class="studio-title">Editing & Refinement Studio</h3>
+                    <p class="studio-description">Polish and refine existing content with advanced editing tools, grammar checking, and style improvements.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- Content Repurposing Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">transform</span>
+                    </div>
+                    <h3 class="studio-title">Content Repurposing Studio</h3>
+                    <p class="studio-description">Transform existing content into different formats - turn articles into social posts, videos into blogs, and more.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- SEO Strategy Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">trending_up</span>
+                    </div>
+                    <h3 class="studio-title">SEO Strategy Studio</h3>
+                    <p class="studio-description">Develop comprehensive SEO strategies, keyword research, and content optimization plans for better search rankings.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- Brainstorming Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">lightbulb</span>
+                    </div>
+                    <h3 class="studio-title">Brainstorming Studio</h3>
+                    <p class="studio-description">Generate creative ideas, content topics, and strategic concepts with AI-powered brainstorming sessions.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- Scriptwriting Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">movie</span>
+                    </div>
+                    <h3 class="studio-title">Scriptwriting Studio</h3>
+                    <p class="studio-description">Create scripts for videos, podcasts, presentations, and other multimedia content with proper formatting.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- E-commerce Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">shopping_cart</span>
+                    </div>
+                    <h3 class="studio-title">E-commerce Studio</h3>
+                    <p class="studio-description">Generate product descriptions, marketing copy, and e-commerce content that converts visitors into customers.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- Web Copy Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">web</span>
+                    </div>
+                    <h3 class="studio-title">Web Copy Studio</h3>
+                    <p class="studio-description">Create compelling website copy, landing pages, and conversion-focused content for your web presence.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+
+                <!-- Business Docs Studio - Coming Soon -->
+                <div class="studio-card disabled">
+                    <div class="studio-icon">
+                        <span class="material-symbols-outlined">business_center</span>
+                    </div>
+                    <h3 class="studio-title">Business Docs Studio</h3>
+                    <p class="studio-description">Generate professional business documents, proposals, reports, and corporate communications.</p>
+                    <div class="studio-status coming-soon">
+                        <span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+                        Coming Soon
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

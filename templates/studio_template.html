@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block studio_title %}Studio{% endblock %} - InkDrive</title>
+    
+    <!-- Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        :root {
+            --primary-blue: #1a73e8;
+            --primary-blue-hover: #1557b0;
+            --primary-green: #34a853;
+            --surface: #ffffff;
+            --surface-variant: #f8f9fa;
+            --surface-container: #f1f3f4;
+            --on-surface: #202124;
+            --on-surface-variant: #5f6368;
+            --outline: #dadce0;
+            --outline-variant: #e8eaed;
+            --success: #34a853;
+            --warning: #fbbc05;
+            --error: #ea4335;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--surface-variant);
+            color: var(--on-surface);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .studio-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .studio-header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--outline-variant);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .studio-info h1 {
+            font-size: 28px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 8px;
+        }
+
+        .studio-description {
+            font-size: 16px;
+            color: var(--on-surface-variant);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--on-surface);
+            border: 1px solid var(--outline);
+        }
+
+        .btn-secondary:hover {
+            background: var(--surface-variant);
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-blue-hover);
+        }
+
+        /* Main Studio Layout */
+        .studio-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* Input Column */
+        .input-column {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--outline-variant);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .input-section-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Output Column */
+        .output-column {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--outline-variant);
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-section-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .output-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--outline);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--surface);
+            color: var(--on-surface);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--on-surface-variant);
+            flex: 1;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--on-surface);
+        }
+
+        .empty-state-description {
+            font-size: 14px;
+            max-width: 300px;
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 24px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-success {
+            background: rgba(52, 168, 83, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(52, 168, 83, 0.2);
+        }
+
+        .alert-error {
+            background: rgba(234, 67, 53, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(234, 67, 53, 0.2);
+        }
+
+        .alert-warning {
+            background: rgba(251, 188, 5, 0.1);
+            color: var(--warning);
+            border: 1px solid rgba(251, 188, 5, 0.2);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .studio-layout {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .input-column {
+                position: static;
+                order: 1;
+            }
+
+            .output-column {
+                order: 2;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .studio-container {
+                padding: 16px;
+            }
+
+            .studio-header {
+                padding: 20px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+
+            .header-actions {
+                justify-content: center;
+            }
+
+            .input-column, .output-column {
+                padding: 20px;
+            }
+
+            .studio-info h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="studio-container">
+        <!-- Header -->
+        <header class="studio-header">
+            <div class="header-content">
+                <div class="studio-info">
+                    <h1>{% block studio_title %}Studio{% endblock %}</h1>
+                    <p class="studio-description">{% block studio_description %}Create amazing content with AI assistance{% endblock %}</p>
+                </div>
+                <div class="header-actions">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        Back to Dashboard
+                    </a>
+                    {% block header_actions %}{% endblock %}
+                </div>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'error' if category == 'error' else category }}">
+                        <span class="material-symbols-outlined">
+                            {% if category == 'success' %}check_circle{% elif category == 'error' %}error{% else %}info{% endif %}
+                        </span>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Main Studio Layout -->
+        <div class="studio-layout">
+            <!-- Input Column -->
+            <div class="input-column">
+                <h2 class="input-section-title">
+                    <span class="material-symbols-outlined">tune</span>
+                    Configuration
+                </h2>
+                {% block input_form %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <span class="material-symbols-outlined">settings</span>
+                    </div>
+                    <div class="empty-state-title">No Input Form</div>
+                    <div class="empty-state-description">
+                        Override the input_form block to add your studio's configuration options.
+                    </div>
+                </div>
+                {% endblock %}
+            </div>
+
+            <!-- Output Column -->
+            <div class="output-column">
+                <h2 class="output-section-title">
+                    <span class="material-symbols-outlined">auto_awesome</span>
+                    Generated Content
+                </h2>
+                <div class="output-content">
+                    {% block output_display %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <span class="material-symbols-outlined">psychology</span>
+                        </div>
+                        <div class="empty-state-title">Ready to Generate</div>
+                        <div class="empty-state-description">
+                            Configure your settings and click generate to see AI-powered content appear here.
+                        </div>
+                    </div>
+                    {% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

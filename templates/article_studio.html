@@ -1,0 +1,447 @@
+{% extends "studio_template.html" %}
+
+{% block studio_title %}Article Studio{% endblock %}
+
+{% block studio_description %}Craft comprehensive, long-form content with SEO in mind. Generate professional articles tailored to your topic and style preferences.{% endblock %}
+
+{% block input_form %}
+<div class="input-container">
+    <textarea 
+        id="topicInput" 
+        class="topic-input" 
+        placeholder="What would you like to write about? Be specific for better results..."
+        rows="3"
+    ></textarea>
+</div>
+<div class="input-actions">
+    <div class="refinements-info">
+        {% if user %}
+        <span>✨ Authenticated users get 5 refinements per article</span>
+        {% else %}
+        <span>🔒 <a href="/auth/register">Sign up</a> for 5 refinements per article</span>
+        {% endif %}
+    </div>
+    <button id="generateBtn" class="btn btn-primary generate-btn">
+        <span class="material-symbols-outlined">auto_awesome</span>
+        Generate Article
+    </button>
+</div>
+
+<!-- Refinement Section (hidden by default) -->
+<div class="refinement-section" id="refinementSection" style="display: none;">
+    <textarea 
+        id="refinementInput" 
+        class="refinement-input" 
+        placeholder="How would you like to refine this article? Be specific about changes you want..."
+    ></textarea>
+    <div class="refinement-actions">
+        <span class="refinements-info" id="refinementsLeft">5 refinements remaining</span>
+        <button id="refineBtn" class="btn btn-primary">
+            <span class="material-symbols-outlined">tune</span>
+            Refine Article
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block output_display %}
+<div class="article-display" id="articleDisplay">
+    <div class="empty-state">
+        <span class="material-symbols-outlined">article</span>
+        <h3>Ready to Create</h3>
+        <p>Enter a topic above and click "Generate Article" to get started with AI-powered writing.</p>
+    </div>
+</div>
+
+<!-- Article Actions (hidden by default) -->
+<div class="article-actions" id="articleActions" style="display: none;">
+    <button id="downloadBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">download</span>
+        Download
+    </button>
+    {% if user %}
+    <button id="publishBtn" class="btn btn-primary">
+        <span class="material-symbols-outlined">publish</span>
+        Publish
+    </button>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block additional_styles %}
+<style>
+    /* Article Studio specific styles */
+    .topic-input {
+        width: 100%;
+        padding: 16px 20px;
+        border: 2px solid var(--outline);
+        border-radius: 12px;
+        font-size: 16px;
+        font-family: inherit;
+        background: var(--surface);
+        color: var(--on-surface);
+        transition: all 0.2s;
+        resize: none;
+        min-height: 60px;
+    }
+
+    .topic-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+    }
+
+    .topic-input::placeholder {
+        color: var(--on-surface-variant);
+    }
+
+    .topic-input:disabled {
+        background: var(--surface-variant);
+        color: var(--on-surface-variant);
+        cursor: not-allowed;
+    }
+
+    .input-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 16px;
+    }
+
+    .refinements-info {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+    }
+
+    .refinements-info a {
+        color: var(--primary-blue);
+        text-decoration: none;
+    }
+
+    .refinements-info a:hover {
+        text-decoration: underline;
+    }
+
+    .generate-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        font-weight: 600;
+    }
+
+    .refinement-section {
+        margin-top: 24px;
+        padding: 20px;
+        background: var(--surface-variant);
+        border-radius: 12px;
+        border: 1px solid var(--outline-variant);
+    }
+
+    .refinement-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        background: var(--surface);
+        color: var(--on-surface);
+        margin-bottom: 12px;
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .refinement-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+    }
+
+    .refinement-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .article-display {
+        min-height: 400px;
+        background: var(--surface);
+        border-radius: 12px;
+        border: 1px solid var(--outline-variant);
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 400px;
+        text-align: center;
+        color: var(--on-surface-variant);
+    }
+
+    .empty-state .material-symbols-outlined {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.6;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 8px 0;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 14px;
+        max-width: 300px;
+    }
+
+    .article-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+        justify-content: flex-end;
+    }
+
+    .article-content {
+        padding: 24px;
+        line-height: 1.6;
+    }
+
+    .article-content h1, .article-content h2, .article-content h3 {
+        margin-top: 24px;
+        margin-bottom: 12px;
+        color: var(--on-surface);
+    }
+
+    .article-content p {
+        margin-bottom: 16px;
+        color: var(--on-surface);
+    }
+
+    .article-content ul, .article-content ol {
+        margin-bottom: 16px;
+        padding-left: 24px;
+    }
+
+    .article-content li {
+        margin-bottom: 8px;
+        color: var(--on-surface);
+    }
+
+    /* Loading states */
+    .generating {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block additional_scripts %}
+<script>
+    // Article Studio JavaScript
+    let currentArticleData = null;
+    let currentChatSessionId = null;
+    let refinementsUsed = 0;
+    let maxRefinements = 5;
+    let articleGenerated = false;
+    let isAuthenticated = {{ 'true' if user else 'false' }};
+
+    // DOM elements
+    const topicInput = document.getElementById('topicInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const refineBtn = document.getElementById('refineBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const publishBtn = document.getElementById('publishBtn');
+    const articleDisplay = document.getElementById('articleDisplay');
+    const refinementSection = document.getElementById('refinementSection');
+    const refinementInput = document.getElementById('refinementInput');
+    const refinementsLeft = document.getElementById('refinementsLeft');
+    const articleActions = document.getElementById('articleActions');
+
+    // Event listeners
+    generateBtn.addEventListener('click', function(e) {
+        if (articleGenerated) {
+            e.preventDefault();
+            return false;
+        }
+        generateArticle();
+    });
+
+    if (refineBtn) {
+        refineBtn.addEventListener('click', refineArticle);
+    }
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', downloadArticle);
+    }
+
+    if (publishBtn) {
+        publishBtn.addEventListener('click', publishArticle);
+    }
+
+    // Enter key handling
+    topicInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && !articleGenerated) {
+            e.preventDefault();
+            generateArticle();
+        }
+    });
+
+    if (refinementInput) {
+        refinementInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                refineArticle();
+            }
+        });
+    }
+
+    // Main article generation function
+    async function generateArticle() {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+            showNotification('Please enter a topic first.', 'error');
+            return;
+        }
+
+        setGenerating(true);
+        
+        try {
+            const response = await fetch('/api/v1/generate/article', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    topic: topic,
+                    chat_session_id: currentChatSessionId
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                currentArticleData = data;
+                currentChatSessionId = data.chat_session_id;
+                refinementsUsed = 0;
+                maxRefinements = data.refinements_remaining + refinementsUsed;
+
+                displayArticle(data.article_html);
+                showRefinementSection();
+                showArticleActions();
+                updateRefinementsDisplay();
+
+                showNotification('Article generated successfully!');
+                disableGenerateSection();
+            } else {
+                throw new Error(data.error || 'Failed to generate article');
+            }
+        } catch (error) {
+            console.error('Generation error:', error);
+            showNotification(error.message || 'Failed to generate article. Please try again.', 'error');
+        } finally {
+            setGenerating(false);
+        }
+    }
+
+    // Helper functions
+    function setGenerating(isGenerating) {
+        if (isGenerating) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span> Generating...';
+            topicInput.disabled = true;
+        } else {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span> Generate Article';
+            topicInput.disabled = false;
+        }
+    }
+
+    function displayArticle(articleHtml) {
+        articleDisplay.innerHTML = `<div class="article-content">${articleHtml}</div>`;
+        articleGenerated = true;
+    }
+
+    function showRefinementSection() {
+        if (refinementSection) {
+            refinementSection.style.display = 'block';
+        }
+    }
+
+    function showArticleActions() {
+        if (articleActions) {
+            articleActions.style.display = 'flex';
+        }
+    }
+
+    function updateRefinementsDisplay() {
+        const remaining = maxRefinements - refinementsUsed;
+        if (refinementsLeft) {
+            refinementsLeft.textContent = `${remaining} refinements remaining`;
+        }
+    }
+
+    function disableGenerateSection() {
+        topicInput.disabled = true;
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="material-symbols-outlined">check</span> Article Generated';
+    }
+
+    function showNotification(message, type = 'success') {
+        // Simple notification system - you can enhance this
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: ${type === 'error' ? '#f44336' : '#4caf50'};
+            color: white;
+            border-radius: 8px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+
+    // Placeholder functions for refinement, download, and publish
+    function refineArticle() {
+        showNotification('Refinement feature coming soon!', 'info');
+    }
+
+    function downloadArticle() {
+        showNotification('Download feature coming soon!', 'info');
+    }
+
+    function publishArticle() {
+        showNotification('Publish feature coming soon!', 'info');
+    }
+</script>
+
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+{% endblock %}

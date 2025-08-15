@@ -99,6 +99,8 @@ class Article(db.Model):
     content_raw = db.Column(db.Text, nullable=False)  # Raw markdown/text for refinements
     topic = db.Column(db.String(500))
     
+    studio_type = db.Column(db.String(50), default='ARTICLE')  # 'ARTICLE', 'SOCIAL_POST', 'EMAIL', etc.
+    
     # Article metadata
     word_count = db.Column(db.Integer, default=0)
     is_refined = db.Column(db.Boolean, default=False)
@@ -210,6 +212,7 @@ class Article(db.Model):
             'content_html': self.content_html,
             'content_raw': self.content_raw,
             'topic': self.topic,
+            'studio_type': self.studio_type or 'ARTICLE',  # Default for legacy data
             'word_count': self.word_count or 0,
             'is_refined': self.is_refined,
             'is_public': self.is_public,

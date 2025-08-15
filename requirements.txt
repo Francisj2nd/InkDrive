@@ -40,8 +40,3 @@ PyJWT==2.8.0
 
 # Build dependency for Pillow
 setuptools==75.1.0
-
-
-
-
-

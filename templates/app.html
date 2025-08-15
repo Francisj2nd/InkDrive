@@ -1053,23 +1053,21 @@
 
         // Main functions
         async function generateArticle() {
-            const topic = topicInput.value.trim();
+            const topic = document.getElementById('topicInput').value.trim();
             if (!topic) {
-                showNotification('Please enter a topic', 'error');
+                showNotification('Please enter a topic first.', 'error');
                 return;
             }
 
-            generateBtn.disabled = true;
-            showLoading();
-
+            setGenerating(true);
+            
             try {
-                const endpoint = isAuthenticated ? '/generate' : '/generate-guest';
-                const response = await fetch(endpoint, {
+                const response = await fetch('/api/v1/generate/article', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
+                    body: JSON.stringify({ 
                         topic: topic,
                         chat_session_id: currentChatSessionId
                     })
@@ -1458,3 +1456,4 @@
     </script>
 </body>
 </html>
+</merged_code>
