@@ -1063,7 +1063,7 @@
             showLoading();
 
             try {
-                const endpoint = isAuthenticated ? '/generate' : '/generate-guest';
+                const endpoint = isAuthenticated ? '/api/v1/generate/article' : '/generate-guest';
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {

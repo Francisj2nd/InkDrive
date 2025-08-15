@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - InkDrive Co-Pilot{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .studio-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 24px;
+        padding: 24px;
+    }
+
+    .studio-card {
+        background-color: var(--surface);
+        border-radius: 12px;
+        padding: 24px;
+        border: 1px solid var(--outline-variant);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: var(--on-surface);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .studio-card.active {
+        border-color: var(--primary-blue);
+        box-shadow: 0 4px 12px rgba(26, 115, 232, 0.1);
+    }
+
+    .studio-card.active:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 6px 16px rgba(26, 115, 232, 0.2);
+    }
+
+    .studio-card.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: var(--surface-container);
+    }
+
+    .card-icon {
+        font-size: 32px;
+        margin-bottom: 16px;
+        color: var(--primary-blue);
+    }
+
+    .disabled .card-icon {
+        color: var(--on-surface-variant);
+    }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .card-description {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+        flex-grow: 1;
+    }
+
+    .coming-soon-badge {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background-color: var(--warning);
+        color: var(--on-surface);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <h1 class="main-title">Content Studios</h1>
+    <div class="header-actions">
+        <p>Welcome to your InkDrive Co-Pilot</p>
+    </div>
+</div>
+
+<div class="content-area">
+    <div class="studio-grid">
+        <!-- Active Card -->
+        <a href="/studio/article" class="studio-card active">
+            <span class="material-symbols-outlined card-icon">article</span>
+            <h3 class="card-title">Article Studio</h3>
+            <p class="card-description">Generate long-form, SEO-optimized articles and thought-leadership content.</p>
+        </a>
+
+        <!-- Disabled Cards -->
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">groups</span>
+            <h3 class="card-title">Social & Comms Studio</h3>
+            <p class="card-description">Craft engaging social media posts and internal communications.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">edit_note</span>
+            <h3 class="card-title">Editing & Refinement Studio</h3>
+            <p class="card-description">Improve and polish your existing written content with AI assistance.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">transform</span>
+            <h3 class="card-title">Content Repurposing Studio</h3>
+            <p class="card-description">Turn articles into social posts, emails, or video scripts automatically.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">trending_up</span>
+            <h3 class="card-title">SEO Strategy Studio</h3>
+            <p class="card-description">Analyze keywords, generate topic clusters, and plan your content calendar.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">lightbulb</span>
+            <h3 class="card-title">Brainstorming Studio</h3>
+            <p class="card-description">Generate ideas, outlines, and creative angles for any topic.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">movie</span>
+            <h3 class="card-title">Scriptwriting Studio</h3>
+            <p class="card-description">Develop scripts for videos, podcasts, and presentations.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">storefront</span>
+            <h3 class="card-title">E-commerce Studio</h3>
+            <p class="card-description">Write compelling product descriptions, ad copy, and email campaigns.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">web</span>
+            <h3 class="card-title">Web Copy Studio</h3>
+            <p class="card-description">Generate persuasive copy for landing pages, websites, and funnels.</p>
+        </div>
+
+        <div class="studio-card disabled">
+            <span class="coming-soon-badge">Coming Soon</span>
+            <span class="material-symbols-outlined card-icon">business_center</span>
+            <h3 class="card-title">Business Docs Studio</h3>
+            <p class="card-description">Create professional business plans, proposals, and reports.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
