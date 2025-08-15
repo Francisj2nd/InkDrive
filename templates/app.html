@@ -432,6 +432,21 @@
             margin-top: 4px;
         }
 
+        .source-link {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            margin-top: 4px;
+        }
+
+        .source-link a {
+            color: var(--on-surface-variant);
+            text-decoration: underline;
+        }
+
+        .source-link a:hover {
+            color: var(--primary-blue);
+        }
+
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -1118,7 +1133,8 @@
                         refinement_prompt: refinementPrompt,
                         article_id: currentArticleData.article_id,
                         chat_session_id: currentChatSessionId,
-                        refinements_used: refinementsUsed
+                        refinements_used: refinementsUsed,
+                        topic: topicInput.value
                     })
                 });
 
