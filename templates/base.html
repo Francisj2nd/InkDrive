@@ -214,6 +214,16 @@
             color: white;
         }
 
+        .studio-badge {
+            background-color: var(--primary-green);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
         /* Main Content */
         .main-content {
             background: var(--surface);
@@ -350,6 +360,77 @@
             {% block content %}{% endblock %}
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load chat history for authenticated users
+            if (document.querySelector('.chat-list')) {
+                fetchChatHistory();
+            }
+        });
+
+        async function fetchChatHistory() {
+            try {
+                const response = await fetch('/api/user/chat-history');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch chat history');
+                }
+                const history = await response.json();
+                const chatList = document.querySelector('.chat-list');
+
+                if (history.length > 0) {
+                    chatList.innerHTML = ''; // Clear loading/empty state
+                    history.forEach(session => {
+                        const item = document.createElement('div');
+                        item.className = 'chat-item';
+                        item.onclick = () => {
+                            // Placeholder for loading a chat session
+                            console.log('Load chat:', session.session_id);
+                        };
+
+                        let studioTypeBadge = '';
+                        if (session.studio_type) {
+                            studioTypeBadge = `<span class="studio-badge">${session.studio_type}</span>`;
+                        }
+
+                        item.innerHTML = `
+                            <div class="chat-info">
+                                <div class="chat-title">${session.title}</div>
+                                <div class="chat-date">${new Date(session.created_at).toLocaleDateString()}</div>
+                            </div>
+                            ${studioTypeBadge}
+                            <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${session.session_id}');">&times;</button>
+                        `;
+                        chatList.appendChild(item);
+                    });
+                } else {
+                    chatList.innerHTML = '<p class="empty-chat">No history yet.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching chat history:', error);
+                const chatList = document.querySelector('.chat-list');
+                if(chatList) {
+                    chatList.innerHTML = '<p class="empty-chat">Could not load history.</p>';
+                }
+            }
+        }
+
+        async function deleteChat(sessionId) {
+            if (!confirm('Are you sure you want to delete this chat session? This cannot be undone.')) {
+                return;
+            }
+            try {
+                const response = await fetch(`/api/chat-sessions/${sessionId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    fetchChatHistory(); // Refresh list
+                } else {
+                    alert('Failed to delete chat session.');
+                }
+            } catch (error) {
+                console.error('Error deleting chat session:', error);
+                alert('An error occurred while deleting the chat session.');
+            }
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

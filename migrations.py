@@ -44,6 +44,11 @@ def run_migrations():
         if 'total_words_generated' not in users_columns:
             migrations_needed.append('add_total_words_generated_field')
         
+        # Check for chat_sessions fields
+        chat_sessions_columns = [col['name'] for col in inspector.get_columns('chat_sessions')]
+        if 'studio_type' not in chat_sessions_columns:
+            migrations_needed.append('add_studio_type_to_chat_sessions')
+
         # Run migrations
         for migration in migrations_needed:
             logger.info(f"Running migration: {migration}")
@@ -67,6 +72,8 @@ def run_migrations():
                 add_is_active_field()
             elif migration == 'add_total_words_generated_field':
                 add_total_words_generated_field()
+            elif migration == 'add_studio_type_to_chat_sessions':
+                add_studio_type_to_chat_sessions()
         
         if migrations_needed:
             logger.info(f"Completed {len(migrations_needed)} migrations")
@@ -189,4 +196,15 @@ def add_total_words_generated_field():
         logger.info("Added total_words_generated field to users table")
     except Exception as e:
         logger.error(f"Error adding total_words_generated field: {e}")
+        raise
+
+def add_studio_type_to_chat_sessions():
+    """Add studio_type field to chat_sessions table"""
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE chat_sessions ADD COLUMN studio_type VARCHAR(50)'))
+            conn.commit()
+        logger.info("Added studio_type field to chat_sessions table")
+    except Exception as e:
+        logger.error(f"Error adding studio_type field: {e}")
         raise

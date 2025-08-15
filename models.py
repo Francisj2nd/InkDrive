@@ -237,6 +237,7 @@ class ChatSession(db.Model):
     
     # Chat metadata
     has_refined = db.Column(db.Boolean, default=False)
+    studio_type = db.Column(db.String(50), nullable=True) # e.g., 'ARTICLE', 'SOCIAL_POST'
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -267,6 +268,7 @@ class ChatSession(db.Model):
             'messages': self.get_messages(),
             'raw_text': self.raw_text,
             'has_refined': self.has_refined,
+            'studio_type': self.studio_type,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

@@ -266,7 +266,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
         return None
 
 @retry_db_operation(max_retries=3)
-def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
+def save_chat_session_to_db(user_id, session_id, title, messages, raw_text='', studio_type=None):
     """Save or update chat session to database"""
     try:
         # Check if chat session exists
@@ -277,6 +277,7 @@ def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
             chat_session.title = title[:200]
             chat_session.set_messages(messages)
             chat_session.raw_text = raw_text
+            chat_session.studio_type = studio_type
             chat_session.updated_at = datetime.utcnow()
         else:
             # Create new session
@@ -284,7 +285,8 @@ def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
                 user_id=user_id,
                 session_id=session_id,
                 title=title[:200],
-                raw_text=raw_text
+                raw_text=raw_text,
+                studio_type=studio_type
             )
             chat_session.set_messages(messages)
             db.session.add(chat_session)
@@ -880,17 +882,11 @@ def index():
 
         return render_template("landing.html", featured_articles=featured_articles)
 
-@app.route("/app")
-@login_required
-def app_main():
-    """Main app interface (requires login)"""
-    return render_template("app.html", user=current_user)
-
 @app.route("/studio/article")
 @login_required
 def article_studio():
     """Article generation studio page"""
-    return render_template("app.html", user=current_user)
+    return render_template("article_studio.html", user=current_user)
 
 @app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
@@ -937,7 +933,14 @@ def api_generate_article():
         ]
 
         # Save the chat session to the database
-        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text)
+        db_chat_session_id = save_chat_session_to_db(
+            user_id=current_user.id,
+            session_id=chat_session_id,
+            title=user_topic,
+            messages=messages,
+            raw_text=raw_text,
+            studio_type='ARTICLE'  # Set the studio type
+        )
 
         # Save the newly generated article to the database
         article_id = save_article_to_db(

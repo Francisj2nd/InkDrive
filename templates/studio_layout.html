@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+    .studio-container {
+        display: flex;
+        height: 100%;
+    }
+    .studio-column {
+        padding: 24px;
+        height: 100%;
+        overflow-y: auto;
+    }
+    .input-column {
+        flex: 1;
+        border-right: 1px solid var(--outline-variant);
+    }
+    .output-column {
+        flex: 2;
+    }
+    .studio-header {
+        margin-bottom: 24px;
+    }
+    .studio-title {
+        font-size: 20px;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+    .studio-description {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="studio-container">
+    <div class="studio-column input-column">
+        <div class="studio-header">
+            <h2 class="studio-title">{% block studio_title %}{% endblock %}</h2>
+            <p class="studio-description">{% block studio_description %}{% endblock %}</p>
+        </div>
+        {% block input_column %}{% endblock %}
+    </div>
+    <div class="studio-column output-column">
+        {% block output_column %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
