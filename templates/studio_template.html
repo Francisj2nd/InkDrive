@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{# This template defines the standard two-column layout for a studio page #}
+
+{% block head_css %}
+<style>
+    .studio-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--outline);
+    }
+    .studio-header h1 {
+        font-size: 28px;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+    .studio-header p {
+        font-size: 16px;
+        color: var(--on-surface-variant);
+    }
+    .studio-main {
+        display: grid;
+        grid-template-columns: 400px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    .studio-inputs {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid var(--outline);
+        position: sticky;
+        top: 24px;
+    }
+    .studio-output {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid var(--outline);
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .form-group .form-control {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--outline);
+        font-family: inherit;
+        font-size: 14px;
+    }
+    .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-primary {
+        background: var(--primary-blue);
+        color: white;
+    }
+    .btn-secondary {
+        background: transparent;
+        color: var(--on-surface);
+        border: 1px solid var(--outline);
+    }
+</style>
+{% block studio_head_css %}{% endblock %}
+{% endblock %}
+
+
+{% block content %}
+<header class="studio-header">
+    <h1>{% block studio_title %}Studio Title{% endblock %}</h1>
+    <p>{% block studio_description %}Studio description goes here.{% endblock %}</p>
+</header>
+
+<main class="studio-main">
+    <aside class="studio-inputs">
+        {% block studio_inputs %}{# Input forms go here #}{% endblock %}
+    </aside>
+    <section class="studio-output">
+        {% block studio_output %}{# Output content goes here #}{% endblock %}
+    </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+{% block studio_scripts %}{% endblock %}
+{% endblock %}
