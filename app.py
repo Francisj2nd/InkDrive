@@ -868,7 +868,7 @@ def share_article(public_id):
 def index():
     """Main application route"""
     if current_user.is_authenticated:
-        return render_template("app.html", user=current_user)
+        return render_template("dashboard.html", user=current_user)
     else:
         # Get random published articles for social proof
         try:
@@ -886,7 +886,7 @@ def app_main():
     """Main app interface (requires login)"""
     return render_template("app.html", user=current_user)
 
-@app.route("/generate", methods=["POST"])
+@app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
 def generate_article():
     if not CLIENT:
@@ -938,7 +938,7 @@ def generate_article():
         logger.error(f"Article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/generate-guest", methods=["POST"])
+@app.route("/api/v1/generate/article-guest", methods=["POST"])
 def generate_guest_article():
     """Generate article for guest users"""
     if not CLIENT:
@@ -969,7 +969,7 @@ def generate_guest_article():
         logger.error(f"Guest article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/refine", methods=["POST"])
+@app.route("/api/v1/refine/article", methods=["POST"])
 def refine_article():
     """Refine article for both authenticated and guest users"""
     if not CLIENT:
