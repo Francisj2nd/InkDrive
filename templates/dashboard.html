@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - InkDrive{% endblock %}
+
+{% block head_css %}
+<style>
+    .header {
+        margin-bottom: 24px;
+    }
+    .header h1 {
+        font-size: 28px;
+        font-weight: 500;
+    }
+    .studio-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 24px;
+    }
+    .studio-card {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid var(--outline);
+        transition: all 0.2s ease-in-out;
+        text-decoration: none;
+        color: var(--on-surface);
+        display: flex;
+        flex-direction: column;
+    }
+    .studio-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-4px);
+    }
+    .studio-card.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: var(--surface-variant);
+    }
+    .studio-card.disabled:hover {
+        box-shadow: none;
+        transform: none;
+    }
+    .studio-icon {
+        font-size: 40px;
+        margin-bottom: 16px;
+        color: var(--primary-blue);
+    }
+    .studio-title {
+        font-size: 20px;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+    .studio-description {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+        flex-grow: 1;
+        margin-bottom: 16px;
+    }
+    .studio-status {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>Welcome, {{ user.name.split()[0] }}.</h1>
+</div>
+
+<div class="studio-grid">
+    <!-- Article Studio (Clickable) -->
+    <a href="{{ url_for('article_studio') }}" class="studio-card">
+        <span class="material-symbols-outlined studio-icon">article</span>
+        <h2 class="studio-title">Article Studio</h2>
+        <p class="studio-description">Generate long-form, SEO-optimized articles and thought-leadership content.</p>
+        <span class="studio-status">Available</span>
+    </a>
+
+        <!-- Social & Comms Studio -->
+        <a href="{{ url_for('social_studio') }}" class="studio-card">
+        <span class="material-symbols-outlined studio-icon">group</span>
+        <h2 class="studio-title">Social & Comms Studio</h2>
+        <p class="studio-description">Craft engaging social media posts, email campaigns, and ad copy.</p>
+        <span class="studio-status">Available</span>
+    </a>
+
+        <!-- Editing & Refinement Studio -->
+        <a href="{{ url_for('editing_studio') }}" class="studio-card">
+        <span class="material-symbols-outlined studio-icon">edit_note</span>
+        <h2 class="studio-title">Editing & Refinement Studio</h2>
+        <p class="studio-description">Improve existing text by changing tone, style, and fixing errors.</p>
+        <span class="studio-status">Available</span>
+    </a>
+
+    <!-- Content Repurposing Studio -->
+    <a href="{{ url_for('repurpose_studio') }}" class="studio-card">
+        <span class="material-symbols-outlined studio-icon">transform</span>
+        <h2 class="studio-title">Content Repurposing Studio</h2>
+        <p class="studio-description">Turn one piece of content into many, like an article into a Twitter thread.</p>
+        <span class="studio-status">New</span>
+    </a>
+
+    <!-- SEO Strategy Studio (Disabled) -->
+    <a href="#" class="studio-card disabled">
+        <span class="material-symbols-outlined studio-icon">trending_up</span>
+        <h2 class="studio-title">SEO Strategy Studio</h2>
+        <p class="studio-description">Generate keywords, analyze headlines, and build a content strategy.</p>
+        <span class="studio-status">Coming Soon</span>
+    </a>
+
+    <!-- Brainstorming Studio (Disabled) -->
+    <a href="#" class="studio-card disabled">
+        <span class="material-symbols-outlined studio-icon">lightbulb</span>
+        <h2 class="studio-title">Brainstorming Studio</h2>
+        <p class="studio-description">Generate new ideas, titles, and outlines for your content.</p>
+        <span class="studio-status">Coming Soon</span>
+    </a>
+</div>
+{% endblock %}

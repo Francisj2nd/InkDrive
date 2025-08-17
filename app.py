@@ -46,14 +46,17 @@ app.register_blueprint(admin_bp)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+# Engine options - conditionally add connect_args for PostgreSQL
+engine_options = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
-    'connect_args': {
-        'connect_timeout': 10,
-        'sslmode': 'require' if 'postgresql' in os.getenv('DATABASE_URL', '') else None
-    }
 }
+if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+    engine_options['connect_args'] = {
+        'connect_timeout': 10,
+        'sslmode': 'require'
+    }
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
 # Fix for Render PostgreSQL URLs
 if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
@@ -158,6 +161,80 @@ def construct_initial_prompt(topic):
 {article_requirements}
 """
 
+def construct_social_post_prompt(topic, goal, platform):
+    """Constructs a prompt for generating social media posts."""
+    return f"""
+    You are a social media marketing expert. Your task is to generate 3 distinct social media posts for the {platform} platform.
+
+    **Topic:** {topic}
+    **Goal of the posts:** {goal}
+
+    **Requirements:**
+    1.  **Platform:** Tailor the tone and length for {platform}.
+    2.  **Variety:** Provide three distinct options with different angles or hooks.
+    3.  **Hashtags:** Include relevant and trending hashtags for each post.
+    4.  **Formatting:** Present each post clearly separated. Use "---" between each post option.
+
+    Generate the social media posts now.
+    """
+
+def construct_email_prompt(topic, audience, tone):
+    """Constructs a prompt for generating an email."""
+    return f"""
+    You are an expert copywriter specializing in email marketing. Your task is to write a compelling marketing email.
+
+    **Topic/Product:** {topic}
+    **Target Audience:** {audience}
+    **Desired Tone:** {tone}
+
+    **Requirements:**
+    1.  **Subject Line:** Generate 3-5 engaging subject line options.
+    2.  **Email Body:** Write a complete email body based on the topic. It should have a clear hook, body, and call-to-action (CTA).
+    3.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by "---", then the email body.
+
+    Generate the email content now.
+    """
+
+def construct_refine_text_prompt(text_to_refine, target_tone):
+    """Constructs a prompt for refining text to a specific tone."""
+    return f"""
+    You are an expert editor. Your task is to revise the following text to match a "{target_tone}" tone.
+
+    **Original Text:**
+    ---
+    {text_to_refine}
+    ---
+
+    **Instructions:**
+    1.  Rewrite the text to embody a "{target_tone}" tone and style.
+    2.  Do not add any new information or change the core meaning.
+    3.  Return only the revised text, without any commentary or preamble.
+
+    Revise the text now.
+    """
+
+def construct_article_to_tweet_prompt(article_text):
+    """Constructs a prompt for converting an article into a Twitter thread."""
+    return f"""
+    You are a social media expert specializing in content repurposing. Your task is to convert the following article into a compelling, numbered Twitter thread.
+
+    **Article Text:**
+    ---
+    {article_text}
+    ---
+
+    **Instructions:**
+    1.  **Create a Thread:** Generate a series of tweets that summarize the key points of the article.
+    2.  **Numbered Tweets:** Start each tweet with a number (e.g., "1/n", "2/n").
+    3.  **Engaging Hook:** The first tweet should be a strong hook to grab the reader's attention.
+    4.  **Concise and Clear:** Each tweet must be under 280 characters.
+    5.  **Add Hashtags:** Include relevant hashtags in the final tweet.
+    6.  **Separator:** Use "---" on a new line to separate each tweet in the output.
+    7.  **Return Only the Thread:** Do not include any preamble, commentary, or extra text. Only return the tweets separated by "---".
+
+    Generate the Twitter thread now.
+    """
+
 def get_image_url(query):
     if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
         logger.warning("Google Search API credentials not configured.")
@@ -216,7 +293,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
     try:
         # Extract word count (rough estimate)
         word_count = len(content_raw.split())
-        
+
         if article_id:
             # Update existing article
             article = Article.query.filter_by(id=article_id, user_id=user_id).first()
@@ -242,14 +319,14 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                 public_id=str(uuid.uuid4())[:8],  # Generate a short public ID for sharing
                 chat_session_id=chat_session_id  # Link to chat session
             )
-            
+
             db.session.add(article)
-            
+
             # Update user's article count and monthly word count
             user = User.query.get(user_id)
             if user:
                 user.articles_generated = (user.articles_generated or 0) + 1
-                
+
                 # Check if we need to reset monthly quotas
                 if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
                     user.words_generated_this_month = word_count
@@ -257,7 +334,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                     user.last_quota_reset = datetime.utcnow()
                 else:
                     user.words_generated_this_month = (user.words_generated_this_month or 0) + word_count
-        
+
         db.session.commit()
         return article.id
     except Exception as e:
@@ -266,17 +343,18 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
         return None
 
 @retry_db_operation(max_retries=3)
-def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
+def save_chat_session_to_db(user_id, session_id, title, messages, raw_text='', studio_type='ARTICLE'):
     """Save or update chat session to database"""
     try:
         # Check if chat session exists
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=user_id).first()
-        
+
         if chat_session:
             # Update existing session
             chat_session.title = title[:200]
             chat_session.set_messages(messages)
             chat_session.raw_text = raw_text
+            chat_session.studio_type = studio_type
             chat_session.updated_at = datetime.utcnow()
         else:
             # Create new session
@@ -284,11 +362,12 @@ def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
                 user_id=user_id,
                 session_id=session_id,
                 title=title[:200],
-                raw_text=raw_text
+                raw_text=raw_text,
+                studio_type=studio_type
             )
             chat_session.set_messages(messages)
             db.session.add(chat_session)
-        
+
         db.session.commit()
         return chat_session.id
     except Exception as e:
@@ -307,7 +386,7 @@ def check_monthly_word_quota(user):
             user.last_quota_reset = datetime.utcnow()
             db.session.commit()
             return True
-        
+
         words_generated = user.words_generated_this_month or 0
         return words_generated < MONTHLY_WORD_LIMIT
     except Exception as e:
@@ -325,7 +404,7 @@ def check_monthly_download_quota(user):
             user.last_quota_reset = datetime.utcnow()
             db.session.commit()
             return True
-        
+
         downloads_this_month = user.downloads_this_month or 0
         return downloads_this_month < MONTHLY_DOWNLOAD_LIMIT
     except Exception as e:
@@ -338,12 +417,12 @@ def send_contact_email(name, email, subject, message):
         if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
             logger.warning("Email credentials not configured")
             return False
-            
+
         msg = MIMEMultipart()
         msg['From'] = app.config['MAIL_USERNAME']
         msg['To'] = app.config['CONTACT_EMAIL']
         msg['Subject'] = f"InkDrive Contact Form: {subject}"
-        
+
         body = f"""
 New contact form submission from InkDrive:
 
@@ -357,16 +436,16 @@ Message:
 ---
 This message was sent from the InkDrive contact form.
         """
-        
+
         msg.attach(MIMEText(body, 'plain'))
-        
+
         server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
         server.starttls()
         server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
         text = msg.as_string()
         server.sendmail(app.config['MAIL_USERNAME'], app.config['CONTACT_EMAIL'], text)
         server.quit()
-        
+
         return True
     except Exception as e:
         logger.error(f"Error sending contact email: {e}")
@@ -378,30 +457,30 @@ This message was sent from the InkDrive contact form.
 def auth_login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
+
     form = LoginForm()
     if form.validate_on_submit():
         try:
             user = User.query.filter_by(email=form.email.data.lower()).first()
-            
+
             if user:
                 try:
                     password_valid = user.check_password(form.password.data)
                 except Exception as e:
                     logger.error(f"Password check error for user {user.id}: {e}")
                     password_valid = False
-                
+
                 if password_valid:
                     login_user(user, remember=form.remember_me.data)
-                    
+
                     # Safely update last login with error handling
                     try:
                         user.update_last_login()
                     except Exception as e:
                         logger.warning(f"Failed to update last login for user {user.id}: {e}")
-                    
+
                     flash('Welcome back!', 'success')
-                    
+
                     next_page = request.args.get('next')
                     return redirect(next_page) if next_page else redirect(url_for('index'))
                 else:
@@ -414,14 +493,14 @@ def auth_login():
         except Exception as e:
             logger.error(f"Login error: {e}")
             flash('An error occurred during login. Please try again.', 'error')
-    
+
     return render_template('auth/login.html', form=form)
 
 @app.route('/auth/register', methods=['GET', 'POST'])
 def auth_register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
+
     form = RegisterForm()
     if form.validate_on_submit():
         try:
@@ -430,7 +509,7 @@ def auth_register():
             if existing_user:
                 flash('Email address already registered.', 'error')
                 return render_template('auth/register.html', form=form)
-            
+
             # Create new user with safe defaults
             user = User(
                 email=form.email.data.lower(),
@@ -443,21 +522,21 @@ def auth_register():
                 total_words_generated=0,
                 last_quota_reset=datetime.utcnow()
             )
-            
+
             # Set password with error handling
             try:
                 user.set_password(form.password.data)
             except ValueError as e:
                 flash('Invalid password format.', 'error')
                 return render_template('auth/register.html', form=form)
-            
+
             db.session.add(user)
             db.session.commit()
-            
+
             login_user(user)
             flash('Registration successful! Welcome to InkDrive!', 'success')
             return redirect(url_for('index'))
-            
+
         except (OperationalError, DatabaseError) as e:
             db.session.rollback()
             logger.error(f"Database error during registration: {e}")
@@ -466,7 +545,7 @@ def auth_register():
             db.session.rollback()
             logger.error(f"Registration error: {e}")
             flash('Registration failed. Please try again.', 'error')
-    
+
     return render_template('auth/register.html', form=form)
 
 @app.route('/auth/google')
@@ -475,7 +554,7 @@ def auth_google():
     if not app.config.get('GOOGLE_CLIENT_ID'):
         flash('Google authentication is not configured.', 'error')
         return redirect(url_for('auth_login'))
-    
+
     return render_template('auth/google_auth.html')
 
 @app.route('/auth/google/callback', methods=['POST'])
@@ -485,22 +564,22 @@ def auth_google_callback():
         token = request.json.get('credential')
         if not token:
             return jsonify({'error': 'No credential provided'}), 400
-        
+
         # Verify the token
         idinfo = id_token.verify_oauth2_token(
-            token, 
-            google_requests.Request(), 
+            token,
+            google_requests.Request(),
             app.config['GOOGLE_CLIENT_ID']
         )
-        
+
         if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
             return jsonify({'error': 'Invalid token issuer'}), 400
-        
+
         google_id = idinfo['sub']
         email = idinfo['email']
         name = idinfo['name']
         picture = idinfo.get('picture')
-        
+
         # Check if user exists
         user = User.query.filter_by(google_id=google_id).first()
         if not user:
@@ -529,18 +608,18 @@ def auth_google_callback():
             # Update existing Google user info
             user.name = name
             user.profile_picture = picture
-        
+
         db.session.commit()
         login_user(user)
-        
+
         # Safely update last login
         try:
             user.update_last_login()
         except Exception as e:
             logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
-        
+
         return jsonify({'success': True, 'redirect': url_for('index')})
-        
+
     except ValueError as e:
         logger.error(f"Google auth token error: {e}")
         return jsonify({'error': 'Invalid token'}), 400
@@ -574,40 +653,40 @@ def profile_dashboard():
         total_articles = 0
         total_words = 0
         total_downloads = 0
-        
+
         try:
             recent_articles = Article.query.filter_by(user_id=current_user.id)\
                                          .order_by(Article.created_at.desc())\
                                          .limit(5).all()
-            
+
             # Get published articles (limit to 5)
             published_articles = Article.query.filter_by(user_id=current_user.id, is_public=True)\
                                              .order_by(Article.published_at.desc())\
                                              .limit(5).all()
-            
+
             # Calculate stats
             total_articles = Article.query.filter_by(user_id=current_user.id).count()
-            
+
             # Total words should be cumulative (never decrease)
             total_words = db.session.query(db.func.sum(Article.word_count))\
                                    .filter_by(user_id=current_user.id).scalar() or 0
-            
+
             total_downloads = db.session.query(db.func.sum(Article.download_count))\
                                         .filter_by(user_id=current_user.id).scalar() or 0
         except (OperationalError, DatabaseError) as e:
             logger.error(f"Database error loading dashboard data: {e}")
             flash('Some dashboard data may not be available due to connection issues.', 'warning')
-        
+
         # Check if we need to reset monthly quotas with error handling
         try:
-            if current_user.last_quota_reset is None or (datetime.utcnow() - current_user.last_quota_reset) > timedelta(days=30):
+            if current_user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
                 current_user.words_generated_this_month = 0
                 current_user.downloads_this_month = 0
                 current_user.last_quota_reset = datetime.utcnow()
                 db.session.commit()
         except Exception as e:
             logger.warning(f"Failed to reset quotas for user {current_user.id}: {e}")
-        
+
         stats = {
             'total_articles': total_articles,
             'total_words': total_words,
@@ -618,9 +697,9 @@ def profile_dashboard():
             'download_limit': MONTHLY_DOWNLOAD_LIMIT,
             'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
         }
-        
-        return render_template('profile/dashboard.html', 
-                             user=current_user, 
+
+        return render_template('profile/dashboard.html',
+                             user=current_user,
                              recent_articles=recent_articles,
                              published_articles=published_articles,
                              stats=stats)
@@ -634,12 +713,12 @@ def profile_dashboard():
 def profile_edit():
     """Edit user profile"""
     form = ProfileForm(obj=current_user)
-    
+
     if form.validate_on_submit():
         try:
             current_user.name = form.name.data
             current_user.theme_preference = form.theme_preference.data
-            
+
             db.session.commit()
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('profile_dashboard'))
@@ -651,7 +730,7 @@ def profile_edit():
             db.session.rollback()
             logger.error(f"Profile update error: {e}")
             flash('Failed to update profile.', 'error')
-    
+
     return render_template('profile/edit.html', form=form)
 
 @app.route('/profile/change-password', methods=['GET', 'POST'])
@@ -661,15 +740,15 @@ def profile_change_password():
     if current_user.google_id and not current_user.password_hash:
         flash('Google account users cannot change password here.', 'info')
         return redirect(url_for('profile_dashboard'))
-    
+
     form = ChangePasswordForm()
-    
+
     if form.validate_on_submit():
         try:
             if not current_user.check_password(form.current_password.data):
                 flash('Current password is incorrect.', 'error')
                 return render_template('profile/change_password.html', form=form)
-            
+
             current_user.set_password(form.new_password.data)
             db.session.commit()
             flash('Password changed successfully!', 'success')
@@ -682,7 +761,7 @@ def profile_change_password():
             db.session.rollback()
             logger.error(f"Password change error: {e}")
             flash('Failed to change password.', 'error')
-    
+
     return render_template('profile/change_password.html', form=form)
 
 @app.route('/profile/delete-account', methods=['POST'])
@@ -692,14 +771,14 @@ def profile_delete_account():
     try:
         # Delete all user's articles
         Article.query.filter_by(user_id=current_user.id).delete()
-        
+
         # Delete all user's chat sessions
         ChatSession.query.filter_by(user_id=current_user.id).delete()
-        
+
         # Delete the user
         db.session.delete(current_user)
         db.session.commit()
-        
+
         logout_user()
         flash('Your account has been deleted successfully.', 'success')
         return redirect(url_for('index'))
@@ -723,7 +802,7 @@ def profile_articles():
         articles = Article.query.filter_by(user_id=current_user.id)\
                                .order_by(Article.created_at.desc())\
                                .paginate(page=page, per_page=20, error_out=False)
-        
+
         return render_template('profile/articles.html', articles=articles)
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error loading articles: {e}")
@@ -756,14 +835,14 @@ def publish_article(article_id):
     """Publish an article"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         if article.is_public:
             return jsonify({"error": "Article is already published"}), 400
-        
+
         article.publish()
-        
+
         public_url = url_for('share_article', public_id=article.public_id, _external=True)
-        
+
         return jsonify({
             "success": True,
             "message": "Article published successfully!",
@@ -782,12 +861,12 @@ def unpublish_article(article_id):
     """Unpublish an article"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         if not article.is_public:
             return jsonify({"error": "Article is not published"}), 400
-        
+
         article.unpublish()
-        
+
         return jsonify({
             "success": True,
             "message": "Article unpublished successfully!"
@@ -805,17 +884,17 @@ def delete_article(article_id):
     """Delete an article and its associated chat session"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         # Find and delete associated chat session if it exists
         if article.chat_session_id:
             chat_session = ChatSession.query.filter_by(id=article.chat_session_id, user_id=current_user.id).first()
             if chat_session:
                 db.session.delete(chat_session)
-        
+
         # Delete the article
         db.session.delete(article)
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": "Article and associated chat deleted successfully!"
@@ -835,14 +914,14 @@ def share_article(public_id):
     try:
         # Fixed query: Only get articles that are both matching public_id AND published
         article = Article.query.filter_by(public_id=public_id, is_public=True).first()
-        
+
         if not article:
             # Article doesn't exist or is not published
             abort(404)
-        
+
         # Increment view count
         article.increment_view()
-        
+
         # Get random published articles for social proof (excluding current article)
         try:
             # Use a simpler query that works with both SQLite and PostgreSQL
@@ -853,7 +932,7 @@ def share_article(public_id):
         except Exception as e:
             logger.warning(f"Error fetching featured articles: {e}")
             featured_articles = []
-        
+
         return render_template('article/share.html', article=article, featured_articles=featured_articles)
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error loading shared article {public_id}: {e}")
@@ -868,7 +947,7 @@ def share_article(public_id):
 def index():
     """Main application route"""
     if current_user.is_authenticated:
-        return render_template("app.html", user=current_user)
+        return render_template("dashboard.html", user=current_user)
     else:
         # Get random published articles for social proof
         try:
@@ -877,25 +956,138 @@ def index():
         except Exception as e:
             logger.warning(f"Error fetching featured articles for landing: {e}")
             featured_articles = []
-        
+
         return render_template("landing.html", featured_articles=featured_articles)
 
-@app.route("/app")
+@app.route('/studio/article')
 @login_required
-def app_main():
-    """Main app interface (requires login)"""
-    return render_template("app.html", user=current_user)
+def article_studio():
+    """The new Article Studio page"""
+    return render_template('article_studio.html', user=current_user)
 
-@app.route("/generate", methods=["POST"])
+@app.route('/studio/social')
+@login_required
+def social_studio():
+    """The new Social & Comms Studio page"""
+    return render_template('social_studio.html', user=current_user)
+
+@app.route('/studio/editing')
+@login_required
+def editing_studio():
+    """The new Editing & Refinement Studio page"""
+    return render_template('editing_studio.html', user=current_user)
+
+@app.route('/studio/repurpose')
+@login_required
+def repurpose_studio():
+    """The new Content Repurposing Studio page"""
+    return render_template('repurposing_studio.html', user=current_user)
+
+@app.route('/api/v1/generate/social', methods=['POST'])
+@login_required
+def generate_social():
+    """Generates social media post content."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    goal = data.get("goal")
+    platform = data.get("platform")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([topic, goal, platform]):
+        return jsonify({"error": "Missing required fields: topic, goal, or platform."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_social_post_prompt(topic, goal, platform)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Split the response into individual posts
+        posts = [p.strip() for p in raw_text.split('---') if p.strip()]
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        # Create a user message that summarizes the request
+        user_message = f"Topic: {topic}, Goal: {goal}, Platform: {platform}"
+
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Social Posts for '{topic}'"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
+
+        return jsonify({
+            "posts": posts,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Social post generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/email', methods=['POST'])
+@login_required
+def generate_email():
+    """Generates email campaign content."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    audience = data.get("audience")
+    tone = data.get("tone")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([topic, audience, tone]):
+        return jsonify({"error": "Missing required fields: topic, audience, or tone."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_email_prompt(topic, audience, tone)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Topic: {topic}, Audience: {audience}, Tone: {tone}"
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Email for '{topic}'"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
+
+        return jsonify({
+            "email_content": raw_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Email generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
 def generate_article():
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
-    
+
     data = request.get_json()
     user_topic = data.get("topic")
     chat_session_id = data.get("chat_session_id")
-    
+
     if not user_topic:
         return jsonify({"error": "Topic is missing."}), 400
 
@@ -912,23 +1104,23 @@ def generate_article():
 
         raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text, user_topic)
-        
+
         # Save chat session to database
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-        
+
         messages = [
             {"content": user_topic, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
             {"content": final_html, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
-        
-        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text)
-        
+
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text, studio_type='ARTICLE')
+
         # Save article to database with chat session link
         article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id)
 
         return jsonify({
-            "article_html": final_html, 
+            "article_html": final_html,
             "raw_text": raw_text,
             "article_id": article_id,
             "chat_session_id": chat_session_id,
@@ -938,12 +1130,12 @@ def generate_article():
         logger.error(f"Article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/generate-guest", methods=["POST"])
+@app.route("/api/v1/generate/article-guest", methods=["POST"])
 def generate_guest_article():
     """Generate article for guest users"""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
-    
+
     data = request.get_json()
     user_topic = data.get("topic")
     if not user_topic:
@@ -958,10 +1150,10 @@ def generate_guest_article():
 
         raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text, user_topic)
-        
+
         # For guests, we don't save to database
         return jsonify({
-            "article_html": final_html, 
+            "article_html": final_html,
             "raw_text": raw_text,
             "refinements_remaining": 1  # Only 1 for guests
         })
@@ -969,19 +1161,19 @@ def generate_guest_article():
         logger.error(f"Guest article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/refine", methods=["POST"])
+@app.route("/api/v1/refine/article", methods=["POST"])
 def refine_article():
     """Refine article for both authenticated and guest users"""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
-    
+
     data = request.get_json()
     raw_text, refinement_prompt = data.get("raw_text"), data.get("refinement_prompt")
     article_id = data.get("article_id")
     chat_session_id = data.get("chat_session_id")
     refinements_used = data.get("refinements_used", 0)
     topic = data.get("topic", "")
-    
+
     if not all([raw_text, refinement_prompt]):
         return jsonify({"error": "Missing data for refinement."}), 400
 
@@ -989,7 +1181,7 @@ def refine_article():
     if current_user.is_authenticated:
         if refinements_used >= 5:
             return jsonify({"error": "You've used all 5 refinements for this article."}), 403
-        
+
         if not check_monthly_word_quota(current_user):
             return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
     else:
@@ -1010,17 +1202,17 @@ def refine_article():
 
         refined_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(refined_text, topic)
-        
+
         # Update word count for authenticated users
         if current_user.is_authenticated:
             word_count = len(refined_text.split())
             current_user.words_generated_this_month = (current_user.words_generated_this_month or 0) + word_count
             db.session.commit()
-            
+
             # Update article in database if article_id provided
             if article_id:
                 save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
-            
+
             # Update chat session
             if chat_session_id:
                 chat_session = ChatSession.query.filter_by(session_id=chat_session_id, user_id=current_user.id).first()
@@ -1037,7 +1229,7 @@ def refine_article():
         remaining_refinements = (5 if current_user.is_authenticated else 1) - new_refinements_used
 
         return jsonify({
-            "article_html": final_html, 
+            "article_html": final_html,
             "raw_text": refined_text,
             "refinements_used": new_refinements_used,
             "refinements_remaining": remaining_refinements
@@ -1046,6 +1238,93 @@ def refine_article():
         logger.error(f"Article refinement error: {e}")
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
 
+@app.route('/api/v1/refine/text', methods=['POST'])
+@login_required
+def refine_text():
+    """Refines a piece of text to a specific tone."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    text_to_refine = data.get("text")
+    target_tone = data.get("tone")
+    chat_session_id = data.get("chat_session_id")
+
+    if not text_to_refine or not target_tone:
+        return jsonify({"error": "Missing required fields: text or tone."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_refine_text_prompt(text_to_refine, target_tone)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        refined_text = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Refine the following text to be more '{target_tone}':\n\n{text_to_refine[:200]}..."
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Refinement: {target_tone}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
+
+        return jsonify({
+            "refined_text": refined_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Text refinement error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/repurpose/article-to-tweet', methods=['POST'])
+@login_required
+def repurpose_article_to_tweet():
+    """Converts an article into a Twitter thread."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    article_text = data.get("article")
+    chat_session_id = data.get("chat_session_id")
+
+    if not article_text:
+        return jsonify({"error": "Missing required field: article."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_article_to_tweet_prompt(article_text)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        tweet_thread = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Convert the following article to a Twitter thread:\n\n{article_text[:200]}..."
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": tweet_thread, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = "Article to Tweet Thread"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, tweet_thread, studio_type='REPURPOSE_TWEET')
+
+        return jsonify({
+            "tweet_thread": tweet_thread,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Article to tweet error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
 @app.route("/download-docx", methods=["POST"])
 def download_docx():
     """Download article as DOCX for both authenticated and guest users"""
@@ -1053,10 +1332,10 @@ def download_docx():
     html_content = data.get("html")
     topic = data.get("topic", "Generated Article")
     article_id = data.get("article_id")
-    
+
     if not html_content:
         return jsonify({"error": "Missing HTML content."}), 400
-    
+
     try:
         # Update download count if article_id provided and user is authenticated
         if article_id and current_user.is_authenticated:
@@ -1064,7 +1343,7 @@ def download_docx():
                 # Check monthly download quota
                 if not check_monthly_download_quota(current_user):
                     return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
-                
+
                 article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
                 if article:
                     article.increment_download()
@@ -1072,12 +1351,12 @@ def download_docx():
                     db.session.commit()
             except Exception as e:
                 logger.warning(f"Failed to update download count: {e}")
-        
+
         # Generate DOCX
         soup = BeautifulSoup(html_content, 'html.parser')
         doc = Document()
         doc.add_heading(topic, level=0)
-        
+
         for element in soup.find_all(['h2', 'h3', 'p', 'div']):
             if element.name == 'h2':
                 doc.add_heading(element.get_text(), level=2)
@@ -1122,7 +1401,7 @@ def download_docx():
         doc.save(file_stream)
         file_stream.seek(0)
         filename = f"{topic[:50].strip().replace(' ', '_')}.docx"
-        return send_file(file_stream, as_attachment=True, download_name=filename, 
+        return send_file(file_stream, as_attachment=True, download_name=filename,
                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     except Exception as e:
         logger.error(f"DOCX generation error: {e}")
@@ -1153,7 +1432,7 @@ def api_get_chat_session(session_id):
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
         if not chat_session:
             return jsonify({"error": "Chat session not found"}), 404
-        
+
         return jsonify(chat_session.to_dict())
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error getting chat session: {e}")
@@ -1187,7 +1466,7 @@ def api_user_stats():
                                .filter_by(user_id=current_user.id).scalar() or 0
         total_downloads = db.session.query(db.func.sum(Article.download_count))\
                                     .filter_by(user_id=current_user.id).scalar() or 0
-        
+
         return jsonify({
             'total_articles': total_articles,
             'total_words': total_words,
@@ -1211,16 +1490,16 @@ def api_download_article(article_id):
     """API endpoint to download an article"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         # Check monthly download quota
         if not check_monthly_download_quota(current_user):
             return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
-        
+
         # Generate DOCX
         soup = BeautifulSoup(article.content_html, 'html.parser')
         doc = Document()
         doc.add_heading(article.title, level=0)
-        
+
         for element in soup.find_all(['h2', 'h3', 'p', 'div']):
             if element.name == 'h2':
                 doc.add_heading(element.get_text(), level=2)
@@ -1260,18 +1539,18 @@ def api_download_article(article_id):
                     p = doc.add_paragraph(attr_p.get_text())
                     p.alignment = 1
                     p.italic = True
-        
+
         file_stream = io.BytesIO()
         doc.save(file_stream)
         file_stream.seek(0)
         filename = f"{article.title[:50].strip().replace(' ', '_')}.docx"
-        
+
         # Update download count
         article.increment_download()
         current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
         db.session.commit()
-        
-        return send_file(file_stream, as_attachment=True, download_name=filename, 
+
+        return send_file(file_stream, as_attachment=True, download_name=filename,
                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error in API download: {e}")
@@ -1289,14 +1568,14 @@ def delete_chat_session(session_id):
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
         if not chat_session:
             return jsonify({"error": "Chat session not found"}), 404
-        
+
         # Delete all articles associated with this chat session
         Article.query.filter_by(chat_session_id=chat_session.id, user_id=current_user.id).delete()
-        
+
         # Delete the chat session
         db.session.delete(chat_session)
         db.session.commit()
-        
+
         return jsonify({"success": True, "message": "Chat session and associated articles deleted"})
     except (OperationalError, DatabaseError) as e:
         db.session.rollback()
@@ -1333,21 +1612,21 @@ def contact():
             email = request.form.get('email', '').strip()
             subject = request.form.get('subject', '').strip()
             message = request.form.get('message', '').strip()
-            
+
             if not all([name, email, subject, message]):
                 flash('Please fill in all required fields.', 'error')
                 return render_template('legal/contact.html')
-            
+
             # Send email
             if send_contact_email(name, email, subject, message):
                 flash('Thank you for your message! We\'ll get back to you soon.', 'success')
             else:
                 flash('Sorry, there was an error sending your message. Please try again later.', 'error')
-                
+
         except Exception as e:
             logger.error(f"Contact form error: {e}")
             flash('Sorry, there was an error processing your request.', 'error')
-    
+
     return render_template('legal/contact.html')
 
 # --- 7. ERROR HANDLERS ---
@@ -1377,7 +1656,7 @@ def init_db():
         with app.app_context():
             db.create_all()
             logger.info("Database tables created successfully")
-            
+
             # Run migrations to ensure schema is up to date
             try:
                 from migrations import run_migrations
@@ -1386,7 +1665,7 @@ def init_db():
                 logger.warning("Migrations module not found, skipping migrations")
             except Exception as e:
                 logger.warning(f"Migration error (non-fatal): {e}")
-                
+
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
@@ -1397,4 +1676,3 @@ if __name__ == "__main__":
 else:
     # For production deployment
     init_db()
-

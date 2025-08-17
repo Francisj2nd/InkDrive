@@ -1,0 +1,203 @@
+{% extends "studio_template.html" %}
+
+{% block title %}Editing & Refinement Studio{% endblock %}
+
+{% block studio_head_css %}
+<style>
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .output-card {
+        background: var(--surface-variant);
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+    .output-content {
+        white-space: pre-wrap;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--on-surface);
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--outline);
+        border-top: 2px solid var(--primary-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block studio_title %}Editing & Refinement Studio{% endblock %}
+{% block studio_description %}Paste your existing text and use our tools to refine and improve it.{% endblock %}
+
+{% block studio_inputs %}
+<div class="tabs">
+    <button class="tab-button active" data-tab="tone-style">Tone & Style</button>
+    <button class="tab-button" data-tab="summarizer">Summarizer</button>
+    <button class="tab-button" data-tab="translator">Translator</button>
+</div>
+
+<div id="tone-style" class="tab-content active">
+    <div class="form-group">
+        <label for="refine-text-input">Your Text</label>
+        <textarea id="refine-text-input" class="form-control" rows="10" placeholder="Paste your article, blog post, or any other text here..."></textarea>
+    </div>
+    <div class="form-group">
+        <label for="refine-tone">Target Tone</label>
+        <select id="refine-tone" class="form-control">
+            <option value="Professional">Professional</option>
+            <option value="Casual & Friendly">Casual & Friendly</option>
+            <option value="Confident & Assertive">Confident & Assertive</option>
+            <option value="Empathetic & Understanding">Empathetic & Understanding</option>
+            <option value="Formal & Academic">Formal & Academic</option>
+            <option value="Witty & Humorous">Witty & Humorous</option>
+        </select>
+    </div>
+    <button id="refineTextBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">auto_fix_high</span>
+        Refine Text
+    </button>
+</div>
+
+<div id="summarizer" class="tab-content">
+    <h3>Summarizer</h3>
+    <p><i>This tool is planned for a future build.</i></p>
+</div>
+
+<div id="translator" class="tab-content">
+    <h3>Translator</h3>
+    <p><i>This tool is planned for a future build.</i></p>
+</div>
+{% endblock %}
+
+{% block studio_output %}
+<div id="editing-output-display">
+    <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size: 48px;">edit_note</span>
+        <p>Your refined text will appear here.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block studio_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching logic
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Text Refinement Logic
+    const refineBtn = document.getElementById('refineTextBtn');
+    const outputDisplay = document.getElementById('editing-output-display');
+    let refinementChatSessionId = null;
+
+    if (refineBtn) {
+        refineBtn.addEventListener('click', async () => {
+            const textToRefine = document.getElementById('refine-text-input').value;
+            const targetTone = document.getElementById('refine-tone').value;
+
+            if (!textToRefine.trim()) {
+                alert('Please paste some text to refine.');
+                return;
+            }
+
+            refineBtn.disabled = true;
+            refineBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Refining...`;
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Applying tone & style...</span></div>`;
+
+            try {
+                const response = await fetch('/api/v1/refine/text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: textToRefine,
+                        tone: targetTone,
+                        chat_session_id: refinementChatSessionId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    refinementChatSessionId = data.chat_session_id;
+                    displayRefinedText(data.refined_text);
+                    if (typeof loadChatHistory === 'function') {
+                        loadChatHistory();
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to refine text');
+                }
+            } catch (error) {
+                outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+            } finally {
+                refineBtn.disabled = false;
+                refineBtn.innerHTML = `<span class="material-symbols-outlined">auto_fix_high</span> Refine Text`;
+            }
+        });
+    }
+
+    function displayRefinedText(text) {
+        if (!text) {
+            outputDisplay.innerHTML = '<div class="output-card"><p>The model did not return any text. Please try again.</p></div>';
+            return;
+        }
+        outputDisplay.innerHTML = `
+            <div class="output-card">
+                <h4>Refined Version</h4>
+                <pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+                <button class="btn btn-secondary" onclick="copyToClipboard(this)">Copy</button>
+            </div>
+        `;
+    }
+});
+
+function copyToClipboard(button) {
+    const content = button.previousElementSibling.textContent;
+    navigator.clipboard.writeText(content).then(() => {
+        button.textContent = 'Copied!';
+        setTimeout(() => { button.textContent = 'Copy' }, 2000);
+    }).catch(err => {
+        console.error('Copy failed', err);
+        alert('Failed to copy text.');
+    });
+}
+</script>
+{% endblock %}

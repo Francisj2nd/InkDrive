@@ -1,0 +1,192 @@
+{% extends "studio_template.html" %}
+
+{% block title %}Content Repurposing Studio{% endblock %}
+
+{% block studio_head_css %}
+<style>
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .tweet-card {
+        background: var(--surface-variant);
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    .tweet-header {
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: var(--on-surface-variant);
+    }
+    .tweet-content {
+        white-space: pre-wrap;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--on-surface);
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--outline);
+        border-top: 2px solid var(--primary-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block studio_title %}Content Repurposing Studio{% endblock %}
+{% block studio_description %}Turn one piece of content into many, like an article into a Twitter thread or a blog post into a presentation.{% endblock %}
+
+{% block studio_inputs %}
+<div class="tabs">
+    <button class="tab-button active" data-tab="article-to-tweet">Article to Twitter Thread</button>
+    <button class="tab-button" data-tab="blog-to-slides">Blog to Presentation</button>
+</div>
+
+<div id="article-to-tweet" class="tab-content active">
+    <div class="form-group">
+        <label for="repurpose-article-input">Full Article Text</label>
+        <textarea id="repurpose-article-input" class="form-control" rows="12" placeholder="Paste your full article here..."></textarea>
+    </div>
+    <button id="repurposeBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">repeat</span>
+        Generate Twitter Thread
+    </button>
+</div>
+
+<div id="blog-to-slides" class="tab-content">
+    <h3>Blog Post to Presentation</h3>
+    <p><i>This tool is planned for a future build.</i></p>
+</div>
+{% endblock %}
+
+{% block studio_output %}
+<div id="repurposing-output-display">
+    <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size: 48px;">transform</span>
+        <p>Your repurposed content will appear here.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block studio_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching logic
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Article to Tweet Logic
+    const repurposeBtn = document.getElementById('repurposeBtn');
+    const outputDisplay = document.getElementById('repurposing-output-display');
+    let repurposeChatSessionId = null;
+
+    if (repurposeBtn) {
+        repurposeBtn.addEventListener('click', async () => {
+            const articleText = document.getElementById('repurpose-article-input').value;
+
+            if (!articleText.trim()) {
+                alert('Please paste the article text.');
+                return;
+            }
+
+            repurposeBtn.disabled = true;
+            repurposeBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating Thread...`;
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Brewing your Twitter thread...</span></div>`;
+
+            try {
+                const response = await fetch('/api/v1/repurpose/article-to-tweet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        article: articleText,
+                        chat_session_id: repurposeChatSessionId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    repurposeChatSessionId = data.chat_session_id;
+                    displayTweetThread(data.tweet_thread);
+                    if (typeof loadChatHistory === 'function') {
+                        loadChatHistory();
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to generate tweet thread');
+                }
+            } catch (error) {
+                outputDisplay.innerHTML = `<div class="tweet-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+            } finally {
+                repurposeBtn.disabled = false;
+                repurposeBtn.innerHTML = `<span class="material-symbols-outlined">repeat</span> Generate Twitter Thread`;
+            }
+        });
+    }
+
+    function displayTweetThread(threadText) {
+        if (!threadText) {
+            outputDisplay.innerHTML = '<div class="tweet-card"><p>The model did not return a thread. Please try again.</p></div>';
+            return;
+        }
+        // Tweets are expected to be separated by "---"
+        const tweets = threadText.split('---').map(t => t.trim()).filter(t => t);
+
+        outputDisplay.innerHTML = tweets.map((tweet, index) => `
+            <div class="tweet-card">
+                <div class="tweet-header">Tweet ${index + 1} of ${tweets.length}</div>
+                <pre class="tweet-content">${tweet.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+                <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px; margin-top: 12px;" onclick="copyToClipboard(this)">Copy Tweet</button>
+            </div>
+        `).join('');
+    }
+});
+
+function copyToClipboard(button) {
+    const content = button.previousElementSibling.textContent;
+    navigator.clipboard.writeText(content).then(() => {
+        button.textContent = 'Copied!';
+        setTimeout(() => { button.textContent = 'Copy Tweet' }, 2000);
+    }).catch(err => {
+        console.error('Copy failed', err);
+        alert('Failed to copy text.');
+    });
+}
+</script>
+{% endblock %}
