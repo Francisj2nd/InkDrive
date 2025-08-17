@@ -76,18 +76,25 @@
             </div>
 
             <ul class="nav-menu">
-                <li class="nav-item"><a href="{{ url_for('index') }}" class="nav-link"><span class="material-symbols-outlined">dashboard</span>Dashboard</a></li>
+                <li class="nav-item"><a href="{{ url_for('index') }}" class="nav-link"><span class="material-symbols-outlined">apps</span>Studios</a></li>
+                {% if page_type == 'studio' %}
+                <li class="nav-item"><a href="#" class="nav-link" id="studioDashboardLink"><span class="material-symbols-outlined">monitoring</span>Dashboard</a></li>
+                {% endif %}
+                {% if studio_type == 'article' %}
                 <li class="nav-item"><a href="{{ url_for('profile_articles') }}" class="nav-link"><span class="material-symbols-outlined">article</span>My Articles</a></li>
+                {% endif %}
                 <li class="nav-item"><a href="{{ url_for('profile_edit') }}" class="nav-link"><span class="material-symbols-outlined">settings</span>Settings</a></li>
                 <li class="nav-item"><a href="{{ url_for('auth_logout') }}" class="nav-link"><span class="material-symbols-outlined">logout</span>Logout</a></li>
             </ul>
 
+            {% if page_type == 'studio' %}
             <div class="chat-history">
                 <h3 class="chat-history-title">Recent History</h3>
                 <div class="chat-list" id="chatList">
                     <!-- Chat history loaded via JS -->
                 </div>
             </div>
+            {% endif %}
             {% endif %}
         </aside>
 
@@ -99,13 +106,19 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (document.getElementById('chatList')) {
-            loadChatHistory();
+            // The studio_type variable will be defined in each studio's template
+            const studioType = typeof STUDIO_TYPE !== 'undefined' ? STUDIO_TYPE : null;
+            loadChatHistory(studioType);
         }
     });
 
-    async function loadChatHistory() {
+    async function loadChatHistory(studioType = null) {
         try {
-            const response = await fetch('/api/user/chat-history');
+            let apiUrl = '/api/user/chat-history';
+            if (studioType) {
+                apiUrl += `?studio=${studioType}`;
+            }
+            const response = await fetch(apiUrl);
             const chatHistory = await response.json();
             const chatList = document.getElementById('chatList');
 
@@ -140,12 +153,22 @@
     }
 
     function getStudioIcon(studioType) {
-        switch(studioType) {
-            case 'ARTICLE': return 'article';
-            case 'SOCIAL_POST': return 'group';
-            case 'EMAIL': return 'mail';
-            default: return 'history';
-        }
+        const icons = {
+            'ARTICLE': 'article',
+            'SOCIAL_POST': 'group',
+            'EMAIL': 'mail',
+            'TEXT_REFINEMENT': 'edit_note',
+            'REPURPOSE_TWEET': 'transform',
+            'SEO_KEYWORDS': 'key',
+            'SEO_HEADLINES': 'title',
+            'IDEAS': 'lightbulb',
+            'SCRIPT': 'movie',
+            'ECOMMERCE': 'storefront',
+            'WEBCOPY': 'web',
+            'PRESS_RELEASE': 'feed',
+            'JOB_DESCRIPTION': 'person_add'
+        };
+        return icons[studioType] || 'history';
     }
     </script>
     {% block scripts %}{% endblock %}

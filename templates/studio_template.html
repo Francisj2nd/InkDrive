@@ -87,16 +87,134 @@
     <p>{% block studio_description %}Studio description goes here.{% endblock %}</p>
 </header>
 
-<main class="studio-main">
-    <aside class="studio-inputs">
-        {% block studio_inputs %}{# Input forms go here #}{% endblock %}
-    </aside>
-    <section class="studio-output">
-        {% block studio_output %}{# Output content goes here #}{% endblock %}
-    </section>
-</main>
+<div id="studio-tool-view">
+    <main class="studio-main">
+        <aside class="studio-inputs">
+            {% block studio_inputs %}{# Input forms go here #}{% endblock %}
+        </aside>
+        <section class="studio-output">
+            {% block studio_output %}{# Output content goes here #}{% endblock %}
+        </section>
+    </main>
+</div>
+
+<div id="studio-dashboard-view" style="display: none;">
+    <!-- Studio-specific metrics will be loaded here by JavaScript -->
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+// This script handles the toggling between the tool view and the dashboard view in a studio
+document.addEventListener('DOMContentLoaded', function() {
+    const dashboardLink = document.getElementById('studioDashboardLink');
+    const toolView = document.getElementById('studio-tool-view');
+    const dashboardView = document.getElementById('studio-dashboard-view');
+
+    if (dashboardLink) {
+        dashboardLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            // Hide tool view and show dashboard view
+            toolView.style.display = 'none';
+            dashboardView.style.display = 'block';
+            dashboardView.innerHTML = '<h2>Studio Dashboard</h2><p><i>Loading metrics...</i></p>';
+
+            // Fetch stats
+            try {
+                const studioType = typeof STUDIO_TYPE !== 'undefined' ? STUDIO_TYPE : null;
+                if (!studioType) {
+                    throw new Error('Studio type is not defined.');
+                }
+
+                const response = await fetch(`/api/v1/studio/stats/${studioType}`);
+                const stats = await response.json();
+
+                if (response.ok) {
+                    renderDashboard(stats, studioType);
+                } else {
+                    throw new Error(stats.error || 'Failed to load stats.');
+                }
+            } catch (error) {
+                dashboardView.innerHTML = `<h2>Studio Dashboard</h2><p style="color: red;">Error: ${error.message}</p><button id="backToToolBtn" class="btn btn-secondary">Back to Tool</button>`;
+                document.getElementById('backToToolBtn').addEventListener('click', showToolView);
+            }
+        });
+    }
+
+    function renderDashboard(stats, studioName) {
+        const usageThisMonth = stats[`${studioName}_usage_this_month`] || 0;
+        const wordsThisMonth = stats.words_this_month;
+        const wordLimit = stats.monthly_word_limit;
+        const wordPercentage = wordLimit > 0 ? (wordsThisMonth / wordLimit) * 100 : 0;
+
+        dashboardView.innerHTML = `
+            <div class="studio-header">
+                <h1>${studioName.charAt(0).toUpperCase() + studioName.slice(1)} Studio Dashboard</h1>
+                <p>Your usage statistics for the current month.</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Generations This Month</h3>
+                    <div class="stat-value">${usageThisMonth}</div>
+                    <p>Number of times you've used this studio's tools.</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Monthly Word Usage (Overall)</h3>
+                    <div class="stat-value">${wordsThisMonth.toLocaleString()} / ${wordLimit.toLocaleString()}</div>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: ${wordPercentage}%;"></div>
+                    </div>
+                </div>
+            </div>
+            <button id="backToToolBtn" class="btn btn-secondary" style="margin-top: 24px;">Back to Tool</button>
+        `;
+        document.getElementById('backToToolBtn').addEventListener('click', showToolView);
+    }
+
+    function showToolView() {
+        dashboardView.style.display = 'none';
+        toolView.style.display = 'block';
+    }
+});
+</script>
+<style>
+/* Basic styling for the new dashboard view */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    padding: 24px;
+    border-radius: 16px;
+}
+.stat-card h3 {
+    margin-top: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--on-surface-variant);
+}
+.stat-card .stat-value {
+    font-size: 36px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--primary-blue);
+}
+.progress-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 16px;
+}
+.progress-bar .progress {
+    height: 100%;
+    background: var(--primary-blue);
+    border-radius: 4px;
+}
+</style>
 {% block studio_scripts %}{% endblock %}
 {% endblock %}

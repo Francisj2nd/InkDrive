@@ -133,6 +133,18 @@ if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_
 if missing_vars:
     logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
 
+# Studio Type Mapping
+STUDIO_TYPE_MAPPING = {
+    'article': ['ARTICLE'],
+    'social': ['SOCIAL_POST', 'EMAIL'],
+    'editing': ['TEXT_REFINEMENT'],
+    'repurpose': ['REPURPOSE_TWEET'],
+    'seo': ['SEO_KEYWORDS', 'SEO_HEADLINES'],
+    'business': ['PRESS_RELEASE', 'JOB_DESCRIPTION'],
+    'brainstorming': ['IDEAS'],
+    'scriptwriting': ['SCRIPT']
+}
+
 # --- Initialize genai client with Vertex AI ---
 CLIENT = None
 try:
@@ -815,68 +827,8 @@ def auth_logout():
 @app.route('/profile/dashboard')
 @login_required
 def profile_dashboard():
-    """User profile dashboard"""
-    try:
-        # Get user's recent articles with error handling (limit to 5)
-        recent_articles = []
-        published_articles = []
-        total_articles = 0
-        total_words = 0
-        total_downloads = 0
-
-        try:
-            recent_articles = Article.query.filter_by(user_id=current_user.id)\
-                                         .order_by(Article.created_at.desc())\
-                                         .limit(5).all()
-
-            # Get published articles (limit to 5)
-            published_articles = Article.query.filter_by(user_id=current_user.id, is_public=True)\
-                                             .order_by(Article.published_at.desc())\
-                                             .limit(5).all()
-
-            # Calculate stats
-            total_articles = Article.query.filter_by(user_id=current_user.id).count()
-
-            # Total words should be cumulative (never decrease)
-            total_words = db.session.query(db.func.sum(Article.word_count))\
-                                   .filter_by(user_id=current_user.id).scalar() or 0
-
-            total_downloads = db.session.query(db.func.sum(Article.download_count))\
-                                        .filter_by(user_id=current_user.id).scalar() or 0
-        except (OperationalError, DatabaseError) as e:
-            logger.error(f"Database error loading dashboard data: {e}")
-            flash('Some dashboard data may not be available due to connection issues.', 'warning')
-
-        # Check if we need to reset monthly quotas with error handling
-        try:
-            if current_user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
-                current_user.words_generated_this_month = 0
-                current_user.downloads_this_month = 0
-                current_user.last_quota_reset = datetime.utcnow()
-                db.session.commit()
-        except Exception as e:
-            logger.warning(f"Failed to reset quotas for user {current_user.id}: {e}")
-
-        stats = {
-            'total_articles': total_articles,
-            'total_words': total_words,
-            'total_downloads': total_downloads,
-            'words_this_month': getattr(current_user, 'words_generated_this_month', 0) or 0,
-            'downloads_this_month': getattr(current_user, 'downloads_this_month', 0) or 0,
-            'word_limit': MONTHLY_WORD_LIMIT,
-            'download_limit': MONTHLY_DOWNLOAD_LIMIT,
-            'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
-        }
-
-        return render_template('profile/dashboard.html',
-                             user=current_user,
-                             recent_articles=recent_articles,
-                             published_articles=published_articles,
-                             stats=stats)
-    except Exception as e:
-        logger.error(f"Dashboard error: {e}")
-        flash('Error loading dashboard.', 'error')
-        return redirect(url_for('index'))
+    """Redirects to the main studios page, as this dashboard is deprecated."""
+    return redirect(url_for('index'))
 
 @app.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
@@ -1117,7 +1069,7 @@ def share_article(public_id):
 def index():
     """Main application route"""
     if current_user.is_authenticated:
-        return render_template("dashboard.html", user=current_user)
+        return render_template("dashboard.html", user=current_user, page_type='dashboard')
     else:
         # Get random published articles for social proof
         try:
@@ -1133,61 +1085,61 @@ def index():
 @login_required
 def article_studio():
     """The new Article Studio page"""
-    return render_template('article_studio.html', user=current_user)
+    return render_template('article_studio.html', user=current_user, page_type='studio', studio_type='article')
 
 @app.route('/studio/social')
 @login_required
 def social_studio():
     """The new Social & Comms Studio page"""
-    return render_template('social_studio.html', user=current_user)
+    return render_template('social_studio.html', user=current_user, page_type='studio', studio_type='social')
 
 @app.route('/studio/editing')
 @login_required
 def editing_studio():
     """The new Editing & Refinement Studio page"""
-    return render_template('editing_studio.html', user=current_user)
+    return render_template('editing_studio.html', user=current_user, page_type='studio', studio_type='editing')
 
 @app.route('/studio/repurpose')
 @login_required
 def repurpose_studio():
     """The new Content Repurposing Studio page"""
-    return render_template('repurposing_studio.html', user=current_user)
+    return render_template('repurposing_studio.html', user=current_user, page_type='studio', studio_type='repurpose')
 
 @app.route('/studio/seo')
 @login_required
 def seo_studio():
     """The new SEO Strategy Studio page"""
-    return render_template('seo_studio.html', user=current_user)
+    return render_template('seo_studio.html', user=current_user, page_type='studio', studio_type='seo')
 
 @app.route('/studio/brainstorming')
 @login_required
 def brainstorming_studio():
     """The new Brainstorming Studio page"""
-    return render_template('brainstorming_studio.html', user=current_user)
+    return render_template('brainstorming_studio.html', user=current_user, page_type='studio', studio_type='brainstorming')
 
 @app.route('/studio/scriptwriting')
 @login_required
 def scriptwriting_studio():
     """The new Scriptwriting Studio page"""
-    return render_template('scriptwriting_studio.html', user=current_user)
+    return render_template('scriptwriting_studio.html', user=current_user, page_type='studio', studio_type='scriptwriting')
 
 @app.route('/studio/ecommerce')
 @login_required
 def ecommerce_studio():
     """The new E-commerce Studio page"""
-    return render_template('ecommerce_studio.html', user=current_user)
+    return render_template('ecommerce_studio.html', user=current_user, page_type='studio', studio_type='ecommerce')
 
 @app.route('/studio/webcopy')
 @login_required
 def webcopy_studio():
     """The new Web Copy Studio page"""
-    return render_template('webcopy_studio.html', user=current_user)
+    return render_template('webcopy_studio.html', user=current_user, page_type='studio', studio_type='webcopy')
 
 @app.route('/studio/business')
 @login_required
 def business_studio():
     """The new Business Docs Studio page"""
-    return render_template('business_studio.html', user=current_user)
+    return render_template('business_studio.html', user=current_user, page_type='studio', studio_type='business')
 
 @app.route('/api/v1/generate/social', methods=['POST'])
 @login_required
@@ -1990,10 +1942,18 @@ def download_docx():
 @app.route('/api/user/chat-history')
 @login_required
 def api_user_chat_history():
-    """Get user's chat history from database"""
+    """Get user's chat history from database, with optional studio filter."""
     try:
-        chat_sessions = ChatSession.query.filter_by(user_id=current_user.id)\
-                                        .order_by(ChatSession.updated_at.desc()).all()
+        studio_filter = request.args.get('studio') # e.g., 'social', 'seo'
+
+        query = ChatSession.query.filter_by(user_id=current_user.id)
+
+        if studio_filter and studio_filter in STUDIO_TYPE_MAPPING:
+            types_to_filter = STUDIO_TYPE_MAPPING[studio_filter]
+            query = query.filter(ChatSession.studio_type.in_(types_to_filter))
+
+        chat_sessions = query.order_by(ChatSession.updated_at.desc()).all()
+
         return jsonify([session.to_dict() for session in chat_sessions])
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error in API chat history: {e}")
@@ -2136,6 +2096,33 @@ def api_download_article(article_id):
     except Exception as e:
         logger.error(f"API download error: {e}")
         return jsonify({"error": "Failed to download article"}), 500
+
+@app.route('/api/v1/studio/stats/<studio_name>')
+@login_required
+def get_studio_stats(studio_name):
+    """Get usage statistics for a specific studio."""
+    if studio_name not in STUDIO_TYPE_MAPPING:
+        return jsonify({"error": "Invalid studio name"}), 404
+
+    studio_types = STUDIO_TYPE_MAPPING[studio_name]
+
+    # Get count for the current month
+    start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    count = db.session.query(func.count(ChatSession.id))\
+                      .filter(ChatSession.user_id == current_user.id,
+                              ChatSession.studio_type.in_(studio_types),
+                              ChatSession.created_at >= start_of_month)\
+                      .scalar()
+
+    # For now, we'll just return the count. We can expand this later.
+    stats = {
+        f"{studio_name}_usage_this_month": count,
+        "monthly_word_limit": MONTHLY_WORD_LIMIT, # This is a global limit for now
+        "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
+    }
+
+    return jsonify(stats)
 
 @app.route('/api/chat-sessions/<string:session_id>', methods=['DELETE'])
 @login_required
