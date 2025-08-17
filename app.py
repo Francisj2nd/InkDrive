@@ -295,6 +295,116 @@ def construct_headline_prompt(topic):
     Generate the list of headlines for the topic "{topic}" now.
     """
 
+def construct_script_prompt(topic, duration):
+    """Constructs a prompt for generating a YouTube script."""
+    return f"""
+    You are a professional scriptwriter for YouTube creators. Your task is to create a structured script for a video on a given topic and duration.
+
+    **Topic:** "{topic}"
+    **Target Duration:** {duration} minutes
+
+    **Instructions:**
+    1.  **Structure:** Organize the script into the following sections, using Markdown headings (e.g., `## Hook`):
+        *   **Hook:** An engaging opening (1-2 sentences) to grab the viewer's attention immediately.
+        *   **Intro:** A brief introduction (2-3 sentences) that explains what the video is about and what the viewer will learn.
+        *   **Main Points:** Break down the core content into 3-5 main points. For each point, provide a heading and a paragraph of talking points, examples, or explanations.
+        *   **Outro:** A concluding summary and a call to action (e.g., "like and subscribe," "check out this other video").
+    2.  **Pacing:** Pace the content to fit the target duration. A general rule is about 150 words per minute.
+    3.  **Visual Cues:** Include suggested visual cues or B-roll shots in parentheses where appropriate (e.g., `(Show a close-up of the sourdough starter)`).
+    4.  **Clarity and Tone:** Write in a clear, conversational, and engaging tone suitable for YouTube.
+
+    Generate the YouTube script now.
+    """
+
+def construct_ecommerce_prompt(name, features, tone):
+    """Constructs a prompt for generating a product description."""
+    return f"""
+    You are an expert e-commerce copywriter. Your task is to write a persuasive, benefit-focused product description.
+
+    **Product Name:** {name}
+
+    **Key Features:**
+    {features}
+
+    **Target Tone:** {tone}
+
+    **Instructions:**
+    1.  **Create a Compelling Narrative:** Start with a hook that grabs attention.
+    2.  **Translate Features to Benefits:** For each feature, explain how it benefits the customer. Don't just list features; sell the solution and experience.
+    3.  **Incorporate Tone:** Write the entire description in a {tone} tone.
+    4.  **Structure:** Use a short introduction, a few paragraphs or bullet points for the benefits, and a concluding sentence that encourages a purchase.
+    5.  **Return Only the Description:** Do not include any preamble or commentary.
+
+    Generate the product description now.
+    """
+
+def construct_webcopy_prompt(product, audience):
+    """Constructs a prompt for generating landing page copy using the AIDA framework."""
+    return f"""
+    You are a master copywriter who specializes in high-converting landing pages. Your task is to write copy for a product/service based on the AIDA (Attention, Interest, Desire, Action) framework.
+
+    **Product/Service:** {product}
+    **Target Audience:** {audience}
+
+    **Instructions:**
+    1.  **Write for Each AIDA Stage:** Create distinct copy for each of the four stages:
+        *   `attention`: A powerful headline and sub-headline to grab the attention of the {audience}.
+        *   `interest`: Build interest by highlighting the core problems of the audience and hinting at a better way. Use bullet points or a short paragraph.
+        *   `desire`: Create desire by explaining the product's features and, more importantly, its benefits. Show the audience how their life or work will improve.
+        *   `action`: A clear and compelling call to action (CTA) that tells the user exactly what to do next (e.g., "Sign Up Now," "Get Your Free Demo").
+    2.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the AIDA stages (`attention`, `interest`, `desire`, `action`), and the values should be the corresponding copy as a string.
+    3.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting. Only return the raw JSON object.
+
+    Generate the AIDA landing page copy now.
+    """
+
+def construct_press_release_prompt(announcement, company):
+    """Constructs a prompt for generating a press release."""
+    return f"""
+    You are a public relations (PR) expert. Your task is to write a professional press release based on the provided information.
+
+    **Announcement Details:** {announcement}
+    **Company Name:** {company}
+
+    **Instructions:**
+    1.  **Use Standard Format:** Structure the document as a professional press release, including:
+        *   `FOR IMMEDIATE RELEASE` at the top.
+        *   A compelling headline.
+        *   A dateline (City, State – Date).
+        *   An introduction (the "lede") summarizing the key announcement.
+        *   A body with more details, quotes from a company spokesperson (e.g., CEO, Founder), and context.
+        *   An "About [Company Name]" section.
+        *   A media contact section (use placeholders like `[Name]`, `[Email]`).
+        *   `###` at the end to signify the conclusion.
+    2.  **Professional Tone:** Maintain a formal and objective tone throughout.
+    3.  **Return Only the Text:** Do not include any preamble or commentary.
+
+    Generate the press release now.
+    """
+
+def construct_job_description_prompt(role, responsibilities):
+    """Constructs a prompt for generating a job description."""
+    return f"""
+    You are a senior hiring manager. Your task is to write a clear, compelling, and professional job description.
+
+    **Job Role/Title:** {role}
+
+    **Key Responsibilities:**
+    {responsibilities}
+
+    **Instructions:**
+    1.  **Standard Format:** Structure the job description with the following sections:
+        *   **Introduction:** A brief, engaging overview of the company and the role.
+        *   **Responsibilities:** Elaborate on the key responsibilities provided.
+        *   **Qualifications:** List essential skills, experience, and qualifications needed for the role.
+        *   **Benefits:** Mention common benefits like competitive salary, health insurance, and remote work options.
+    2.  **Inclusive Language:** Use inclusive and welcoming language.
+    3.  **Clarity:** Be clear and concise. Avoid jargon where possible.
+    4.  **Return Only the Text:** Do not include any preamble or commentary.
+
+    Generate the job description now.
+    """
+
 def get_image_url(query):
     if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
         logger.warning("Google Search API credentials not configured.")
@@ -1055,6 +1165,30 @@ def brainstorming_studio():
     """The new Brainstorming Studio page"""
     return render_template('brainstorming_studio.html', user=current_user)
 
+@app.route('/studio/scriptwriting')
+@login_required
+def scriptwriting_studio():
+    """The new Scriptwriting Studio page"""
+    return render_template('scriptwriting_studio.html', user=current_user)
+
+@app.route('/studio/ecommerce')
+@login_required
+def ecommerce_studio():
+    """The new E-commerce Studio page"""
+    return render_template('ecommerce_studio.html', user=current_user)
+
+@app.route('/studio/webcopy')
+@login_required
+def webcopy_studio():
+    """The new Web Copy Studio page"""
+    return render_template('webcopy_studio.html', user=current_user)
+
+@app.route('/studio/business')
+@login_required
+def business_studio():
+    """The new Business Docs Studio page"""
+    return render_template('business_studio.html', user=current_user)
+
 @app.route('/api/v1/generate/social', methods=['POST'])
 @login_required
 def generate_social():
@@ -1195,6 +1329,235 @@ def generate_ideas():
     except Exception as e:
         logger.error(f"Idea generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/script', methods=['POST'])
+@login_required
+def generate_script():
+    """Generates a YouTube script."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    duration = data.get("duration")
+    chat_session_id = data.get("chat_session_id")
+
+    if not topic or not duration:
+        return jsonify({"error": "Missing required fields: topic or duration."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_script_prompt(topic, duration)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        script_text = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate a {duration}-minute YouTube script about: '{topic}'"
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": script_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"YouTube Script: {topic}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, script_text, studio_type='SCRIPT')
+
+        return jsonify({
+            "script": script_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Script generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/ecommerce', methods=['POST'])
+@login_required
+def generate_ecommerce():
+    """Generates an e-commerce product description."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    name = data.get("name")
+    features = data.get("features")
+    tone = data.get("tone")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([name, features, tone]):
+        return jsonify({"error": "Missing required fields."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_ecommerce_prompt(name, features, tone)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        description_text = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate a product description for '{name}' with a {tone} tone."
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": description_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Product Description: {name}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, description_text, studio_type='ECOMMERCE')
+
+        return jsonify({
+            "description": description_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"E-commerce generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/webcopy', methods=['POST'])
+@login_required
+def generate_webcopy():
+    """Generates landing page copy using the AIDA framework."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    product = data.get("product")
+    audience = data.get("audience")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([product, audience]):
+        return jsonify({"error": "Missing required fields."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_webcopy_prompt(product, audience)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Clean and parse the JSON response
+        clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
+        webcopy_json = json.loads(clean_text)
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate AIDA landing page copy for '{product}' targeting {audience}."
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Web Copy for {product}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='WEBCOPY')
+
+        return jsonify({
+            "webcopy": webcopy_json,
+            "chat_session_id": chat_session_id
+        })
+    except json.JSONDecodeError:
+        logger.error(f"Web copy JSON parsing error. Raw text: {raw_text}")
+        return jsonify({"error": "Failed to parse the web copy data from the AI. Please try again."}), 500
+    except Exception as e:
+        logger.error(f"Web copy generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/business', methods=['POST'])
+@login_required
+def generate_business_doc():
+    """Handles various business document generation requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    chat_session_id = data.get("chat_session_id")
+
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
+
+    if tool == 'press_release':
+        announcement = data.get("announcement")
+        company = data.get("company")
+
+        if not all([announcement, company]):
+            return jsonify({"error": "Missing required fields for press release."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_press_release_prompt(announcement, company)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            pr_text = response.candidates[0].content.parts[0].text
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate a press release for {company} about: {announcement}"
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": pr_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Press Release: {announcement[:30]}..."
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, pr_text, studio_type='PRESS_RELEASE')
+
+            return jsonify({
+                "press_release": pr_text,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"Press release generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'job_description':
+        role = data.get("role")
+        responsibilities = data.get("responsibilities")
+
+        if not all([role, responsibilities]):
+            return jsonify({"error": "Missing required fields for job description."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_job_description_prompt(role, responsibilities)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            jd_text = response.candidates[0].content.parts[0].text
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate a job description for a {role}."
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": jd_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Job Description: {role}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, jd_text, studio_type='JOB_DESCRIPTION')
+
+            return jsonify({
+                "job_description": jd_text,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"Job description generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
 @app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
