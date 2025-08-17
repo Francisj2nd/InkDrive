@@ -235,6 +235,66 @@ def construct_article_to_tweet_prompt(article_text):
     Generate the Twitter thread now.
     """
 
+def construct_keyword_prompt(topic):
+    """Constructs a prompt for generating categorized SEO keywords."""
+    return f"""
+    You are an SEO strategist. Your task is to generate a comprehensive, categorized list of keywords for the given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate Keywords:** Create a list of relevant keywords for the topic.
+    2.  **Categorize:** Group the keywords into the following categories:
+        *   `long_tail_keywords`: More specific phrases, typically longer.
+        *   `lsi_keywords`: (Latent Semantic Indexing) Thematically related keywords.
+        *   `question_keywords`: Common questions people ask about the topic.
+    3.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the category names from step 2, and the values should be an array of strings (the keywords).
+    4.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting like ```json. Only return the raw JSON object.
+
+    **Example Output for topic "organic coffee":**
+    {{
+        "long_tail_keywords": ["best organic coffee beans for espresso", "where to buy fair trade organic coffee"],
+        "lsi_keywords": ["shade-grown coffee", "arabica beans", "single-origin", "coffee acidity"],
+        "question_keywords": ["what is the best organic coffee?", "is organic coffee better for you?"]
+    }}
+
+    Generate the keyword JSON for the topic "{topic}" now.
+    """
+
+def construct_idea_prompt(topic):
+    """Constructs a prompt for generating blog post ideas."""
+    return f"""
+    You are a content strategist and expert copywriter. Your task is to brainstorm a list of engaging blog post titles and ideas based on a given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate 10 Ideas:** Create a list of 10 distinct and compelling blog post titles.
+    2.  **Focus on Engagement:** The titles should be click-worthy, interesting, and promise value to the reader.
+    3.  **Vary the Angles:** Cover different facets of the topic (e.g., how-to guides, listicles, thought leadership, common mistakes).
+    4.  **Format as a List:** Return the output as a simple list, with each title on a new line.
+    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+
+    Generate the list of ideas for the topic "{topic}" now.
+    """
+
+def construct_headline_prompt(topic):
+    """Constructs a prompt for generating SEO-friendly headlines."""
+    return f"""
+    You are an expert copywriter and SEO specialist. Your task is to generate a list of 10 click-worthy headlines for a blog post about the given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate 10 Headlines:** Create a diverse list of 10 headline options.
+    2.  **Use Proven Formulas:** Incorporate a mix of proven copywriting formulas (e.g., How-To, Listicle, Question, Negative Angle, Benefit-Driven).
+    3.  **Optimize for Clicks:** The headlines should be engaging, create curiosity, and promise a clear benefit to the reader.
+    4.  **Format as a List:** Return the output as a simple list, with each headline on a new line.
+    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+
+    Generate the list of headlines for the topic "{topic}" now.
+    """
+
 def get_image_url(query):
     if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
         logger.warning("Google Search API credentials not configured.")
@@ -983,6 +1043,18 @@ def repurpose_studio():
     """The new Content Repurposing Studio page"""
     return render_template('repurposing_studio.html', user=current_user)
 
+@app.route('/studio/seo')
+@login_required
+def seo_studio():
+    """The new SEO Strategy Studio page"""
+    return render_template('seo_studio.html', user=current_user)
+
+@app.route('/studio/brainstorming')
+@login_required
+def brainstorming_studio():
+    """The new Brainstorming Studio page"""
+    return render_template('brainstorming_studio.html', user=current_user)
+
 @app.route('/api/v1/generate/social', methods=['POST'])
 @login_required
 def generate_social():
@@ -1076,6 +1148,52 @@ def generate_email():
         })
     except Exception as e:
         logger.error(f"Email generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/ideas', methods=['POST'])
+@login_required
+def generate_ideas():
+    """Generates blog post ideas and titles."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    chat_session_id = data.get("chat_session_id")
+
+    if not topic:
+        return jsonify({"error": "Missing required field: topic."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_idea_prompt(topic)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Split the response into a list of ideas
+        ideas = [idea.strip() for idea in raw_text.split('\n') if idea.strip()]
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate blog post ideas for the topic: '{topic}'"
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Ideas for '{topic}'"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
+
+        return jsonify({
+            "ideas": ideas,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Idea generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/api/v1/generate/article", methods=["POST"])
@@ -1324,6 +1442,103 @@ def repurpose_article_to_tweet():
     except Exception as e:
         logger.error(f"Article to tweet error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/seo/tools', methods=['POST'])
+@login_required
+def seo_tools():
+    """Handles various SEO tool requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    chat_session_id = data.get("chat_session_id")
+
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
+
+    if tool == 'keywords':
+        topic = data.get("topic")
+        if not topic:
+            return jsonify({"error": "Missing required field: topic."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_keyword_prompt(topic)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+
+            # Clean and parse the JSON response
+            # The model sometimes returns the JSON wrapped in ```json ... ```
+            clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
+            keywords_json = json.loads(clean_text)
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate SEO keywords for the topic: '{topic}'"
+            # We save the raw text to the history, not the parsed JSON object
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Keywords for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_KEYWORDS')
+
+            return jsonify({
+                "keywords": keywords_json,
+                "chat_session_id": chat_session_id
+            })
+        except json.JSONDecodeError:
+            logger.error(f"SEO keywords JSON parsing error. Raw text: {raw_text}")
+            return jsonify({"error": "Failed to parse the keyword data from the AI. Please try again."}), 500
+        except Exception as e:
+            logger.error(f"SEO keywords error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'headlines':
+        topic = data.get("topic")
+        if not topic:
+            return jsonify({"error": "Missing required field: topic."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_headline_prompt(topic)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+
+            # Split the response into a list of headlines
+            headlines = [h.strip() for h in raw_text.split('\n') if h.strip()]
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate headlines for the topic: '{topic}'"
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Headlines for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_HEADLINES')
+
+            return jsonify({
+                "headlines": headlines,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"SEO headlines error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
 @app.route("/download-docx", methods=["POST"])
 def download_docx():

@@ -100,23 +100,23 @@
         <span class="material-symbols-outlined studio-icon">transform</span>
         <h2 class="studio-title">Content Repurposing Studio</h2>
         <p class="studio-description">Turn one piece of content into many, like an article into a Twitter thread.</p>
-        <span class="studio-status">New</span>
+        <span class="studio-status">Available</span>
     </a>
 
-    <!-- SEO Strategy Studio (Disabled) -->
-    <a href="#" class="studio-card disabled">
+    <!-- SEO Strategy Studio -->
+    <a href="{{ url_for('seo_studio') }}" class="studio-card">
         <span class="material-symbols-outlined studio-icon">trending_up</span>
         <h2 class="studio-title">SEO Strategy Studio</h2>
         <p class="studio-description">Generate keywords, analyze headlines, and build a content strategy.</p>
-        <span class="studio-status">Coming Soon</span>
+        <span class="studio-status">Available</span>
     </a>
 
-    <!-- Brainstorming Studio (Disabled) -->
-    <a href="#" class="studio-card disabled">
+    <!-- Brainstorming Studio -->
+    <a href="{{ url_for('brainstorming_studio') }}" class="studio-card">
         <span class="material-symbols-outlined studio-icon">lightbulb</span>
         <h2 class="studio-title">Brainstorming Studio</h2>
         <p class="studio-description">Generate new ideas, titles, and outlines for your content.</p>
-        <span class="studio-status">Coming Soon</span>
+        <span class="studio-status">New</span>
     </a>
 </div>
 {% endblock %}
