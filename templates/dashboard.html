@@ -14,7 +14,7 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 24px;
-        padding: 16px 24px;
+        padding: 20px 24px;
         background: var(--surface);
         border: 1px solid var(--outline);
         border-radius: 16px;
@@ -24,11 +24,12 @@
     .studios-header .logo {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
         font-size: 20px;
         font-weight: 600;
         color: var(--primary-text);
         text-decoration: none;
+        padding: 4px 0;
     }
     .studios-header .logo-icon {
         width: 32px;
@@ -143,10 +144,14 @@
         .studios-header {
             flex-direction: column;
             text-align: center;
-            padding: 16px;
+            padding: 20px 16px;
+        }
+        .studios-header .logo {
+            align-self: center;
         }
         .header-nav {
             justify-content: center;
+            width: 100%;
         }
         .header h1 {
             font-size: 28px;
@@ -169,7 +174,7 @@
     
     @media (max-width: 480px) {
         .studios-header {
-            padding: 12px;
+            padding: 16px 12px;
         }
         .header {
             margin-bottom: 24px;
