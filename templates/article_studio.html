@@ -3,43 +3,6 @@
 {% block title %}Article Studio{% endblock %}
 
 {% block head_extra %}
-<style>
-    /* Styles specific to the article studio, copied from app.html */
-    /* Mostly for the article content itself */
-    .article-content {
-        max-width: 800px;
-        margin: 0 auto;
-        font-size: 16px;
-        line-height: 1.7;
-    }
-    .article-content h1 { font-size: 32px; font-weight: 500; margin-bottom: 24px; }
-    .article-content h2 { font-size: 24px; font-weight: 500; margin-top: 32px; margin-bottom: 16px; }
-    .article-content h3 { font-size: 20px; font-weight: 500; margin-top: 24px; margin-bottom: 12px; }
-    .article-content p { margin-bottom: 16px; }
-    .article-content ul, .article-content ol { margin-bottom: 16px; padding-left: 24px; }
-    .article-content li { margin-bottom: 8px; }
-    .real-image-container { margin: 32px 0; text-align: center; background: #f8f9fa; border-radius: 12px; padding: 16px; border: 1px solid #dadce0; }
-    .real-image-container img { max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .image-title { font-weight: 500; margin-bottom: 12px; }
-    .alt-text-display { font-size: 13px; color: #5f6368; margin-top: 8px; font-style: italic; }
-    .source-link { font-size: 12px; color: #5f6368; margin-top: 4px; }
-    .empty-state { text-align: center; padding: 60px 20px; color: #5f6368; }
-    .empty-state .material-symbols-outlined { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
-    .empty-state h3 { font-size: 20px; margin-bottom: 8px; color: #202124; }
-    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #5f6368; }
-    .spinner { width: 24px; height: 24px; border: 2px solid #dadce0; border-top: 2px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .notification { position: fixed; top: 20px; right: 20px; padding: 16px 20px; border-radius: 8px; color: white; font-weight: 500; z-index: 1000; transform: translateX(400px); transition: transform 0.3s ease; }
-    .notification.success { background: #34a853; }
-    .notification.error { background: #ea4335; }
-    .notification.show { transform: translateX(0); }
-    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-    .modal { background: #ffffff; border-radius: 16px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); }
-    .modal-title { font-size: 18px; font-weight: 500; margin-bottom: 16px; }
-    .modal-message { font-size: 14px; color: #5f6368; margin-bottom: 24px; line-height: 1.5; }
-    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
-    .btn-danger { background: #ea4335; color: white; }
-</style>
 {% endblock %}
 
 {% block studio_title %}Article Studio{% endblock %}
