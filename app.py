@@ -1734,10 +1734,25 @@ def refine_article():
             if chat_session_id:
                 chat_session = ChatSession.query.filter_by(session_id=chat_session_id, user_id=current_user.id).first()
                 if chat_session:
-                    messages = chat_session.get_messages()
-                    messages.append({"content": refinement_prompt, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"})
-                    messages.append({"content": final_html, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"})
-                    chat_session.set_messages(messages)
+                    new_user_message = {"content": refinement_prompt, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}
+                    new_ai_message = {"content": final_html, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+
+                    # Get current messages as a string
+                    current_messages_str = chat_session.messages or '[]'
+
+                    # Create string for new messages
+                    new_user_message_str = json.dumps(new_user_message)
+                    new_ai_message_str = json.dumps(new_ai_message)
+
+                    # Append new messages to the string
+                    if current_messages_str == '[]':
+                        updated_messages_str = f"[{new_user_message_str},{new_ai_message_str}]"
+                    else:
+                        # Remove the closing ']' from the current messages
+                        current_messages_trimmed = current_messages_str[:-1]
+                        updated_messages_str = f"{current_messages_trimmed},{new_user_message_str},{new_ai_message_str}]"
+
+                    chat_session.messages = updated_messages_str
                     chat_session.raw_text = refined_text
                     chat_session.has_refined = True
                     db.session.commit()
