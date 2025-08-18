@@ -1,0 +1,152 @@
+{% extends "studio_template.html" %}
+
+{% block title %}Brainstorming Studio{% endblock %}
+
+{% block studio_head_css %}
+<style>
+    .idea-card {
+        background: var(--surface-variant);
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+    .idea-list {
+        padding-left: 20px;
+        margin: 0;
+    }
+    .idea-list li {
+        margin-bottom: 8px;
+        font-size: 15px;
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--outline);
+        border-top: 2px solid var(--primary-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block studio_title %}Brainstorming Studio{% endblock %}
+{% block studio_description %}Generate new ideas, titles, and outlines for your content.{% endblock %}
+
+{% block studio_inputs %}
+<div class="form-group">
+    <label for="idea-topic">Topic</label>
+    <input type="text" id="idea-topic" class="form-control" placeholder="e.g., The future of remote work">
+</div>
+<button id="generateIdeasBtn" class="btn btn-primary" style="width: 100%;">
+    <span class="material-symbols-outlined">lightbulb</span>
+    Generate Ideas
+</button>
+{% endblock %}
+
+{% block studio_output %}
+<div id="ideas-output-display">
+    <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size: 48px;">lightbulb</span>
+        <p>Your generated ideas will appear here.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block studio_scripts %}
+<script>
+    const STUDIO_TYPE = 'brainstorming';
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const generateBtn = document.getElementById('generateIdeasBtn');
+    const outputDisplay = document.getElementById('ideas-output-display');
+    let ideaChatSessionId = null;
+
+    if (generateBtn) {
+        generateBtn.addEventListener('click', async () => {
+            const topic = document.getElementById('idea-topic').value;
+            if (!topic.trim()) {
+                alert('Please enter a topic.');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Brainstorming...</span></div>`;
+
+            try {
+                const response = await fetch('/api/v1/generate/ideas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: topic,
+                        chat_session_id: ideaChatSessionId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    ideaChatSessionId = data.chat_session_id;
+                    displayIdeas(data.ideas);
+                    if (typeof loadChatHistory === 'function') {
+                        loadChatHistory(STUDIO_TYPE);
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to generate ideas');
+                }
+            } catch (error) {
+                outputDisplay.innerHTML = `<div class="idea-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span class="material-symbols-outlined">lightbulb</span> Generate Ideas';
+            }
+        });
+    }
+
+    function displayIdeas(ideas) {
+        if (!ideas || ideas.length === 0) {
+            outputDisplay.innerHTML = '<div class="idea-card"><p>The model did not return any ideas. Please try again.</p></div>';
+            return;
+        }
+
+        outputDisplay.innerHTML = `
+            <div class="idea-card">
+                <h4>Blog Post Ideas & Titles</h4>
+                <ul class="idea-list">
+                    ${ideas.map(idea => `<li>${idea.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            ideaChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+            document.getElementById('idea-topic').value = userInput.topic || '';
+            document.getElementById('generateIdeasBtn').disabled = true;
+
+            displayIdeas(session.raw_text.split('\\n').filter(i => i.trim()));
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+
+        } catch (error) {
+            outputDisplay.innerHTML = `<div class="idea-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+        }
+    }
+});
+</script>
+{% endblock %}

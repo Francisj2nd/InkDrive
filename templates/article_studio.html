@@ -1,0 +1,334 @@
+{% extends "studio_template.html" %}
+
+{% block title %}Article Studio{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Styles specific to the article studio, copied from app.html */
+    /* Mostly for the article content itself */
+    .article-content {
+        max-width: 800px;
+        margin: 0 auto;
+        font-size: 16px;
+        line-height: 1.7;
+    }
+    .article-content h1 { font-size: 32px; font-weight: 500; margin-bottom: 24px; }
+    .article-content h2 { font-size: 24px; font-weight: 500; margin-top: 32px; margin-bottom: 16px; }
+    .article-content h3 { font-size: 20px; font-weight: 500; margin-top: 24px; margin-bottom: 12px; }
+    .article-content p { margin-bottom: 16px; }
+    .article-content ul, .article-content ol { margin-bottom: 16px; padding-left: 24px; }
+    .article-content li { margin-bottom: 8px; }
+    .real-image-container { margin: 32px 0; text-align: center; background: #f8f9fa; border-radius: 12px; padding: 16px; border: 1px solid #dadce0; }
+    .real-image-container img { max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .image-title { font-weight: 500; margin-bottom: 12px; }
+    .alt-text-display { font-size: 13px; color: #5f6368; margin-top: 8px; font-style: italic; }
+    .source-link { font-size: 12px; color: #5f6368; margin-top: 4px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #5f6368; }
+    .empty-state .material-symbols-outlined { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+    .empty-state h3 { font-size: 20px; margin-bottom: 8px; color: #202124; }
+    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #5f6368; }
+    .spinner { width: 24px; height: 24px; border: 2px solid #dadce0; border-top: 2px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .notification { position: fixed; top: 20px; right: 20px; padding: 16px 20px; border-radius: 8px; color: white; font-weight: 500; z-index: 1000; transform: translateX(400px); transition: transform 0.3s ease; }
+    .notification.success { background: #34a853; }
+    .notification.error { background: #ea4335; }
+    .notification.show { transform: translateX(0); }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+    .modal { background: #ffffff; border-radius: 16px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); }
+    .modal-title { font-size: 18px; font-weight: 500; margin-bottom: 16px; }
+    .modal-message { font-size: 14px; color: #5f6368; margin-bottom: 24px; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn-danger { background: #ea4335; color: white; }
+</style>
+{% endblock %}
+
+{% block studio_title %}Article Studio{% endblock %}
+{% block studio_description %}Generate a long-form, SEO-optimized article from a simple topic. Use the refinement box to edit the result.{% endblock %}
+
+{% block studio_inputs %}
+<div class="form-group">
+    <label for="topicInput">Topic</label>
+    <textarea id="topicInput" class="form-control" placeholder="What would you like to write about? Be specific for better results..." rows="3"></textarea>
+</div>
+<button id="generateBtn" class="btn btn-primary">
+    <span class="material-symbols-outlined">auto_awesome</span>
+    Generate Article
+</button>
+
+<hr style="margin: 24px 0; border: none; border-top: 1px solid var(--outline);">
+
+<div id="refinementSection" style="display: none;">
+    <div class="form-group">
+        <label for="refinementInput">Refinement Instructions</label>
+        <textarea id="refinementInput" class="form-control" placeholder="How would you like to refine this article? e.g., 'Make the tone more professional' or 'Add a section about AI ethics'..." rows="4"></textarea>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button id="refineBtn" class="btn btn-primary">
+            <span class="material-symbols-outlined">tune</span>
+            Refine
+        </button>
+        <span id="refinementsLeft" style="font-size: 12px; color: var(--on-surface-variant);">5 refinements remaining</span>
+    </div>
+</div>
+
+<!-- This section will be shown after generation -->
+<div id="articleActions" style="display: none; margin-top: 24px; border-top: 1px solid var(--outline); padding-top: 24px;">
+    <button id="downloadBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">download</span>
+        Download DOCX
+    </button>
+    {% if user %}
+    <button id="publishBtn" class="btn btn-primary" style="display: none;">
+        <span class="material-symbols-outlined">public</span>
+        Publish
+    </button>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block studio_output %}
+<div id="articleDisplay">
+    <div class="empty-state">
+        <span class="material-symbols-outlined">article</span>
+        <h3>Ready to Create</h3>
+        <p>Enter a topic above and click "Generate Article" to get started.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const STUDIO_TYPE = 'article';
+</script>
+<script>
+    // This script is now self-contained within the Article Studio page.
+    let currentArticleData = null;
+    let currentChatSessionId = null;
+    let refinementsUsed = 0;
+    let maxRefinements = {{ '5' if user else '1' }};
+    let isAuthenticated = {{ 'true' if user else 'false' }};
+
+    const topicInput = document.getElementById('topicInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const articleDisplay = document.getElementById('articleDisplay');
+    const refinementSection = document.getElementById('refinementSection');
+    const refinementInput = document.getElementById('refinementInput');
+    const refineBtn = document.getElementById('refineBtn');
+    const refinementsLeft = document.getElementById('refinementsLeft');
+    const articleActions = document.getElementById('articleActions');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const publishBtn = document.getElementById('publishBtn');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        generateBtn.addEventListener('click', generateArticle);
+        refineBtn.addEventListener('click', refineArticle);
+        downloadBtn.addEventListener('click', downloadArticle);
+        if (publishBtn) {
+            publishBtn.addEventListener('click', publishArticle);
+        }
+    });
+
+    function showNotification(message, type = 'success') {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 100);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    function showLoading(message = 'Generating article...') {
+        articleDisplay.innerHTML = `<div class="loading"><div class="spinner"></div><span>${message}</span></div>`;
+    }
+
+    function updateRefinementsDisplay() {
+        const remaining = maxRefinements - refinementsUsed;
+        refinementsLeft.textContent = `${remaining} refinements remaining`;
+        if (remaining <= 0) {
+            refineBtn.disabled = true;
+            refinementInput.disabled = true;
+            refinementInput.placeholder = 'No refinements remaining';
+        }
+    }
+
+    async function generateArticle() {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+            showNotification('Please enter a topic', 'error');
+            return;
+        }
+
+        generateBtn.disabled = true;
+        showLoading();
+
+        try {
+            const endpoint = isAuthenticated ? '/api/v1/generate/article' : '/api/v1/generate/article-guest';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: topic, chat_session_id: currentChatSessionId })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                currentArticleData = data;
+                currentChatSessionId = data.chat_session_id;
+                refinementsUsed = 0;
+                maxRefinements = data.refinements_remaining + refinementsUsed;
+
+                articleDisplay.innerHTML = `<div class="article-content">${data.article_html}</div>`;
+                refinementSection.style.display = 'block';
+                articleActions.style.display = 'flex';
+                if(publishBtn) publishBtn.style.display = 'inline-flex';
+                updateRefinementsDisplay();
+                showNotification('Article generated successfully!');
+                generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Generated`;
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else {
+                throw new Error(data.error || 'Failed to generate article');
+            }
+        } catch (error) {
+            showNotification(error.message, 'error');
+            generateBtn.disabled = false;
+        }
+    }
+
+    async function refineArticle() {
+        const refinementPrompt = refinementInput.value.trim();
+        if (!refinementPrompt || !currentArticleData) return;
+
+        if (refinementsUsed >= maxRefinements) {
+            showNotification('No refinements remaining', 'error');
+            return;
+        }
+
+        refineBtn.disabled = true;
+        showLoading('Refining article...');
+
+        try {
+            const response = await fetch('/api/v1/refine/article', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    raw_text: currentArticleData.raw_text,
+                    refinement_prompt: refinementPrompt,
+                    article_id: currentArticleData.article_id,
+                    chat_session_id: currentChatSessionId,
+                    refinements_used: refinementsUsed,
+                    topic: topicInput.value
+                })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                currentArticleData.article_html = data.article_html;
+                currentArticleData.raw_text = data.raw_text;
+                refinementsUsed = data.refinements_used;
+
+                articleDisplay.innerHTML = `<div class="article-content">${data.article_html}</div>`;
+                updateRefinementsDisplay();
+                refinementInput.value = '';
+                showNotification('Article refined successfully!');
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else {
+                throw new Error(data.error || 'Failed to refine article');
+            }
+        } catch (error) {
+            showNotification(error.message, 'error');
+        } finally {
+            refineBtn.disabled = false;
+        }
+    }
+
+    async function downloadArticle() {
+        if (!currentArticleData) return;
+        try {
+            const response = await fetch('/download-docx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    html: currentArticleData.article_html,
+                    topic: topicInput.value,
+                    article_id: currentArticleData.article_id
+                })
+            });
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${topicInput.value.substring(0, 50)}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                showNotification('Article downloaded successfully!');
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to download article');
+            }
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+
+    async function loadSessionIntoView(sessionId) {
+        try {
+            showLoading('Loading session...');
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+
+            // Assuming the user's input is the first message, and AI response is the second.
+            const userMessage = session.messages[0].content;
+            const aiResponseHtml = session.messages[1].content;
+
+            topicInput.value = userMessage;
+            articleDisplay.innerHTML = `<div class="article-content">${aiResponseHtml}</div>`;
+
+            // Update state
+            currentChatSessionId = session.session_id;
+            currentArticleData = {
+                raw_text: session.raw_text,
+                article_html: aiResponseHtml,
+                article_id: session.article_id
+            };
+            refinementsUsed = 0; // Reset refinements for a loaded session for now
+            updateRefinementsDisplay();
+
+            refinementSection.style.display = 'block';
+            articleActions.style.display = 'flex';
+            if(publishBtn) publishBtn.style.display = 'inline-flex';
+            showNotification('Session loaded successfully!');
+            generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Loaded`;
+            generateBtn.disabled = true;
+
+
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+
+    async function publishArticle() {
+        if (!currentArticleData || !currentArticleData.article_id) return;
+        try {
+            const response = await fetch(`/article/${currentArticleData.article_id}/publish`, { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Article published successfully!');
+                publishBtn.style.display = 'none';
+            } else {
+                throw new Error(data.error || 'Failed to publish article');
+            }
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

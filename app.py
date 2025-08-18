@@ -46,14 +46,17 @@ app.register_blueprint(admin_bp)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+# Engine options - conditionally add connect_args for PostgreSQL
+engine_options = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
-    'connect_args': {
-        'connect_timeout': 10,
-        'sslmode': 'require' if 'postgresql' in os.getenv('DATABASE_URL', '') else None
-    }
 }
+if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+    engine_options['connect_args'] = {
+        'connect_timeout': 10,
+        'sslmode': 'require'
+    }
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
 # Fix for Render PostgreSQL URLs
 if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
@@ -130,6 +133,20 @@ if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"): missing_vars.append("GOOGLE_
 if missing_vars:
     logger.warning(f"Missing environment variables: {', '.join(missing_vars)}")
 
+# Studio Type Mapping
+STUDIO_TYPE_MAPPING = {
+    'article': ['ARTICLE'],
+    'social': ['SOCIAL_POST', 'EMAIL', 'AD_COPY'],
+    'editing': ['TEXT_REFINEMENT', 'SUMMARY', 'TRANSLATION'],
+    'repurpose': ['REPURPOSE_TWEET', 'REPURPOSE_SLIDES'],
+    'seo': ['SEO_KEYWORDS', 'SEO_HEADLINES'],
+    'business': ['PRESS_RELEASE', 'JOB_DESCRIPTION'],
+    'brainstorming': ['IDEAS'],
+    'scriptwriting': ['SCRIPT'],
+    'ecommerce': ['ECOMMERCE'],
+    'webcopy': ['WEBCOPY'],
+}
+
 # --- Initialize genai client with Vertex AI ---
 CLIENT = None
 try:
@@ -157,6 +174,334 @@ def construct_initial_prompt(topic):
 
 {article_requirements}
 """
+
+def construct_social_post_prompt(topic, goal, platform):
+    """Constructs a prompt for generating social media posts."""
+    return f"""
+    You are a social media marketing expert. Your task is to generate 3 distinct social media posts for the {platform} platform.
+
+    **Topic:** {topic}
+    **Goal of the posts:** {goal}
+
+    **Requirements:**
+    1.  **Platform:** Tailor the tone and length for {platform}.
+    2.  **Variety:** Provide three distinct options with different angles or hooks.
+    3.  **Hashtags:** Include relevant and trending hashtags for each post.
+    4.  **Formatting:** Present each post clearly separated. Use "---" between each post option.
+
+    Generate the social media posts now.
+    """
+
+def construct_email_prompt(topic, audience, tone):
+    """Constructs a prompt for generating an email."""
+    return f"""
+    You are an expert copywriter specializing in email marketing. Your task is to write a compelling marketing email.
+
+    **Topic/Product:** {topic}
+    **Target Audience:** {audience}
+    **Desired Tone:** {tone}
+
+    **Requirements:**
+    1.  **Subject Line:** Generate 3-5 engaging subject line options.
+    2.  **Email Body:** Write a complete email body based on the topic. It should have a clear hook, body, and call-to-action (CTA).
+    3.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by "---", then the email body.
+
+    Generate the email content now.
+    """
+
+def construct_refine_text_prompt(text_to_refine, target_tone):
+    """Constructs a prompt for refining text to a specific tone."""
+    return f"""
+    You are an expert editor. Your task is to revise the following text to match a "{target_tone}" tone.
+
+    **Original Text:**
+    ---
+    {text_to_refine}
+    ---
+
+    **Instructions:**
+    1.  Rewrite the text to embody a "{target_tone}" tone and style.
+    2.  Do not add any new information or change the core meaning.
+    3.  Return only the revised text, without any commentary or preamble.
+
+    Revise the text now.
+    """
+
+def construct_article_to_tweet_prompt(article_text):
+    """Constructs a prompt for converting an article into a Twitter thread."""
+    return f"""
+    You are a social media expert specializing in content repurposing. Your task is to convert the following article into a compelling, numbered Twitter thread.
+
+    **Article Text:**
+    ---
+    {article_text}
+    ---
+
+    **Instructions:**
+    1.  **Create a Thread:** Generate a series of tweets that summarize the key points of the article.
+    2.  **Numbered Tweets:** Start each tweet with a number (e.g., "1/n", "2/n").
+    3.  **Engaging Hook:** The first tweet should be a strong hook to grab the reader's attention.
+    4.  **Concise and Clear:** Each tweet must be under 280 characters.
+    5.  **Add Hashtags:** Include relevant hashtags in the final tweet.
+    6.  **Separator:** Use "---" on a new line to separate each tweet in the output.
+    7.  **Return Only the Thread:** Do not include any preamble, commentary, or extra text. Only return the tweets separated by "---".
+
+    Generate the Twitter thread now.
+    """
+
+def construct_keyword_prompt(topic):
+    """Constructs a prompt for generating categorized SEO keywords."""
+    return f"""
+    You are an SEO strategist. Your task is to generate a comprehensive, categorized list of keywords for the given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate Keywords:** Create a list of relevant keywords for the topic.
+    2.  **Categorize:** Group the keywords into the following categories:
+        *   `long_tail_keywords`: More specific phrases, typically longer.
+        *   `lsi_keywords`: (Latent Semantic Indexing) Thematically related keywords.
+        *   `question_keywords`: Common questions people ask about the topic.
+    3.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the category names from step 2, and the values should be an array of strings (the keywords).
+    4.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting like ```json. Only return the raw JSON object.
+
+    **Example Output for topic "organic coffee":**
+    {{
+        "long_tail_keywords": ["best organic coffee beans for espresso", "where to buy fair trade organic coffee"],
+        "lsi_keywords": ["shade-grown coffee", "arabica beans", "single-origin", "coffee acidity"],
+        "question_keywords": ["what is the best organic coffee?", "is organic coffee better for you?"]
+    }}
+
+    Generate the keyword JSON for the topic "{topic}" now.
+    """
+
+def construct_idea_prompt(topic):
+    """Constructs a prompt for generating blog post ideas."""
+    return f"""
+    You are a content strategist and expert copywriter. Your task is to brainstorm a list of engaging blog post titles and ideas based on a given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate 10 Ideas:** Create a list of 10 distinct and compelling blog post titles.
+    2.  **Focus on Engagement:** The titles should be click-worthy, interesting, and promise value to the reader.
+    3.  **Vary the Angles:** Cover different facets of the topic (e.g., how-to guides, listicles, thought leadership, common mistakes).
+    4.  **Format as a List:** Return the output as a simple list, with each title on a new line.
+    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+
+    Generate the list of ideas for the topic "{topic}" now.
+    """
+
+def construct_headline_prompt(topic):
+    """Constructs a prompt for generating SEO-friendly headlines."""
+    return f"""
+    You are an expert copywriter and SEO specialist. Your task is to generate a list of 10 click-worthy headlines for a blog post about the given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate 10 Headlines:** Create a diverse list of 10 headline options.
+    2.  **Use Proven Formulas:** Incorporate a mix of proven copywriting formulas (e.g., How-To, Listicle, Question, Negative Angle, Benefit-Driven).
+    3.  **Optimize for Clicks:** The headlines should be engaging, create curiosity, and promise a clear benefit to the reader.
+    4.  **Format as a List:** Return the output as a simple list, with each headline on a new line.
+    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+
+    Generate the list of headlines for the topic "{topic}" now.
+    """
+
+def construct_script_prompt(topic, duration):
+    """Constructs a prompt for generating a YouTube script."""
+    return f"""
+    You are a professional scriptwriter for YouTube creators. Your task is to create a structured script for a video on a given topic and duration.
+
+    **Topic:** "{topic}"
+    **Target Duration:** {duration} minutes
+
+    **Instructions:**
+    1.  **Structure:** Organize the script into the following sections, using Markdown headings (e.g., `## Hook`):
+        *   **Hook:** An engaging opening (1-2 sentences) to grab the viewer's attention immediately.
+        *   **Intro:** A brief introduction (2-3 sentences) that explains what the video is about and what the viewer will learn.
+        *   **Main Points:** Break down the core content into 3-5 main points. For each point, provide a heading and a paragraph of talking points, examples, or explanations.
+        *   **Outro:** A concluding summary and a call to action (e.g., "like and subscribe," "check out this other video").
+    2.  **Pacing:** Pace the content to fit the target duration. A general rule is about 150 words per minute.
+    3.  **Visual Cues:** Include suggested visual cues or B-roll shots in parentheses where appropriate (e.g., `(Show a close-up of the sourdough starter)`).
+    4.  **Clarity and Tone:** Write in a clear, conversational, and engaging tone suitable for YouTube.
+
+    Generate the YouTube script now.
+    """
+
+def construct_ecommerce_prompt(name, features, tone):
+    """Constructs a prompt for generating a product description."""
+    return f"""
+    You are an expert e-commerce copywriter. Your task is to write a persuasive, benefit-focused product description.
+
+    **Product Name:** {name}
+
+    **Key Features:**
+    {features}
+
+    **Target Tone:** {tone}
+
+    **Instructions:**
+    1.  **Create a Compelling Narrative:** Start with a hook that grabs attention.
+    2.  **Translate Features to Benefits:** For each feature, explain how it benefits the customer. Don't just list features; sell the solution and experience.
+    3.  **Incorporate Tone:** Write the entire description in a {tone} tone.
+    4.  **Structure:** Use a short introduction, a few paragraphs or bullet points for the benefits, and a concluding sentence that encourages a purchase.
+    5.  **Return Only the Description:** Do not include any preamble or commentary.
+
+    Generate the product description now.
+    """
+
+def construct_webcopy_prompt(product, audience):
+    """Constructs a prompt for generating landing page copy using the AIDA framework."""
+    return f"""
+    You are a master copywriter who specializes in high-converting landing pages. Your task is to write copy for a product/service based on the AIDA (Attention, Interest, Desire, Action) framework.
+
+    **Product/Service:** {product}
+    **Target Audience:** {audience}
+
+    **Instructions:**
+    1.  **Write for Each AIDA Stage:** Create distinct copy for each of the four stages:
+        *   `attention`: A powerful headline and sub-headline to grab the attention of the {audience}.
+        *   `interest`: Build interest by highlighting the core problems of the audience and hinting at a better way. Use bullet points or a short paragraph.
+        *   `desire`: Create desire by explaining the product's features and, more importantly, its benefits. Show the audience how their life or work will improve.
+        *   `action`: A clear and compelling call to action (CTA) that tells the user exactly what to do next (e.g., "Sign Up Now," "Get Your Free Demo").
+    2.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the AIDA stages (`attention`, `interest`, `desire`, `action`), and the values should be the corresponding copy as a string.
+    3.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting. Only return the raw JSON object.
+
+    Generate the AIDA landing page copy now.
+    """
+
+def construct_press_release_prompt(announcement, company):
+    """Constructs a prompt for generating a press release."""
+    return f"""
+    You are a public relations (PR) expert. Your task is to write a professional press release based on the provided information.
+
+    **Announcement Details:** {announcement}
+    **Company Name:** {company}
+
+    **Instructions:**
+    1.  **Use Standard Format:** Structure the document as a professional press release, including:
+        *   `FOR IMMEDIATE RELEASE` at the top.
+        *   A compelling headline.
+        *   A dateline (City, State – Date).
+        *   An introduction (the "lede") summarizing the key announcement.
+        *   A body with more details, quotes from a company spokesperson (e.g., CEO, Founder), and context.
+        *   An "About [Company Name]" section.
+        *   A media contact section (use placeholders like `[Name]`, `[Email]`).
+        *   `###` at the end to signify the conclusion.
+    2.  **Professional Tone:** Maintain a formal and objective tone throughout.
+    3.  **Return Only the Text:** Do not include any preamble or commentary.
+
+    Generate the press release now.
+    """
+
+def construct_job_description_prompt(role, responsibilities):
+    """Constructs a prompt for generating a job description."""
+    return f"""
+    You are a senior hiring manager. Your task is to write a clear, compelling, and professional job description.
+
+    **Job Role/Title:** {role}
+
+    **Key Responsibilities:**
+    {responsibilities}
+
+    **Instructions:**
+    1.  **Standard Format:** Structure the job description with the following sections:
+        *   **Introduction:** A brief, engaging overview of the company and the role.
+        *   **Responsibilities:** Elaborate on the key responsibilities provided.
+        *   **Qualifications:** List essential skills, experience, and qualifications needed for the role.
+        *   **Benefits:** Mention common benefits like competitive salary, health insurance, and remote work options.
+    2.  **Inclusive Language:** Use inclusive and welcoming language.
+    3.  **Clarity:** Be clear and concise. Avoid jargon where possible.
+    4.  **Return Only the Text:** Do not include any preamble or commentary.
+
+    Generate the job description now.
+    """
+
+def construct_ad_copy_prompt(product, audience):
+    """Constructs a prompt for generating ad copy."""
+    return f"""
+    You are a senior copywriter at a top advertising agency. Your task is to generate 3 distinct pieces of ad copy for a given product and audience.
+
+    **Product/Service:** {product}
+    **Target Audience:** {audience}
+
+    **Instructions:**
+    1.  **Generate 3 Variations:** Create three distinct ad copy options. Each should have a different angle or hook (e.g., one focused on a pain point, one on a benefit, one with a strong call to action).
+    2.  **Structure:** For each variation, provide a "Headline" and a "Body".
+    3.  **Clarity and Persuasion:** The copy must be clear, concise, and persuasive.
+    4.  **Separator:** Use "---" on a new line to separate each ad copy variation.
+    5.  **Return Only the Ad Copy:** Do not include any preamble or commentary.
+
+    Generate the ad copy now.
+    """
+
+def construct_summarizer_prompt(text, length):
+    """Constructs a prompt for summarizing text."""
+    length_map = {
+        'short': 'a single, concise paragraph',
+        'medium': 'a series of key bullet points',
+        'long': 'a detailed summary of several paragraphs'
+    }
+    target_length = length_map.get(length, 'a single paragraph')
+
+    return f"""
+    You are an expert at summarizing text. Your task is to read the following text and create a summary in the specified format.
+
+    **Original Text:**
+    ---
+    {text}
+    ---
+
+    **Instructions:**
+    1.  **Summarize:** Distill the core ideas and most important information from the text.
+    2.  **Format:** The summary should be in the format of {target_length}.
+    3.  **Clarity:** The summary must be clear, accurate, and easy to understand.
+    4.  **Return Only the Summary:** Do not include any preamble or commentary.
+
+    Generate the summary now.
+    """
+
+def construct_translator_prompt(text, language):
+    """Constructs a prompt for translating text."""
+    return f"""
+    You are a professional translator. Your task is to translate the following text into the specified language.
+
+    **Text to Translate:**
+    ---
+    {text}
+    ---
+
+    **Target Language:** {language}
+
+    **Instructions:**
+    1.  **Translate Accurately:** Provide a high-quality, accurate translation of the text.
+    2.  **Maintain Tone:** Preserve the original tone and nuance as much as possible.
+    3.  **Return Only the Translation:** Do not include any preamble, commentary, or the original text.
+
+    Generate the translation now.
+    """
+
+def construct_presentation_prompt(text):
+    """Constructs a prompt for converting a blog post to a presentation outline."""
+    return f"""
+    You are an expert presentation designer. Your task is to convert the following blog post into a concise and compelling presentation outline with talking points.
+
+    **Blog Post Text:**
+    ---
+    {text}
+    ---
+
+    **Instructions:**
+    1.  **Create a Slide Structure:** Outline a presentation with a clear structure (e.g., Title Slide, Introduction, 3-5 Key Point Slides, Summary/Conclusion, Q&A).
+    2.  **Write Slide Titles:** For each slide, create a short, impactful title.
+    3.  **Generate Talking Points:** Under each slide title, provide 3-5 bullet points summarizing the key talking points for that slide.
+    4.  **Format with Markdown:** Use Markdown headings for slide titles (e.g., `## Slide 1: Title`) and bullet points for talking points.
+    5.  **Return Only the Outline:** Do not include any preamble or commentary.
+
+    Generate the presentation outline now.
+    """
 
 def get_image_url(query):
     if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
@@ -216,7 +561,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
     try:
         # Extract word count (rough estimate)
         word_count = len(content_raw.split())
-        
+
         if article_id:
             # Update existing article
             article = Article.query.filter_by(id=article_id, user_id=user_id).first()
@@ -242,14 +587,14 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                 public_id=str(uuid.uuid4())[:8],  # Generate a short public ID for sharing
                 chat_session_id=chat_session_id  # Link to chat session
             )
-            
+
             db.session.add(article)
-            
+
             # Update user's article count and monthly word count
             user = User.query.get(user_id)
             if user:
                 user.articles_generated = (user.articles_generated or 0) + 1
-                
+
                 # Check if we need to reset monthly quotas
                 if user.last_quota_reset is None or (datetime.utcnow() - user.last_quota_reset) > timedelta(days=30):
                     user.words_generated_this_month = word_count
@@ -257,7 +602,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                     user.last_quota_reset = datetime.utcnow()
                 else:
                     user.words_generated_this_month = (user.words_generated_this_month or 0) + word_count
-        
+
         db.session.commit()
         return article.id
     except Exception as e:
@@ -266,17 +611,18 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
         return None
 
 @retry_db_operation(max_retries=3)
-def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
+def save_chat_session_to_db(user_id, session_id, title, messages, raw_text='', studio_type='ARTICLE'):
     """Save or update chat session to database"""
     try:
         # Check if chat session exists
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=user_id).first()
-        
+
         if chat_session:
             # Update existing session
             chat_session.title = title[:200]
             chat_session.set_messages(messages)
             chat_session.raw_text = raw_text
+            chat_session.studio_type = studio_type
             chat_session.updated_at = datetime.utcnow()
         else:
             # Create new session
@@ -284,11 +630,12 @@ def save_chat_session_to_db(user_id, session_id, title, messages, raw_text=''):
                 user_id=user_id,
                 session_id=session_id,
                 title=title[:200],
-                raw_text=raw_text
+                raw_text=raw_text,
+                studio_type=studio_type
             )
             chat_session.set_messages(messages)
             db.session.add(chat_session)
-        
+
         db.session.commit()
         return chat_session.id
     except Exception as e:
@@ -307,7 +654,7 @@ def check_monthly_word_quota(user):
             user.last_quota_reset = datetime.utcnow()
             db.session.commit()
             return True
-        
+
         words_generated = user.words_generated_this_month or 0
         return words_generated < MONTHLY_WORD_LIMIT
     except Exception as e:
@@ -325,7 +672,7 @@ def check_monthly_download_quota(user):
             user.last_quota_reset = datetime.utcnow()
             db.session.commit()
             return True
-        
+
         downloads_this_month = user.downloads_this_month or 0
         return downloads_this_month < MONTHLY_DOWNLOAD_LIMIT
     except Exception as e:
@@ -338,12 +685,12 @@ def send_contact_email(name, email, subject, message):
         if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
             logger.warning("Email credentials not configured")
             return False
-            
+
         msg = MIMEMultipart()
         msg['From'] = app.config['MAIL_USERNAME']
         msg['To'] = app.config['CONTACT_EMAIL']
         msg['Subject'] = f"InkDrive Contact Form: {subject}"
-        
+
         body = f"""
 New contact form submission from InkDrive:
 
@@ -357,16 +704,16 @@ Message:
 ---
 This message was sent from the InkDrive contact form.
         """
-        
+
         msg.attach(MIMEText(body, 'plain'))
-        
+
         server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
         server.starttls()
         server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
         text = msg.as_string()
         server.sendmail(app.config['MAIL_USERNAME'], app.config['CONTACT_EMAIL'], text)
         server.quit()
-        
+
         return True
     except Exception as e:
         logger.error(f"Error sending contact email: {e}")
@@ -378,30 +725,30 @@ This message was sent from the InkDrive contact form.
 def auth_login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
+
     form = LoginForm()
     if form.validate_on_submit():
         try:
             user = User.query.filter_by(email=form.email.data.lower()).first()
-            
+
             if user:
                 try:
                     password_valid = user.check_password(form.password.data)
                 except Exception as e:
                     logger.error(f"Password check error for user {user.id}: {e}")
                     password_valid = False
-                
+
                 if password_valid:
                     login_user(user, remember=form.remember_me.data)
-                    
+
                     # Safely update last login with error handling
                     try:
                         user.update_last_login()
                     except Exception as e:
                         logger.warning(f"Failed to update last login for user {user.id}: {e}")
-                    
+
                     flash('Welcome back!', 'success')
-                    
+
                     next_page = request.args.get('next')
                     return redirect(next_page) if next_page else redirect(url_for('index'))
                 else:
@@ -414,14 +761,14 @@ def auth_login():
         except Exception as e:
             logger.error(f"Login error: {e}")
             flash('An error occurred during login. Please try again.', 'error')
-    
+
     return render_template('auth/login.html', form=form)
 
 @app.route('/auth/register', methods=['GET', 'POST'])
 def auth_register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
+
     form = RegisterForm()
     if form.validate_on_submit():
         try:
@@ -430,7 +777,7 @@ def auth_register():
             if existing_user:
                 flash('Email address already registered.', 'error')
                 return render_template('auth/register.html', form=form)
-            
+
             # Create new user with safe defaults
             user = User(
                 email=form.email.data.lower(),
@@ -443,21 +790,21 @@ def auth_register():
                 total_words_generated=0,
                 last_quota_reset=datetime.utcnow()
             )
-            
+
             # Set password with error handling
             try:
                 user.set_password(form.password.data)
             except ValueError as e:
                 flash('Invalid password format.', 'error')
                 return render_template('auth/register.html', form=form)
-            
+
             db.session.add(user)
             db.session.commit()
-            
+
             login_user(user)
             flash('Registration successful! Welcome to InkDrive!', 'success')
             return redirect(url_for('index'))
-            
+
         except (OperationalError, DatabaseError) as e:
             db.session.rollback()
             logger.error(f"Database error during registration: {e}")
@@ -466,7 +813,7 @@ def auth_register():
             db.session.rollback()
             logger.error(f"Registration error: {e}")
             flash('Registration failed. Please try again.', 'error')
-    
+
     return render_template('auth/register.html', form=form)
 
 @app.route('/auth/google')
@@ -475,7 +822,7 @@ def auth_google():
     if not app.config.get('GOOGLE_CLIENT_ID'):
         flash('Google authentication is not configured.', 'error')
         return redirect(url_for('auth_login'))
-    
+
     return render_template('auth/google_auth.html')
 
 @app.route('/auth/google/callback', methods=['POST'])
@@ -485,22 +832,22 @@ def auth_google_callback():
         token = request.json.get('credential')
         if not token:
             return jsonify({'error': 'No credential provided'}), 400
-        
+
         # Verify the token
         idinfo = id_token.verify_oauth2_token(
-            token, 
-            google_requests.Request(), 
+            token,
+            google_requests.Request(),
             app.config['GOOGLE_CLIENT_ID']
         )
-        
+
         if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
             return jsonify({'error': 'Invalid token issuer'}), 400
-        
+
         google_id = idinfo['sub']
         email = idinfo['email']
         name = idinfo['name']
         picture = idinfo.get('picture')
-        
+
         # Check if user exists
         user = User.query.filter_by(google_id=google_id).first()
         if not user:
@@ -529,18 +876,18 @@ def auth_google_callback():
             # Update existing Google user info
             user.name = name
             user.profile_picture = picture
-        
+
         db.session.commit()
         login_user(user)
-        
+
         # Safely update last login
         try:
             user.update_last_login()
         except Exception as e:
             logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
-        
+
         return jsonify({'success': True, 'redirect': url_for('index')})
-        
+
     except ValueError as e:
         logger.error(f"Google auth token error: {e}")
         return jsonify({'error': 'Invalid token'}), 400
@@ -566,80 +913,20 @@ def auth_logout():
 @app.route('/profile/dashboard')
 @login_required
 def profile_dashboard():
-    """User profile dashboard"""
-    try:
-        # Get user's recent articles with error handling (limit to 5)
-        recent_articles = []
-        published_articles = []
-        total_articles = 0
-        total_words = 0
-        total_downloads = 0
-        
-        try:
-            recent_articles = Article.query.filter_by(user_id=current_user.id)\
-                                         .order_by(Article.created_at.desc())\
-                                         .limit(5).all()
-            
-            # Get published articles (limit to 5)
-            published_articles = Article.query.filter_by(user_id=current_user.id, is_public=True)\
-                                             .order_by(Article.published_at.desc())\
-                                             .limit(5).all()
-            
-            # Calculate stats
-            total_articles = Article.query.filter_by(user_id=current_user.id).count()
-            
-            # Total words should be cumulative (never decrease)
-            total_words = db.session.query(db.func.sum(Article.word_count))\
-                                   .filter_by(user_id=current_user.id).scalar() or 0
-            
-            total_downloads = db.session.query(db.func.sum(Article.download_count))\
-                                        .filter_by(user_id=current_user.id).scalar() or 0
-        except (OperationalError, DatabaseError) as e:
-            logger.error(f"Database error loading dashboard data: {e}")
-            flash('Some dashboard data may not be available due to connection issues.', 'warning')
-        
-        # Check if we need to reset monthly quotas with error handling
-        try:
-            if current_user.last_quota_reset is None or (datetime.utcnow() - current_user.last_quota_reset) > timedelta(days=30):
-                current_user.words_generated_this_month = 0
-                current_user.downloads_this_month = 0
-                current_user.last_quota_reset = datetime.utcnow()
-                db.session.commit()
-        except Exception as e:
-            logger.warning(f"Failed to reset quotas for user {current_user.id}: {e}")
-        
-        stats = {
-            'total_articles': total_articles,
-            'total_words': total_words,
-            'total_downloads': total_downloads,
-            'words_this_month': getattr(current_user, 'words_generated_this_month', 0) or 0,
-            'downloads_this_month': getattr(current_user, 'downloads_this_month', 0) or 0,
-            'word_limit': MONTHLY_WORD_LIMIT,
-            'download_limit': MONTHLY_DOWNLOAD_LIMIT,
-            'member_since': current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown'
-        }
-        
-        return render_template('profile/dashboard.html', 
-                             user=current_user, 
-                             recent_articles=recent_articles,
-                             published_articles=published_articles,
-                             stats=stats)
-    except Exception as e:
-        logger.error(f"Dashboard error: {e}")
-        flash('Error loading dashboard.', 'error')
-        return redirect(url_for('index'))
+    """Redirects to the main studios page, as this dashboard is deprecated."""
+    return redirect(url_for('index'))
 
 @app.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
 def profile_edit():
     """Edit user profile"""
     form = ProfileForm(obj=current_user)
-    
+
     if form.validate_on_submit():
         try:
             current_user.name = form.name.data
             current_user.theme_preference = form.theme_preference.data
-            
+
             db.session.commit()
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('profile_dashboard'))
@@ -651,7 +938,7 @@ def profile_edit():
             db.session.rollback()
             logger.error(f"Profile update error: {e}")
             flash('Failed to update profile.', 'error')
-    
+
     return render_template('profile/edit.html', form=form)
 
 @app.route('/profile/change-password', methods=['GET', 'POST'])
@@ -661,15 +948,15 @@ def profile_change_password():
     if current_user.google_id and not current_user.password_hash:
         flash('Google account users cannot change password here.', 'info')
         return redirect(url_for('profile_dashboard'))
-    
+
     form = ChangePasswordForm()
-    
+
     if form.validate_on_submit():
         try:
             if not current_user.check_password(form.current_password.data):
                 flash('Current password is incorrect.', 'error')
                 return render_template('profile/change_password.html', form=form)
-            
+
             current_user.set_password(form.new_password.data)
             db.session.commit()
             flash('Password changed successfully!', 'success')
@@ -682,7 +969,7 @@ def profile_change_password():
             db.session.rollback()
             logger.error(f"Password change error: {e}")
             flash('Failed to change password.', 'error')
-    
+
     return render_template('profile/change_password.html', form=form)
 
 @app.route('/profile/delete-account', methods=['POST'])
@@ -692,14 +979,14 @@ def profile_delete_account():
     try:
         # Delete all user's articles
         Article.query.filter_by(user_id=current_user.id).delete()
-        
+
         # Delete all user's chat sessions
         ChatSession.query.filter_by(user_id=current_user.id).delete()
-        
+
         # Delete the user
         db.session.delete(current_user)
         db.session.commit()
-        
+
         logout_user()
         flash('Your account has been deleted successfully.', 'success')
         return redirect(url_for('index'))
@@ -723,7 +1010,7 @@ def profile_articles():
         articles = Article.query.filter_by(user_id=current_user.id)\
                                .order_by(Article.created_at.desc())\
                                .paginate(page=page, per_page=20, error_out=False)
-        
+
         return render_template('profile/articles.html', articles=articles)
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error loading articles: {e}")
@@ -756,14 +1043,14 @@ def publish_article(article_id):
     """Publish an article"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         if article.is_public:
             return jsonify({"error": "Article is already published"}), 400
-        
+
         article.publish()
-        
+
         public_url = url_for('share_article', public_id=article.public_id, _external=True)
-        
+
         return jsonify({
             "success": True,
             "message": "Article published successfully!",
@@ -782,12 +1069,12 @@ def unpublish_article(article_id):
     """Unpublish an article"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         if not article.is_public:
             return jsonify({"error": "Article is not published"}), 400
-        
+
         article.unpublish()
-        
+
         return jsonify({
             "success": True,
             "message": "Article unpublished successfully!"
@@ -805,17 +1092,17 @@ def delete_article(article_id):
     """Delete an article and its associated chat session"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         # Find and delete associated chat session if it exists
         if article.chat_session_id:
             chat_session = ChatSession.query.filter_by(id=article.chat_session_id, user_id=current_user.id).first()
             if chat_session:
                 db.session.delete(chat_session)
-        
+
         # Delete the article
         db.session.delete(article)
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": "Article and associated chat deleted successfully!"
@@ -835,14 +1122,14 @@ def share_article(public_id):
     try:
         # Fixed query: Only get articles that are both matching public_id AND published
         article = Article.query.filter_by(public_id=public_id, is_public=True).first()
-        
+
         if not article:
             # Article doesn't exist or is not published
             abort(404)
-        
+
         # Increment view count
         article.increment_view()
-        
+
         # Get random published articles for social proof (excluding current article)
         try:
             # Use a simpler query that works with both SQLite and PostgreSQL
@@ -853,7 +1140,7 @@ def share_article(public_id):
         except Exception as e:
             logger.warning(f"Error fetching featured articles: {e}")
             featured_articles = []
-        
+
         return render_template('article/share.html', article=article, featured_articles=featured_articles)
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error loading shared article {public_id}: {e}")
@@ -868,7 +1155,7 @@ def share_article(public_id):
 def index():
     """Main application route"""
     if current_user.is_authenticated:
-        return render_template("app.html", user=current_user)
+        return render_template("dashboard.html", user=current_user, page_type='dashboard')
     else:
         # Get random published articles for social proof
         try:
@@ -877,25 +1164,447 @@ def index():
         except Exception as e:
             logger.warning(f"Error fetching featured articles for landing: {e}")
             featured_articles = []
-        
+
         return render_template("landing.html", featured_articles=featured_articles)
 
-@app.route("/app")
+@app.route('/studio/article')
 @login_required
-def app_main():
-    """Main app interface (requires login)"""
-    return render_template("app.html", user=current_user)
+def article_studio():
+    """The new Article Studio page"""
+    return render_template('article_studio.html', user=current_user, page_type='studio', studio_type='article')
 
-@app.route("/generate", methods=["POST"])
+@app.route('/studio/social')
+@login_required
+def social_studio():
+    """The new Social & Comms Studio page"""
+    return render_template('social_studio.html', user=current_user, page_type='studio', studio_type='social')
+
+@app.route('/studio/editing')
+@login_required
+def editing_studio():
+    """The new Editing & Refinement Studio page"""
+    return render_template('editing_studio.html', user=current_user, page_type='studio', studio_type='editing')
+
+@app.route('/studio/repurpose')
+@login_required
+def repurpose_studio():
+    """The new Content Repurposing Studio page"""
+    return render_template('repurposing_studio.html', user=current_user, page_type='studio', studio_type='repurpose')
+
+@app.route('/studio/seo')
+@login_required
+def seo_studio():
+    """The new SEO Strategy Studio page"""
+    return render_template('seo_studio.html', user=current_user, page_type='studio', studio_type='seo')
+
+@app.route('/studio/brainstorming')
+@login_required
+def brainstorming_studio():
+    """The new Brainstorming Studio page"""
+    return render_template('brainstorming_studio.html', user=current_user, page_type='studio', studio_type='brainstorming')
+
+@app.route('/studio/scriptwriting')
+@login_required
+def scriptwriting_studio():
+    """The new Scriptwriting Studio page"""
+    return render_template('scriptwriting_studio.html', user=current_user, page_type='studio', studio_type='scriptwriting')
+
+@app.route('/studio/ecommerce')
+@login_required
+def ecommerce_studio():
+    """The new E-commerce Studio page"""
+    return render_template('ecommerce_studio.html', user=current_user, page_type='studio', studio_type='ecommerce')
+
+@app.route('/studio/webcopy')
+@login_required
+def webcopy_studio():
+    """The new Web Copy Studio page"""
+    return render_template('webcopy_studio.html', user=current_user, page_type='studio', studio_type='webcopy')
+
+@app.route('/studio/business')
+@login_required
+def business_studio():
+    """The new Business Docs Studio page"""
+    return render_template('business_studio.html', user=current_user, page_type='studio', studio_type='business')
+
+@app.route('/api/v1/generate/social', methods=['POST'])
+@login_required
+def generate_social_content():
+    """Handles various social and communication content generation requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    chat_session_id = data.get("chat_session_id")
+
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    if tool == 'social_post':
+        topic = data.get("topic")
+        goal = data.get("goal")
+        platform = data.get("platform")
+        if not all([topic, goal, platform]):
+            return jsonify({"error": "Missing required fields for social post."}), 400
+
+        full_prompt = construct_social_post_prompt(topic, goal, platform)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+            posts = [p.strip() for p in raw_text.split('---') if p.strip()]
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Topic: {topic}, Goal: {goal}, Platform: {platform}"
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Social Posts for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
+
+            return jsonify({"posts": posts, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Social post generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'email':
+        topic = data.get("topic")
+        audience = data.get("audience")
+        tone = data.get("tone")
+        if not all([topic, audience, tone]):
+            return jsonify({"error": "Missing required fields for email."}), 400
+
+        full_prompt = construct_email_prompt(topic, audience, tone)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Topic: {topic}, Audience: {audience}, Tone: {tone}"
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Email for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
+
+            return jsonify({"email_content": raw_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Email generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'ad_copy':
+        product = data.get("product")
+        audience = data.get("audience")
+        if not all([product, audience]):
+            return jsonify({"error": "Missing required fields for ad copy."}), 400
+
+        full_prompt = construct_ad_copy_prompt(product, audience)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+            ad_copy = [ad.strip() for ad in raw_text.split('---') if ad.strip()]
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Generate ad copy for '{product}' targeting {audience}."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Ad Copy for {product}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='AD_COPY')
+
+            return jsonify({"ad_copy": ad_copy, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Ad copy generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+@app.route('/api/v1/generate/ideas', methods=['POST'])
+@login_required
+def generate_ideas():
+    """Generates blog post ideas and titles."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    chat_session_id = data.get("chat_session_id")
+
+    if not topic:
+        return jsonify({"error": "Missing required field: topic."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_idea_prompt(topic)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Split the response into a list of ideas
+        ideas = [idea.strip() for idea in raw_text.split('\n') if idea.strip()]
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate blog post ideas for the topic: '{topic}'"
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Ideas for '{topic}'"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
+
+        return jsonify({
+            "ideas": ideas,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Idea generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/script', methods=['POST'])
+@login_required
+def generate_script():
+    """Generates a YouTube script."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    duration = data.get("duration")
+    chat_session_id = data.get("chat_session_id")
+
+    if not topic or not duration:
+        return jsonify({"error": "Missing required fields: topic or duration."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_script_prompt(topic, duration)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        script_text = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate a {duration}-minute YouTube script about: '{topic}'"
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": script_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"YouTube Script: {topic}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, script_text, studio_type='SCRIPT')
+
+        return jsonify({
+            "script": script_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Script generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/ecommerce', methods=['POST'])
+@login_required
+def generate_ecommerce():
+    """Generates an e-commerce product description."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    name = data.get("name")
+    features = data.get("features")
+    tone = data.get("tone")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([name, features, tone]):
+        return jsonify({"error": "Missing required fields."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_ecommerce_prompt(name, features, tone)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        description_text = response.candidates[0].content.parts[0].text
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate a product description for '{name}' with a {tone} tone."
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": description_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Product Description: {name}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, description_text, studio_type='ECOMMERCE')
+
+        return jsonify({
+            "description": description_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"E-commerce generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/webcopy', methods=['POST'])
+@login_required
+def generate_webcopy():
+    """Generates landing page copy using the AIDA framework."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    product = data.get("product")
+    audience = data.get("audience")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([product, audience]):
+        return jsonify({"error": "Missing required fields."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_webcopy_prompt(product, audience)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Clean and parse the JSON response
+        clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
+        webcopy_json = json.loads(clean_text)
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate AIDA landing page copy for '{product}' targeting {audience}."
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Web Copy for {product}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='WEBCOPY')
+
+        return jsonify({
+            "webcopy": webcopy_json,
+            "chat_session_id": chat_session_id
+        })
+    except json.JSONDecodeError:
+        logger.error(f"Web copy JSON parsing error. Raw text: {raw_text}")
+        return jsonify({"error": "Failed to parse the web copy data from the AI. Please try again."}), 500
+    except Exception as e:
+        logger.error(f"Web copy generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/business', methods=['POST'])
+@login_required
+def generate_business_doc():
+    """Handles various business document generation requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    chat_session_id = data.get("chat_session_id")
+
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
+
+    if tool == 'press_release':
+        announcement = data.get("announcement")
+        company = data.get("company")
+
+        if not all([announcement, company]):
+            return jsonify({"error": "Missing required fields for press release."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_press_release_prompt(announcement, company)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            pr_text = response.candidates[0].content.parts[0].text
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate a press release for {company} about: {announcement}"
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": pr_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Press Release: {announcement[:30]}..."
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, pr_text, studio_type='PRESS_RELEASE')
+
+            return jsonify({
+                "press_release": pr_text,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"Press release generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'job_description':
+        role = data.get("role")
+        responsibilities = data.get("responsibilities")
+
+        if not all([role, responsibilities]):
+            return jsonify({"error": "Missing required fields for job description."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_job_description_prompt(role, responsibilities)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            jd_text = response.candidates[0].content.parts[0].text
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate a job description for a {role}."
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": jd_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Job Description: {role}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, jd_text, studio_type='JOB_DESCRIPTION')
+
+            return jsonify({
+                "job_description": jd_text,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"Job description generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+@app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
 def generate_article():
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
-    
+
     data = request.get_json()
     user_topic = data.get("topic")
     chat_session_id = data.get("chat_session_id")
-    
+
     if not user_topic:
         return jsonify({"error": "Topic is missing."}), 400
 
@@ -912,23 +1621,23 @@ def generate_article():
 
         raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text, user_topic)
-        
+
         # Save chat session to database
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-        
+
         messages = [
             {"content": user_topic, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
             {"content": final_html, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
-        
-        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text)
-        
+
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text, studio_type='ARTICLE')
+
         # Save article to database with chat session link
         article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id)
 
         return jsonify({
-            "article_html": final_html, 
+            "article_html": final_html,
             "raw_text": raw_text,
             "article_id": article_id,
             "chat_session_id": chat_session_id,
@@ -938,12 +1647,12 @@ def generate_article():
         logger.error(f"Article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/generate-guest", methods=["POST"])
+@app.route("/api/v1/generate/article-guest", methods=["POST"])
 def generate_guest_article():
     """Generate article for guest users"""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
-    
+
     data = request.get_json()
     user_topic = data.get("topic")
     if not user_topic:
@@ -958,10 +1667,10 @@ def generate_guest_article():
 
         raw_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(raw_text, user_topic)
-        
+
         # For guests, we don't save to database
         return jsonify({
-            "article_html": final_html, 
+            "article_html": final_html,
             "raw_text": raw_text,
             "refinements_remaining": 1  # Only 1 for guests
         })
@@ -969,19 +1678,19 @@ def generate_guest_article():
         logger.error(f"Guest article generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/refine", methods=["POST"])
+@app.route("/api/v1/refine/article", methods=["POST"])
 def refine_article():
     """Refine article for both authenticated and guest users"""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
-    
+
     data = request.get_json()
     raw_text, refinement_prompt = data.get("raw_text"), data.get("refinement_prompt")
     article_id = data.get("article_id")
     chat_session_id = data.get("chat_session_id")
     refinements_used = data.get("refinements_used", 0)
     topic = data.get("topic", "")
-    
+
     if not all([raw_text, refinement_prompt]):
         return jsonify({"error": "Missing data for refinement."}), 400
 
@@ -989,7 +1698,7 @@ def refine_article():
     if current_user.is_authenticated:
         if refinements_used >= 5:
             return jsonify({"error": "You've used all 5 refinements for this article."}), 403
-        
+
         if not check_monthly_word_quota(current_user):
             return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
     else:
@@ -1010,17 +1719,17 @@ def refine_article():
 
         refined_text = response.candidates[0].content.parts[0].text
         final_html = format_article_content(refined_text, topic)
-        
+
         # Update word count for authenticated users
         if current_user.is_authenticated:
             word_count = len(refined_text.split())
             current_user.words_generated_this_month = (current_user.words_generated_this_month or 0) + word_count
             db.session.commit()
-            
+
             # Update article in database if article_id provided
             if article_id:
                 save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
-            
+
             # Update chat session
             if chat_session_id:
                 chat_session = ChatSession.query.filter_by(session_id=chat_session_id, user_id=current_user.id).first()
@@ -1037,7 +1746,7 @@ def refine_article():
         remaining_refinements = (5 if current_user.is_authenticated else 1) - new_refinements_used
 
         return jsonify({
-            "article_html": final_html, 
+            "article_html": final_html,
             "raw_text": refined_text,
             "refinements_used": new_refinements_used,
             "refinements_remaining": remaining_refinements
@@ -1046,6 +1755,249 @@ def refine_article():
         logger.error(f"Article refinement error: {e}")
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
 
+@app.route('/api/v1/refine/text', methods=['POST'])
+@login_required
+def refine_and_edit_text():
+    """Handles various text refinement and editing requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    chat_session_id = data.get("chat_session_id")
+
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    if tool == 'tone_style':
+        text = data.get("text")
+        tone = data.get("tone")
+        if not all([text, tone]):
+            return jsonify({"error": "Missing required fields for tone refinement."}), 400
+
+        full_prompt = construct_refine_text_prompt(text, tone)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            refined_text = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Refine the following text to be more '{tone}':\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Refinement: {tone}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
+
+            return jsonify({"refined_text": refined_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Text refinement error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'summarize':
+        text = data.get("text")
+        length = data.get("length")
+        if not all([text, length]):
+            return jsonify({"error": "Missing required fields for summarization."}), 400
+
+        full_prompt = construct_summarizer_prompt(text, length)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            summary = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Summarize the following text ({length}):\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": summary, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Summary ({length})"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, summary, studio_type='SUMMARY')
+
+            return jsonify({"summary": summary, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Summarization error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'translate':
+        text = data.get("text")
+        language = data.get("language")
+        if not all([text, language]):
+            return jsonify({"error": "Missing required fields for translation."}), 400
+
+        full_prompt = construct_translator_prompt(text, language)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            translated_text = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Translate the following text to {language}:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": translated_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Translation to {language}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, translated_text, studio_type='TRANSLATION')
+
+            return jsonify({"translated_text": translated_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Translation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+@app.route('/api/v1/repurpose/content', methods=['POST'])
+@login_required
+def repurpose_content():
+    """Handles various content repurposing requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    text = data.get("text")
+    chat_session_id = data.get("chat_session_id")
+
+    if not all([tool, text]):
+        return jsonify({"error": "Missing required fields: tool or text."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    if tool == 'tweet_thread':
+        full_prompt = construct_article_to_tweet_prompt(text)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            result_text = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Convert the following article to a Twitter thread:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Article to Tweet Thread"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_TWEET')
+
+            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Article to tweet error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'presentation':
+        full_prompt = construct_presentation_prompt(text)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            result_text = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Convert the following blog post to a presentation:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Blog to Presentation Outline"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_SLIDES')
+
+            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Presentation generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+@app.route('/api/v1/seo/tools', methods=['POST'])
+@login_required
+def seo_tools():
+    """Handles various SEO tool requests."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    tool = data.get("tool")
+    chat_session_id = data.get("chat_session_id")
+
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
+
+    if tool == 'keywords':
+        topic = data.get("topic")
+        if not topic:
+            return jsonify({"error": "Missing required field: topic."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_keyword_prompt(topic)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+
+            # Clean and parse the JSON response
+            # The model sometimes returns the JSON wrapped in ```json ... ```
+            clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
+            keywords_json = json.loads(clean_text)
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate SEO keywords for the topic: '{topic}'"
+            # We save the raw text to the history, not the parsed JSON object
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Keywords for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_KEYWORDS')
+
+            return jsonify({
+                "keywords": keywords_json,
+                "chat_session_id": chat_session_id
+            })
+        except json.JSONDecodeError:
+            logger.error(f"SEO keywords JSON parsing error. Raw text: {raw_text}")
+            return jsonify({"error": "Failed to parse the keyword data from the AI. Please try again."}), 500
+        except Exception as e:
+            logger.error(f"SEO keywords error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'headlines':
+        topic = data.get("topic")
+        if not topic:
+            return jsonify({"error": "Missing required field: topic."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_headline_prompt(topic)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+
+            # Split the response into a list of headlines
+            headlines = [h.strip() for h in raw_text.split('\n') if h.strip()]
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate headlines for the topic: '{topic}'"
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Headlines for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_HEADLINES')
+
+            return jsonify({
+                "headlines": headlines,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"SEO headlines error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
 @app.route("/download-docx", methods=["POST"])
 def download_docx():
     """Download article as DOCX for both authenticated and guest users"""
@@ -1053,10 +2005,10 @@ def download_docx():
     html_content = data.get("html")
     topic = data.get("topic", "Generated Article")
     article_id = data.get("article_id")
-    
+
     if not html_content:
         return jsonify({"error": "Missing HTML content."}), 400
-    
+
     try:
         # Update download count if article_id provided and user is authenticated
         if article_id and current_user.is_authenticated:
@@ -1064,7 +2016,7 @@ def download_docx():
                 # Check monthly download quota
                 if not check_monthly_download_quota(current_user):
                     return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
-                
+
                 article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
                 if article:
                     article.increment_download()
@@ -1072,12 +2024,12 @@ def download_docx():
                     db.session.commit()
             except Exception as e:
                 logger.warning(f"Failed to update download count: {e}")
-        
+
         # Generate DOCX
         soup = BeautifulSoup(html_content, 'html.parser')
         doc = Document()
         doc.add_heading(topic, level=0)
-        
+
         for element in soup.find_all(['h2', 'h3', 'p', 'div']):
             if element.name == 'h2':
                 doc.add_heading(element.get_text(), level=2)
@@ -1122,7 +2074,7 @@ def download_docx():
         doc.save(file_stream)
         file_stream.seek(0)
         filename = f"{topic[:50].strip().replace(' ', '_')}.docx"
-        return send_file(file_stream, as_attachment=True, download_name=filename, 
+        return send_file(file_stream, as_attachment=True, download_name=filename,
                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     except Exception as e:
         logger.error(f"DOCX generation error: {e}")
@@ -1133,10 +2085,18 @@ def download_docx():
 @app.route('/api/user/chat-history')
 @login_required
 def api_user_chat_history():
-    """Get user's chat history from database"""
+    """Get user's chat history from database, with optional studio filter."""
     try:
-        chat_sessions = ChatSession.query.filter_by(user_id=current_user.id)\
-                                        .order_by(ChatSession.updated_at.desc()).all()
+        studio_filter = request.args.get('studio') # e.g., 'social', 'seo'
+
+        query = ChatSession.query.filter_by(user_id=current_user.id)
+
+        if studio_filter and studio_filter in STUDIO_TYPE_MAPPING:
+            types_to_filter = STUDIO_TYPE_MAPPING[studio_filter]
+            query = query.filter(ChatSession.studio_type.in_(types_to_filter))
+
+        chat_sessions = query.order_by(ChatSession.updated_at.desc()).all()
+
         return jsonify([session.to_dict() for session in chat_sessions])
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error in API chat history: {e}")
@@ -1153,7 +2113,7 @@ def api_get_chat_session(session_id):
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
         if not chat_session:
             return jsonify({"error": "Chat session not found"}), 404
-        
+
         return jsonify(chat_session.to_dict())
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error getting chat session: {e}")
@@ -1187,7 +2147,7 @@ def api_user_stats():
                                .filter_by(user_id=current_user.id).scalar() or 0
         total_downloads = db.session.query(db.func.sum(Article.download_count))\
                                     .filter_by(user_id=current_user.id).scalar() or 0
-        
+
         return jsonify({
             'total_articles': total_articles,
             'total_words': total_words,
@@ -1211,16 +2171,16 @@ def api_download_article(article_id):
     """API endpoint to download an article"""
     try:
         article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        
+
         # Check monthly download quota
         if not check_monthly_download_quota(current_user):
             return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
-        
+
         # Generate DOCX
         soup = BeautifulSoup(article.content_html, 'html.parser')
         doc = Document()
         doc.add_heading(article.title, level=0)
-        
+
         for element in soup.find_all(['h2', 'h3', 'p', 'div']):
             if element.name == 'h2':
                 doc.add_heading(element.get_text(), level=2)
@@ -1260,18 +2220,18 @@ def api_download_article(article_id):
                     p = doc.add_paragraph(attr_p.get_text())
                     p.alignment = 1
                     p.italic = True
-        
+
         file_stream = io.BytesIO()
         doc.save(file_stream)
         file_stream.seek(0)
         filename = f"{article.title[:50].strip().replace(' ', '_')}.docx"
-        
+
         # Update download count
         article.increment_download()
         current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
         db.session.commit()
-        
-        return send_file(file_stream, as_attachment=True, download_name=filename, 
+
+        return send_file(file_stream, as_attachment=True, download_name=filename,
                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     except (OperationalError, DatabaseError) as e:
         logger.error(f"Database error in API download: {e}")
@@ -1279,6 +2239,33 @@ def api_download_article(article_id):
     except Exception as e:
         logger.error(f"API download error: {e}")
         return jsonify({"error": "Failed to download article"}), 500
+
+@app.route('/api/v1/studio/stats/<studio_name>')
+@login_required
+def get_studio_stats(studio_name):
+    """Get usage statistics for a specific studio."""
+    if studio_name not in STUDIO_TYPE_MAPPING:
+        return jsonify({"error": "Invalid studio name"}), 404
+
+    studio_types = STUDIO_TYPE_MAPPING[studio_name]
+
+    # Get count for the current month
+    start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    count = db.session.query(func.count(ChatSession.id))\
+                      .filter(ChatSession.user_id == current_user.id,
+                              ChatSession.studio_type.in_(studio_types),
+                              ChatSession.created_at >= start_of_month)\
+                      .scalar()
+
+    # For now, we'll just return the count. We can expand this later.
+    stats = {
+        f"{studio_name}_usage_this_month": count,
+        "monthly_word_limit": MONTHLY_WORD_LIMIT, # This is a global limit for now
+        "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
+    }
+
+    return jsonify(stats)
 
 @app.route('/api/chat-sessions/<string:session_id>', methods=['DELETE'])
 @login_required
@@ -1289,14 +2276,14 @@ def delete_chat_session(session_id):
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
         if not chat_session:
             return jsonify({"error": "Chat session not found"}), 404
-        
+
         # Delete all articles associated with this chat session
         Article.query.filter_by(chat_session_id=chat_session.id, user_id=current_user.id).delete()
-        
+
         # Delete the chat session
         db.session.delete(chat_session)
         db.session.commit()
-        
+
         return jsonify({"success": True, "message": "Chat session and associated articles deleted"})
     except (OperationalError, DatabaseError) as e:
         db.session.rollback()
@@ -1333,21 +2320,21 @@ def contact():
             email = request.form.get('email', '').strip()
             subject = request.form.get('subject', '').strip()
             message = request.form.get('message', '').strip()
-            
+
             if not all([name, email, subject, message]):
                 flash('Please fill in all required fields.', 'error')
                 return render_template('legal/contact.html')
-            
+
             # Send email
             if send_contact_email(name, email, subject, message):
                 flash('Thank you for your message! We\'ll get back to you soon.', 'success')
             else:
                 flash('Sorry, there was an error sending your message. Please try again later.', 'error')
-                
+
         except Exception as e:
             logger.error(f"Contact form error: {e}")
             flash('Sorry, there was an error processing your request.', 'error')
-    
+
     return render_template('legal/contact.html')
 
 # --- 7. ERROR HANDLERS ---
@@ -1377,7 +2364,7 @@ def init_db():
         with app.app_context():
             db.create_all()
             logger.info("Database tables created successfully")
-            
+
             # Run migrations to ensure schema is up to date
             try:
                 from migrations import run_migrations
@@ -1386,7 +2373,7 @@ def init_db():
                 logger.warning("Migrations module not found, skipping migrations")
             except Exception as e:
                 logger.warning(f"Migration error (non-fatal): {e}")
-                
+
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
@@ -1397,4 +2384,3 @@ if __name__ == "__main__":
 else:
     # For production deployment
     init_db()
-

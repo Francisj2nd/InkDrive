@@ -1,0 +1,369 @@
+{% extends "studio_template.html" %}
+
+{% block title %}Social & Comms Studio{% endblock %}
+
+{% block studio_head_css %}
+<style>
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .post-card {
+        background: var(--surface-variant);
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .post-card h4 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    .post-content {
+        white-space: pre-wrap; /* Allows line breaks */
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--on-surface);
+    }
+    .post-card button {
+        margin-top: 12px;
+        font-size: 12px;
+        padding: 4px 12px;
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--outline);
+        border-top: 2px solid var(--primary-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block studio_title %}Social & Comms Studio{% endblock %}
+{% block studio_description %}Craft engaging social media posts, email campaigns, and ad copy.{% endblock %}
+
+{% block studio_inputs %}
+<div class="tabs">
+    <button class="tab-button active" data-tab="social-posts">Social Posts</button>
+    <button class="tab-button" data-tab="emails">Emails</button>
+    <button class="tab-button" data-tab="ad-copy">Ad Copy</button>
+</div>
+
+<div id="social-posts" class="tab-content active">
+    <div class="form-group">
+        <label for="social-topic">Topic or core message</label>
+        <textarea id="social-topic" class="form-control" placeholder="e.g., The launch of our new eco-friendly product line." rows="3"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="social-goal">Goal of the post</label>
+        <select id="social-goal" class="form-control">
+            <option value="Promote a product/service">Promote a product/service</option>
+            <option value="Share news or an announcement">Share news or an announcement</option>
+            <option value="Inform and educate the audience">Inform & Educate</option>
+            <option value="Drive engagement with a question">Drive Engagement</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="social-platform">Platform</label>
+        <select id="social-platform" class="form-control">
+            <option value="Twitter">Twitter / X</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Facebook">Facebook</option>
+        </select>
+    </div>
+    <button id="generateSocialBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">auto_awesome</span>
+        Generate Posts
+    </button>
+</div>
+
+<div id="emails" class="tab-content">
+    <div class="form-group">
+        <label for="email-topic">Product/Service/Topic</label>
+        <textarea id="email-topic" class="form-control" placeholder="e.g., Our new line of artisanal coffee beans" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="email-audience">Target Audience</label>
+        <input type="text" id="email-audience" class="form-control" placeholder="e.g., Coffee enthusiasts, previous customers">
+    </div>
+    <div class="form-group">
+        <label for="email-tone">Desired Tone</label>
+        <select id="email-tone" class="form-control">
+            <option value="Professional">Professional</option>
+            <option value="Friendly & Casual">Friendly & Casual</option>
+            <option value="Enthusiastic & Exciting">Enthusiastic & Exciting</option>
+            <option value="Urgently">Urgently</option>
+        </select>
+    </div>
+    <button id="generateEmailBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">mark_email_unread</span>
+        Generate Email
+    </button>
+</div>
+
+<div id="ad-copy" class="tab-content">
+    <div class="form-group">
+        <label for="ad-product">Product/Service</label>
+        <input type="text" id="ad-product" class="form-control" placeholder="e.g., Eco-friendly sneakers">
+    </div>
+    <div class="form-group">
+        <label for="ad-audience">Target Audience</label>
+        <input type="text" id="ad-audience" class="form-control" placeholder="e.g., Environmentally conscious millennials">
+    </div>
+    <button id="generateAdBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">campaign</span>
+        Generate Ad Copy
+    </button>
+</div>
+{% endblock %}
+
+{% block studio_output %}
+<div id="output-display">
+    <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size: 48px;">campaign</span>
+        <p>Your generated content will appear here.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block studio_scripts %}
+<script>
+    const STUDIO_TYPE = 'social';
+</script>
+<script>
+    // Self-contained script for the Social & Comms Studio
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- COMMON ELEMENTS ---
+        const outputDisplay = document.getElementById('output-display');
+        let socialChatSessionId = null;
+
+        // --- TAB SWITCHING ---
+        const tabs = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+                outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">campaign</span><p>Your generated content will appear here.</p></div>`;
+            });
+        });
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('generateSocialBtn')?.addEventListener('click', generateSocial);
+        document.getElementById('generateEmailBtn')?.addEventListener('click', generateEmail);
+        document.getElementById('generateAdBtn')?.addEventListener('click', generateAdCopy);
+
+        // --- API FUNCTIONS ---
+        async function generateSocial() {
+            const topic = document.getElementById('social-topic').value;
+            const goal = document.getElementById('social-goal').value;
+            const platform = document.getElementById('social-platform').value;
+            if (!topic) { alert('Please enter a topic.'); return; }
+
+            showLoading(this, "Generating posts...");
+            try {
+                const response = await fetch('/api/v1/generate/social', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool: 'social_post', topic, goal, platform, chat_session_id: socialChatSessionId })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    socialChatSessionId = data.chat_session_id;
+                    displaySocialPosts(data.posts);
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                } else { throw new Error(data.error); }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                resetButton(this, 'auto_awesome', 'Generate Posts');
+            }
+        }
+
+        async function generateEmail() {
+            const topic = document.getElementById('email-topic').value;
+            const audience = document.getElementById('email-audience').value;
+            const tone = document.getElementById('email-tone').value;
+            if (!topic) { alert('Please enter a topic.'); return; }
+
+            showLoading(this, "Generating email...");
+            try {
+                const response = await fetch('/api/v1/generate/social', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool: 'email', topic, audience, tone, chat_session_id: socialChatSessionId })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    socialChatSessionId = data.chat_session_id;
+                    displayEmailContent(data.email_content);
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                } else { throw new Error(data.error); }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                resetButton(this, 'mark_email_unread', 'Generate Email');
+            }
+        }
+
+        async function generateAdCopy() {
+            const product = document.getElementById('ad-product').value;
+            const audience = document.getElementById('ad-audience').value;
+            if (!product || !audience) { alert('Please enter a product and audience.'); return; }
+
+            showLoading(this, "Generating ad copy...");
+            try {
+                const response = await fetch('/api/v1/generate/social', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool: 'ad_copy', product, audience, chat_session_id: socialChatSessionId })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    socialChatSessionId = data.chat_session_id;
+                    displayAdCopy(data.ad_copy);
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                } else { throw new Error(data.error); }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                resetButton(this, 'campaign', 'Generate Ad Copy');
+            }
+        }
+
+        // --- DISPLAY & HELPER FUNCTIONS ---
+        function showLoading(btn, message) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>${message}</span></div>`;
+        }
+
+        function showError(message) {
+            outputDisplay.innerHTML = `<p style="color: red; padding: 20px;">Error: ${message}</p>`;
+        }
+
+        function resetButton(btn, icon, text) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">${icon}</span> ${text}`;
+        }
+
+        function displaySocialPosts(posts) {
+            outputDisplay.innerHTML = posts.map((post, index) => `
+                <div class="post-card"><h4>Option ${index + 1}</h4><pre class="post-content">${escapeHtml(post)}</pre><button class="btn btn-secondary" onclick="copyToClipboard(this)">Copy</button></div>
+            `).join('');
+        }
+
+        function displayEmailContent(content) {
+            const parts = content.split('---');
+            const subjects = parts[0].trim();
+            const body = parts.length > 1 ? parts.slice(1).join('---').trim() : '';
+            outputDisplay.innerHTML = `
+                <div class="post-card"><h4>Subject Line Options</h4><pre class="post-content">${escapeHtml(subjects)}</pre><button class="btn btn-secondary" onclick="copyToClipboard(this)">Copy Subjects</button></div>
+                <div class="post-card"><h4>Email Body</h4><pre class="post-content">${escapeHtml(body)}</pre><button class="btn btn-secondary" onclick="copyToClipboard(this)">Copy Body</button></div>
+            `;
+        }
+
+        function displayAdCopy(adCopy) {
+            outputDisplay.innerHTML = adCopy.map((ad, index) => `
+                <div class="post-card"><h4>Ad Variation ${index + 1}</h4><pre class="post-content">${escapeHtml(ad)}</pre><button class="btn btn-secondary" onclick="copyToClipboard(this)">Copy</button></div>
+            `).join('');
+        }
+
+        window.loadSessionIntoView = async function(sessionId) {
+            try {
+                outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+                const response = await fetch(`/api/chat-session/${sessionId}`);
+                if (!response.ok) throw new Error('Failed to fetch session data.');
+
+                const session = await response.json();
+                socialChatSessionId = session.session_id;
+
+                // The user's original input is stored as a JSON string in the first message.
+                const userInput = JSON.parse(session.messages[0].content);
+
+                if (session.studio_type === 'SOCIAL_POST') {
+                    document.querySelector('.tab-button[data-tab="social-posts"]').click();
+                    document.getElementById('social-topic').value = userInput.topic || '';
+                    document.getElementById('social-goal').value = userInput.goal || '';
+                    document.getElementById('social-platform').value = userInput.platform || '';
+                    document.getElementById('generateSocialBtn').disabled = true;
+                    displaySocialPosts(session.raw_text.split('---').map(p => p.trim()).filter(p => p));
+                } else if (session.studio_type === 'EMAIL') {
+                    document.querySelector('.tab-button[data-tab="emails"]').click();
+                    document.getElementById('email-topic').value = userInput.topic || '';
+                    document.getElementById('email-audience').value = userInput.audience || '';
+                    document.getElementById('email-tone').value = userInput.tone || '';
+                    document.getElementById('generateEmailBtn').disabled = true;
+                    displayEmailContent(session.raw_text);
+                } else if (session.studio_type === 'AD_COPY') {
+                    document.querySelector('.tab-button[data-tab="ad-copy"]').click();
+                    document.getElementById('ad-product').value = userInput.product || '';
+                    document.getElementById('ad-audience').value = userInput.audience || '';
+                    document.getElementById('generateAdBtn').disabled = true;
+                    displayAdCopy(session.raw_text.split('---').map(p => p.trim()).filter(p => p));
+                }
+                showNotification('Session loaded successfully!');
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function copyToClipboard(button) {
+            const content = button.previousElementSibling.textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => { button.textContent = 'Copy' }, 2000);
+            }).catch(err => console.error('Copy failed', err));
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function showNotification(message, type = 'success') {
+            const existing = document.querySelector('.notification');
+            if (existing) existing.remove();
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %}

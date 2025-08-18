@@ -1,0 +1,299 @@
+{% extends "studio_template.html" %}
+
+{% block title %}SEO Strategy Studio{% endblock %}
+
+{% block studio_head_css %}
+<style>
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .output-card {
+        background: var(--surface-variant);
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+    .output-card h4 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-weight: 500;
+    }
+    .output-list {
+        padding-left: 20px;
+        margin: 0;
+    }
+    .output-list li {
+        margin-bottom: 8px;
+        font-size: 15px;
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--outline);
+        border-top: 2px solid var(--primary-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block studio_title %}SEO Strategy Studio{% endblock %}
+{% block studio_description %}Generate keywords, analyze headlines, and build a content strategy.{% endblock %}
+
+{% block studio_inputs %}
+<div class="tabs">
+    <button class="tab-button active" data-tab="keywords">Keyword Generator</button>
+    <button class="tab-button" data-tab="headlines">Headline Generator</button>
+</div>
+
+<div id="keywords" class="tab-content active">
+    <div class="form-group">
+        <label for="keyword-topic">Topic</label>
+        <input type="text" id="keyword-topic" class="form-control" placeholder="e.g., sustainable gardening">
+    </div>
+    <button id="generateKeywordsBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">key</span>
+        Generate Keywords
+    </button>
+</div>
+
+<div id="headlines" class="tab-content">
+    <div class="form-group">
+        <label for="headline-topic">Topic</label>
+        <input type="text" id="headline-topic" class="form-control" placeholder="e.g., The benefits of intermittent fasting">
+    </div>
+    <button id="generateHeadlinesBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">title</span>
+        Generate Headlines
+    </button>
+</div>
+{% endblock %}
+
+{% block studio_output %}
+<div id="seo-output-display">
+    <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size: 48px;">trending_up</span>
+        <p>Your SEO insights will appear here.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block studio_scripts %}
+<script>
+    const STUDIO_TYPE = 'seo';
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- COMMON ELEMENTS ---
+    const outputDisplay = document.getElementById('seo-output-display');
+    let seoChatSessionId = null; // Shared session for this studio
+
+    // --- TAB SWITCHING ---
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+            // Clear output when switching tabs
+            outputDisplay.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-symbols-outlined" style="font-size: 48px;">trending_up</span>
+                    <p>Your SEO insights will appear here.</p>
+                </div>`;
+        });
+    });
+
+    // --- KEYWORD GENERATOR LOGIC ---
+    const generateKeywordsBtn = document.getElementById('generateKeywordsBtn');
+    if (generateKeywordsBtn) {
+        generateKeywordsBtn.addEventListener('click', async () => {
+            const topic = document.getElementById('keyword-topic').value;
+            if (!topic.trim()) {
+                alert('Please enter a topic for keywords.');
+                return;
+            }
+
+            generateKeywordsBtn.disabled = true;
+            generateKeywordsBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+            showLoadingState("Finding keywords...");
+
+            try {
+                const response = await fetch('/api/v1/seo/tools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tool: 'keywords',
+                        topic: topic,
+                        chat_session_id: seoChatSessionId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    seoChatSessionId = data.chat_session_id;
+                    displayKeywords(data.keywords);
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                } else {
+                    throw new Error(data.error || 'Failed to generate keywords');
+                }
+            } catch (error) {
+                showErrorState(error.message);
+            } finally {
+                generateKeywordsBtn.disabled = false;
+                generateKeywordsBtn.innerHTML = '<span class="material-symbols-outlined">key</span> Generate Keywords';
+            }
+        });
+    }
+
+    // --- HEADLINE GENERATOR LOGIC ---
+    const generateHeadlinesBtn = document.getElementById('generateHeadlinesBtn');
+    if (generateHeadlinesBtn) {
+        generateHeadlinesBtn.addEventListener('click', async () => {
+            const topic = document.getElementById('headline-topic').value;
+            if (!topic.trim()) {
+                alert('Please enter a topic for headlines.');
+                return;
+            }
+
+            generateHeadlinesBtn.disabled = true;
+            generateHeadlinesBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+            showLoadingState("Creating headlines...");
+
+            try {
+                const response = await fetch('/api/v1/seo/tools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tool: 'headlines',
+                        topic: topic,
+                        chat_session_id: seoChatSessionId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    seoChatSessionId = data.chat_session_id;
+                    displayHeadlines(data.headlines);
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                } else {
+                    throw new Error(data.error || 'Failed to generate headlines');
+                }
+            } catch (error) {
+                showErrorState(error.message);
+            } finally {
+                generateHeadlinesBtn.disabled = false;
+                generateHeadlinesBtn.innerHTML = '<span class="material-symbols-outlined">title</span> Generate Headlines';
+            }
+        });
+    }
+
+    // --- DISPLAY FUNCTIONS ---
+    function showLoadingState(message) {
+        outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>${message}</span></div>`;
+    }
+
+    function showErrorState(message) {
+        outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${message}</p></div>`;
+    }
+
+    function displayKeywords(keywords) {
+        if (!keywords) {
+            showErrorState('The model did not return any keywords. Please try again.');
+            return;
+        }
+        let html = '';
+        for (const category in keywords) {
+            if (keywords.hasOwnProperty(category) && Array.isArray(keywords[category])) {
+                html += `
+                    <div class="output-card">
+                        <h4>${category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h4>
+                        <ul class="output-list">
+                            ${keywords[category].map(kw => `<li>${kw}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+        outputDisplay.innerHTML = html;
+    }
+
+    function displayHeadlines(headlines) {
+        if (!headlines || headlines.length === 0) {
+            showErrorState('The model did not return any headlines. Please try again.');
+            return;
+        }
+        outputDisplay.innerHTML = `
+            <div class="output-card">
+                <h4>Headline Ideas</h4>
+                <ul class="output-list">
+                    ${headlines.map(h => `<li>${h.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            showLoadingState("Loading session...");
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            seoChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+
+            if (session.studio_type === 'SEO_KEYWORDS') {
+                document.querySelector('.tab-button[data-tab="keywords"]').click();
+                document.getElementById('keyword-topic').value = userInput.topic || '';
+                document.getElementById('generateKeywordsBtn').disabled = true;
+                displayKeywords(JSON.parse(session.raw_text));
+            } else if (session.studio_type === 'SEO_HEADLINES') {
+                document.querySelector('.tab-button[data-tab="headlines"]').click();
+                document.getElementById('headline-topic').value = userInput.topic || '';
+                document.getElementById('generateHeadlinesBtn').disabled = true;
+                displayHeadlines(session.raw_text.split('\\n').filter(h => h.trim()));
+            }
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+
+        } catch (error) {
+            showErrorState(error.message);
+        }
+    }
+});
+</script>
+{% endblock %}

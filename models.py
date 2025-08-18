@@ -237,6 +237,7 @@ class ChatSession(db.Model):
     
     # Chat metadata
     has_refined = db.Column(db.Boolean, default=False)
+    studio_type = db.Column(db.String(50), nullable=False, server_default='ARTICLE')
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -260,6 +261,10 @@ class ChatSession(db.Model):
     
     def to_dict(self):
         """Convert chat session to dictionary"""
+        # Get the first article associated with this session, if one exists
+        article = self.articles.first()
+        article_id = article.id if article else None
+
         return {
             'id': self.id,
             'session_id': self.session_id,
@@ -267,6 +272,8 @@ class ChatSession(db.Model):
             'messages': self.get_messages(),
             'raw_text': self.raw_text,
             'has_refined': self.has_refined,
+            'studio_type': self.studio_type,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'article_id': article_id
         }

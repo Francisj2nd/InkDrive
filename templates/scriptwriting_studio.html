@@ -1,0 +1,161 @@
+{% extends "studio_template.html" %}
+
+{% block title %}Scriptwriting Studio{% endblock %}
+
+{% block studio_head_css %}
+<style>
+    .output-card {
+        background: var(--surface-variant);
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+    .output-card h4 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-weight: 500;
+    }
+    .output-content {
+        white-space: pre-wrap;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--on-surface);
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--outline);
+        border-top: 2px solid var(--primary-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block studio_title %}Scriptwriting Studio{% endblock %}
+{% block studio_description %}Generate scripts for YouTube, TikTok, and other video platforms.{% endblock %}
+
+{% block studio_inputs %}
+<div class="form-group">
+    <label for="script-topic">Video Topic</label>
+    <input type="text" id="script-topic" class="form-control" placeholder="e.g., How to make the perfect sourdough bread">
+</div>
+<div class="form-group">
+    <label for="script-duration">Target Duration (in minutes)</label>
+    <input type="number" id="script-duration" class="form-control" value="5">
+</div>
+<button id="generateScriptBtn" class="btn btn-primary" style="width: 100%;">
+    <span class="material-symbols-outlined">movie</span>
+    Generate YouTube Script
+</button>
+{% endblock %}
+
+{% block studio_output %}
+<div id="script-output-display">
+    <div class="empty-state">
+        <span class="material-symbols-outlined" style="font-size: 48px;">movie</span>
+        <p>Your generated script will appear here.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block studio_scripts %}
+<script>
+    const STUDIO_TYPE = 'scriptwriting';
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const generateBtn = document.getElementById('generateScriptBtn');
+    const outputDisplay = document.getElementById('script-output-display');
+    let scriptChatSessionId = null;
+
+    if (generateBtn) {
+        generateBtn.addEventListener('click', async () => {
+            const topic = document.getElementById('script-topic').value;
+            const duration = document.getElementById('script-duration').value;
+
+            if (!topic.trim()) {
+                alert('Please enter a video topic.');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Writing your script...</span></div>`;
+
+            try {
+                const response = await fetch('/api/v1/generate/script', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: topic,
+                        duration: duration,
+                        chat_session_id: scriptChatSessionId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    scriptChatSessionId = data.chat_session_id;
+                    displayScript(data.script);
+                    if (typeof loadChatHistory === 'function') {
+                        loadChatHistory(STUDIO_TYPE);
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to generate script');
+                }
+            } catch (error) {
+                outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span class="material-symbols-outlined">movie</span> Generate YouTube Script';
+            }
+        });
+    }
+
+    function displayScript(scriptText) {
+        if (!scriptText) {
+            outputDisplay.innerHTML = '<div class="output-card"><p>The model did not return a script. Please try again.</p></div>';
+            return;
+        }
+
+        outputDisplay.innerHTML = `
+            <div class="output-card">
+                <h4>YouTube Script Outline</h4>
+                <pre class="output-content">${scriptText.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+            </div>
+        `;
+    }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            scriptChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+            document.getElementById('script-topic').value = userInput.topic || '';
+            document.getElementById('script-duration').value = userInput.duration || '5';
+            document.getElementById('generateScriptBtn').disabled = true;
+
+            displayScript(session.raw_text);
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+
+        } catch (error) {
+            outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+        }
+    }
+});
+</script>
+{% endblock %}
