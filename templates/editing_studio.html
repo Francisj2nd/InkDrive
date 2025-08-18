@@ -302,15 +302,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const session = await response.json();
             editingChatSessionId = session.session_id;
 
+            const userInput = JSON.parse(session.messages[0].content);
+
             if (session.studio_type === 'TEXT_REFINEMENT') {
                 document.querySelector('.tab-button[data-tab="tone-style"]').click();
+                document.getElementById('refine-text-input').value = userInput.text || '';
+                document.getElementById('refine-tone').value = userInput.tone || '';
+                document.getElementById('refineTextBtn').disabled = true;
                 displayOutput(session.raw_text, 'Refined Version');
             } else if (session.studio_type === 'SUMMARY') {
                 document.querySelector('.tab-button[data-tab="summarizer"]').click();
+                document.getElementById('summarize-text-input').value = userInput.text || '';
+                document.getElementById('summary-length').value = userInput.length || '';
+                document.getElementById('summarizeBtn').disabled = true;
                 displayOutput(session.raw_text, 'Summary');
             } else if (session.studio_type === 'TRANSLATION') {
                 document.querySelector('.tab-button[data-tab="translator"]').click();
-                displayOutput(session.raw_text, 'Translated Text');
+                document.getElementById('translate-text-input').value = userInput.text || '';
+                document.getElementById('translate-language').value = userInput.language || '';
+                document.getElementById('translateBtn').disabled = true;
+                displayOutput(session.raw_text, `Translated Text (${userInput.language})`);
             }
             showNotification('Session loaded successfully!');
         } catch (error) {

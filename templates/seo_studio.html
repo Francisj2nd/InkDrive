@@ -263,39 +263,32 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    async function loadSessionIntoView(sessionId) {
+    window.loadSessionIntoView = async function(sessionId) {
         try {
             showLoadingState("Loading session...");
             const response = await fetch(`/api/chat-session/${sessionId}`);
             if (!response.ok) throw new Error('Failed to fetch session data.');
 
             const session = await response.json();
-
             seoChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+
             if (session.studio_type === 'SEO_KEYWORDS') {
                 document.querySelector('.tab-button[data-tab="keywords"]').click();
+                document.getElementById('keyword-topic').value = userInput.topic || '';
+                document.getElementById('generateKeywordsBtn').disabled = true;
                 displayKeywords(JSON.parse(session.raw_text));
             } else if (session.studio_type === 'SEO_HEADLINES') {
                 document.querySelector('.tab-button[data-tab="headlines"]').click();
+                document.getElementById('headline-topic').value = userInput.topic || '';
+                document.getElementById('generateHeadlinesBtn').disabled = true;
                 displayHeadlines(session.raw_text.split('\\n').filter(h => h.trim()));
             }
 
-            if (typeof showNotification === 'undefined') {
-                window.showNotification = (message, type = 'success') => {
-                    const existing = document.querySelector('.notification');
-                    if (existing) existing.remove();
-                    const notification = document.createElement('div');
-                    notification.className = `notification ${type}`;
-                    notification.textContent = message;
-                    document.body.appendChild(notification);
-                    setTimeout(() => notification.classList.add('show'), 100);
-                    setTimeout(() => {
-                        notification.classList.remove('show');
-                        setTimeout(() => notification.remove(), 300);
-                    }, 3000);
-                };
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
             }
-            showNotification('Session loaded successfully!');
 
         } catch (error) {
             showErrorState(error.message);

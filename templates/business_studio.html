@@ -250,39 +250,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function loadSessionIntoView(sessionId) {
+    window.loadSessionIntoView = async function(sessionId) {
         try {
             showLoadingState("Loading session...");
             const response = await fetch(`/api/chat-session/${sessionId}`);
             if (!response.ok) throw new Error('Failed to fetch session data.');
 
             const session = await response.json();
-
             businessChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+
             if (session.studio_type === 'PRESS_RELEASE') {
                 document.querySelector('.tab-button[data-tab="press-release"]').click();
+                document.getElementById('pr-announcement').value = userInput.announcement || '';
+                document.getElementById('pr-company').value = userInput.company || '';
+                document.getElementById('generatePrBtn').disabled = true;
                 displayOutput(session.raw_text, 'Press Release');
             } else if (session.studio_type === 'JOB_DESCRIPTION') {
                 document.querySelector('.tab-button[data-tab="job-description"]').click();
+                document.getElementById('jd-role').value = userInput.role || '';
+                document.getElementById('jd-responsibilities').value = userInput.responsibilities || '';
+                document.getElementById('generateJdBtn').disabled = true;
                 displayOutput(session.raw_text, 'Job Description');
             }
 
-            if (typeof showNotification === 'undefined') {
-                window.showNotification = (message, type = 'success') => {
-                    const existing = document.querySelector('.notification');
-                    if (existing) existing.remove();
-                    const notification = document.createElement('div');
-                    notification.className = `notification ${type}`;
-                    notification.textContent = message;
-                    document.body.appendChild(notification);
-                    setTimeout(() => notification.classList.add('show'), 100);
-                    setTimeout(() => {
-                        notification.classList.remove('show');
-                        setTimeout(() => notification.remove(), 300);
-                    }, 3000);
-                };
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
             }
-            showNotification('Session loaded successfully!');
 
         } catch (error) {
             showErrorState(error.message);

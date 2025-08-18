@@ -309,14 +309,28 @@
                 const session = await response.json();
                 socialChatSessionId = session.session_id;
 
+                // The user's original input is stored as a JSON string in the first message.
+                const userInput = JSON.parse(session.messages[0].content);
+
                 if (session.studio_type === 'SOCIAL_POST') {
                     document.querySelector('.tab-button[data-tab="social-posts"]').click();
+                    document.getElementById('social-topic').value = userInput.topic || '';
+                    document.getElementById('social-goal').value = userInput.goal || '';
+                    document.getElementById('social-platform').value = userInput.platform || '';
+                    document.getElementById('generateSocialBtn').disabled = true;
                     displaySocialPosts(session.raw_text.split('---').map(p => p.trim()).filter(p => p));
                 } else if (session.studio_type === 'EMAIL') {
                     document.querySelector('.tab-button[data-tab="emails"]').click();
+                    document.getElementById('email-topic').value = userInput.topic || '';
+                    document.getElementById('email-audience').value = userInput.audience || '';
+                    document.getElementById('email-tone').value = userInput.tone || '';
+                    document.getElementById('generateEmailBtn').disabled = true;
                     displayEmailContent(session.raw_text);
                 } else if (session.studio_type === 'AD_COPY') {
                     document.querySelector('.tab-button[data-tab="ad-copy"]').click();
+                    document.getElementById('ad-product').value = userInput.product || '';
+                    document.getElementById('ad-audience').value = userInput.audience || '';
+                    document.getElementById('generateAdBtn').disabled = true;
                     displayAdCopy(session.raw_text.split('---').map(p => p.trim()).filter(p => p));
                 }
                 showNotification('Session loaded successfully!');

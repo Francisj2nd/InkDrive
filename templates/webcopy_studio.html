@@ -139,33 +139,25 @@ document.addEventListener('DOMContentLoaded', function() {
         outputDisplay.innerHTML = html;
     }
 
-    async function loadSessionIntoView(sessionId) {
+    window.loadSessionIntoView = async function(sessionId) {
         try {
             outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
             const response = await fetch(`/api/chat-session/${sessionId}`);
             if (!response.ok) throw new Error('Failed to fetch session data.');
 
             const session = await response.json();
-
             webcopyChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+            document.getElementById('webcopy-product').value = userInput.product || '';
+            document.getElementById('webcopy-audience').value = userInput.audience || '';
+            document.getElementById('generateWebcopyBtn').disabled = true;
+
             displayWebCopy(JSON.parse(session.raw_text));
 
-            if (typeof showNotification === 'undefined') {
-                window.showNotification = (message, type = 'success') => {
-                    const existing = document.querySelector('.notification');
-                    if (existing) existing.remove();
-                    const notification = document.createElement('div');
-                    notification.className = `notification ${type}`;
-                    notification.textContent = message;
-                    document.body.appendChild(notification);
-                    setTimeout(() => notification.classList.add('show'), 100);
-                    setTimeout(() => {
-                        notification.classList.remove('show');
-                        setTimeout(() => notification.remove(), 300);
-                    }, 3000);
-                };
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
             }
-            showNotification('Session loaded successfully!');
 
         } catch (error) {
             outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
