@@ -13,7 +13,20 @@
 <body>
     <div class="app-container {% block app_container_class %}{% endblock %}">
         {% block sidebar %}
-        <aside class="sidebar">
+        <!-- Added mobile hamburger menu button -->
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+        
+        <!-- Added mobile overlay for sidebar -->
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+        
+        <aside class="sidebar" id="sidebar">
+            <!-- Added close button for mobile -->
+            <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            
             <a href="{{ url_for('index') }}" class="logo">
                 <div class="logo-icon">I</div>
                 <span>InkDrive</span>
@@ -56,8 +69,54 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const mobileMenuClose = document.getElementById('mobileMenuClose');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+        const sidebar = document.getElementById('sidebar');
+        
+        function openMobileMenu() {
+            sidebar.classList.add('mobile-open');
+            mobileOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeMobileMenu() {
+            sidebar.classList.remove('mobile-open');
+            mobileOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', openMobileMenu);
+        }
+        
+        if (mobileMenuClose) {
+            mobileMenuClose.addEventListener('click', closeMobileMenu);
+        }
+        
+        if (mobileOverlay) {
+            mobileOverlay.addEventListener('click', closeMobileMenu);
+        }
+        
+        // Close mobile menu when clicking nav links
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
+            });
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+        });
+
+        // Existing code for loading chat history
         if (document.getElementById('chatList')) {
-            // The studio_type variable will be defined in each studio's template
             const studioType = typeof STUDIO_TYPE !== 'undefined' ? STUDIO_TYPE : null;
             loadChatHistory(studioType);
         }
