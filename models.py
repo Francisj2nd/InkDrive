@@ -261,6 +261,10 @@ class ChatSession(db.Model):
     
     def to_dict(self):
         """Convert chat session to dictionary"""
+        # Get the first article associated with this session, if one exists
+        article = self.articles.first()
+        article_id = article.id if article else None
+
         return {
             'id': self.id,
             'session_id': self.session_id,
@@ -270,5 +274,6 @@ class ChatSession(db.Model):
             'has_refined': self.has_refined,
             'studio_type': self.studio_type,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'article_id': article_id
         }

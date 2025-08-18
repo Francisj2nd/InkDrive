@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     seoChatSessionId = data.chat_session_id;
                     displayKeywords(data.keywords);
-                    if (typeof loadChatHistory === 'function') loadChatHistory();
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else {
                     throw new Error(data.error || 'Failed to generate keywords');
                 }
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     seoChatSessionId = data.chat_session_id;
                     displayHeadlines(data.headlines);
-                    if (typeof loadChatHistory === 'function') loadChatHistory();
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else {
                     throw new Error(data.error || 'Failed to generate headlines');
                 }
@@ -261,6 +261,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 </ul>
             </div>
         `;
+    }
+
+    async function loadSessionIntoView(sessionId) {
+        try {
+            showLoadingState("Loading session...");
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+
+            seoChatSessionId = session.session_id;
+            if (session.studio_type === 'SEO_KEYWORDS') {
+                document.querySelector('.tab-button[data-tab="keywords"]').click();
+                displayKeywords(JSON.parse(session.raw_text));
+            } else if (session.studio_type === 'SEO_HEADLINES') {
+                document.querySelector('.tab-button[data-tab="headlines"]').click();
+                displayHeadlines(session.raw_text.split('\\n').filter(h => h.trim()));
+            }
+
+            if (typeof showNotification === 'undefined') {
+                window.showNotification = (message, type = 'success') => {
+                    const existing = document.querySelector('.notification');
+                    if (existing) existing.remove();
+                    const notification = document.createElement('div');
+                    notification.className = `notification ${type}`;
+                    notification.textContent = message;
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.classList.add('show'), 100);
+                    setTimeout(() => {
+                        notification.classList.remove('show');
+                        setTimeout(() => notification.remove(), 300);
+                    }, 3000);
+                };
+            }
+            showNotification('Session loaded successfully!');
+
+        } catch (error) {
+            showErrorState(error.message);
+        }
     }
 });
 </script>

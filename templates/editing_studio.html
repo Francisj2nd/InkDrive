@@ -37,6 +37,11 @@
         padding: 16px;
         margin-top: 16px;
     }
+    .output-card h4 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-weight: 500;
+    }
     .output-content {
         white-space: pre-wrap;
         font-family: inherit;
@@ -91,13 +96,43 @@
 </div>
 
 <div id="summarizer" class="tab-content">
-    <h3>Summarizer</h3>
-    <p><i>This tool is planned for a future build.</i></p>
+    <div class="form-group">
+        <label for="summarize-text-input">Text to Summarize</label>
+        <textarea id="summarize-text-input" class="form-control" rows="10" placeholder="Paste a long piece of text here..."></textarea>
+    </div>
+    <div class="form-group">
+        <label for="summary-length">Summary Length</label>
+        <select id="summary-length" class="form-control">
+            <option value="short">Short (one paragraph)</option>
+            <option value="medium">Medium (bullet points)</option>
+            <option value="long">Long (multiple paragraphs)</option>
+        </select>
+    </div>
+    <button id="summarizeBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">compress</span>
+        Summarize
+    </button>
 </div>
 
 <div id="translator" class="tab-content">
-    <h3>Translator</h3>
-    <p><i>This tool is planned for a future build.</i></p>
+    <div class="form-group">
+        <label for="translate-text-input">Text to Translate</label>
+        <textarea id="translate-text-input" class="form-control" rows="10" placeholder="Enter text in any language..."></textarea>
+    </div>
+    <div class="form-group">
+        <label for="translate-language">Translate to</label>
+        <select id="translate-language" class="form-control">
+            <option value="Spanish">Spanish</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Mandarin Chinese">Mandarin Chinese</option>
+        </select>
+    </div>
+    <button id="translateBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">translate</span>
+        Translate
+    </button>
 </div>
 {% endblock %}
 
@@ -116,7 +151,11 @@
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Tab switching logic
+    // --- COMMON ELEMENTS ---
+    const outputDisplay = document.getElementById('editing-output-display');
+    let editingChatSessionId = null;
+
+    // --- TAB SWITCHING ---
     const tabs = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => {
@@ -125,82 +164,181 @@ document.addEventListener('DOMContentLoaded', function() {
             tabContents.forEach(c => c.classList.remove('active'));
             tab.classList.add('active');
             document.getElementById(tab.dataset.tab).classList.add('active');
+            outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">edit_note</span><p>Your refined text will appear here.</p></div>`;
         });
     });
 
-    // Text Refinement Logic
-    const refineBtn = document.getElementById('refineTextBtn');
-    const outputDisplay = document.getElementById('editing-output-display');
-    let refinementChatSessionId = null;
+    // --- EVENT LISTENERS ---
+    document.getElementById('refineTextBtn')?.addEventListener('click', refineText);
+    document.getElementById('summarizeBtn')?.addEventListener('click', summarizeText);
+    document.getElementById('translateBtn')?.addEventListener('click', translateText);
 
-    if (refineBtn) {
-        refineBtn.addEventListener('click', async () => {
-            const textToRefine = document.getElementById('refine-text-input').value;
-            const targetTone = document.getElementById('refine-tone').value;
+    // --- API FUNCTIONS ---
+    async function refineText() {
+        const text = document.getElementById('refine-text-input').value;
+        const tone = document.getElementById('refine-tone').value;
+        if (!text.trim()) { alert('Please paste some text to refine.'); return; }
 
-            if (!textToRefine.trim()) {
-                alert('Please paste some text to refine.');
-                return;
-            }
-
-            refineBtn.disabled = true;
-            refineBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Refining...`;
-            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Applying tone & style...</span></div>`;
-
-            try {
-                const response = await fetch('/api/v1/refine/text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        text: textToRefine,
-                        tone: targetTone,
-                        chat_session_id: refinementChatSessionId
-                    })
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    refinementChatSessionId = data.chat_session_id;
-                    displayRefinedText(data.refined_text);
-                    if (typeof loadChatHistory === 'function') {
-                        loadChatHistory();
-                    }
-                } else {
-                    throw new Error(data.error || 'Failed to refine text');
-                }
-            } catch (error) {
-                outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
-            } finally {
-                refineBtn.disabled = false;
-                refineBtn.innerHTML = `<span class="material-symbols-outlined">auto_fix_high</span> Refine Text`;
-            }
-        });
+        showLoading(this, "Applying tone & style...");
+        try {
+            const response = await fetch('/api/v1/refine/text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tool: 'tone_style', text: text, tone: tone, chat_session_id: editingChatSessionId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                editingChatSessionId = data.chat_session_id;
+                displayOutput(data.refined_text, 'Refined Version');
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else { throw new Error(data.error); }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButtonStates();
+        }
     }
 
-    function displayRefinedText(text) {
+    async function summarizeText() {
+        const text = document.getElementById('summarize-text-input').value;
+        const length = document.getElementById('summary-length').value;
+        if (!text.trim()) { alert('Please paste some text to summarize.'); return; }
+
+        showLoading(this, "Summarizing text...");
+        try {
+            const response = await fetch('/api/v1/refine/text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tool: 'summarize', text: text, length: length, chat_session_id: editingChatSessionId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                editingChatSessionId = data.chat_session_id;
+                displayOutput(data.summary, 'Summary');
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else { throw new Error(data.error); }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButtonStates();
+        }
+    }
+
+    async function translateText() {
+        const text = document.getElementById('translate-text-input').value;
+        const language = document.getElementById('translate-language').value;
+        if (!text.trim()) { alert('Please enter text to translate.'); return; }
+
+        showLoading(this, `Translating to ${language}...`);
+        try {
+            const response = await fetch('/api/v1/refine/text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tool: 'translate', text: text, language: language, chat_session_id: editingChatSessionId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                editingChatSessionId = data.chat_session_id;
+                displayOutput(data.translated_text, `Translated Text (${language})`);
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else { throw new Error(data.error); }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButtonStates();
+        }
+    }
+
+    // --- DISPLAY & HELPER FUNCTIONS ---
+    function showLoading(btn, message) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+        outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>${message}</span></div>`;
+    }
+
+    function showError(message) {
+        outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${message}</p></div>`;
+        resetButtonStates();
+    }
+
+    function resetButtonStates() {
+        const refineBtn = document.getElementById('refineTextBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const translateBtn = document.getElementById('translateBtn');
+        if(refineBtn) {
+            refineBtn.disabled = false;
+            refineBtn.innerHTML = '<span class="material-symbols-outlined">auto_fix_high</span> Refine Text';
+        }
+        if(summarizeBtn) {
+            summarizeBtn.disabled = false;
+            summarizeBtn.innerHTML = '<span class="material-symbols-outlined">compress</span> Summarize';
+        }
+        if(translateBtn) {
+            translateBtn.disabled = false;
+            translateBtn.innerHTML = '<span class="material-symbols-outlined">translate</span> Translate';
+        }
+    }
+
+    function displayOutput(text, title) {
         if (!text) {
-            outputDisplay.innerHTML = '<div class="output-card"><p>The model did not return any text. Please try again.</p></div>';
+            showError(`The model did not return any text for ${title}. Please try again.`);
             return;
         }
         outputDisplay.innerHTML = `
             <div class="output-card">
-                <h4>Refined Version</h4>
+                <h4>${title}</h4>
                 <pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
                 <button class="btn btn-secondary" onclick="copyToClipboard(this)">Copy</button>
             </div>
         `;
     }
-});
 
-function copyToClipboard(button) {
-    const content = button.previousElementSibling.textContent;
-    navigator.clipboard.writeText(content).then(() => {
-        button.textContent = 'Copied!';
-        setTimeout(() => { button.textContent = 'Copy' }, 2000);
-    }).catch(err => {
-        console.error('Copy failed', err);
-        alert('Failed to copy text.');
-    });
-}
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            editingChatSessionId = session.session_id;
+
+            if (session.studio_type === 'TEXT_REFINEMENT') {
+                document.querySelector('.tab-button[data-tab="tone-style"]').click();
+                displayOutput(session.raw_text, 'Refined Version');
+            } else if (session.studio_type === 'SUMMARY') {
+                document.querySelector('.tab-button[data-tab="summarizer"]').click();
+                displayOutput(session.raw_text, 'Summary');
+            } else if (session.studio_type === 'TRANSLATION') {
+                document.querySelector('.tab-button[data-tab="translator"]').click();
+                displayOutput(session.raw_text, 'Translated Text');
+            }
+            showNotification('Session loaded successfully!');
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    function copyToClipboard(button) {
+        const content = button.previousElementSibling.textContent;
+        navigator.clipboard.writeText(content).then(() => {
+            button.textContent = 'Copied!';
+            setTimeout(() => { button.textContent = 'Copy' }, 2000);
+        }).catch(err => console.error('Copy failed', err));
+    }
+
+    function showNotification(message, type = 'success') {
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 100);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+});
 </script>
 {% endblock %}

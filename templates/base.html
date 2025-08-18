@@ -28,6 +28,9 @@
             grid-template-columns: 300px 1fr;
             min-height: 100vh;
         }
+    .app-container.no-sidebar {
+        grid-template-columns: 1fr;
+    }
         .sidebar {
             background: var(--surface);
             padding: 24px;
@@ -50,9 +53,9 @@
         .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; text-decoration: none; color: var(--on-surface); font-weight: 500; }
         .nav-link:hover { background: var(--surface-variant); }
         .nav-link.active { background: var(--primary-blue); color: white; }
-        .chat-history { margin-top: 24px; border-top: 1px solid var(--outline); padding-top: 24px; }
-        .chat-history-title { font-size: 14px; font-weight: 500; color: var(--on-surface-variant); margin-bottom: 12px; text-transform: uppercase; }
-        .chat-list { max-height: 400px; overflow-y: auto; }
+        .chat-history { margin-top: 24px; border-top: 1px solid var(--outline); padding-top: 24px; flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
+        .chat-history-title { font-size: 14px; font-weight: 500; color: var(--on-surface-variant); margin-bottom: 12px; text-transform: uppercase; flex-shrink: 0; }
+        .chat-list { overflow-y: auto; }
         .chat-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; display: flex; justify-content: space-between; align-items: center; }
         .chat-item:hover { background: var(--surface-variant); }
         .chat-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -62,7 +65,8 @@
     {% block head_css %}{% endblock %}
 </head>
 <body>
-    <div class="app-container">
+    <div class="app-container {% block app_container_class %}{% endblock %}">
+        {% block sidebar %}
         <aside class="sidebar">
             <a href="{{ url_for('index') }}" class="logo">
                 <div class="logo-icon">I</div>
@@ -97,6 +101,7 @@
             {% endif %}
             {% endif %}
         </aside>
+        {% endblock %}
 
         <main class="main-content">
             {% block content %}{% endblock %}
@@ -135,9 +140,8 @@
             chatList.innerHTML = chatHistory.slice(0, 15).map(chat => {
                 const studioIcon = getStudioIcon(chat.studio_type);
                 const chatDate = new Date(chat.updated_at).toLocaleDateString();
-                // Link will eventually go to the specific studio page, for now it's a placeholder
                 return `
-                    <a href="#" class="chat-item" title="${chat.title}">
+                    <a href="#" class="chat-item" title="${chat.title}" onclick="handleHistoryClick(event, '${chat.session_id}')">
                         <div>
                             <span class="material-symbols-outlined chat-studio-icon">${studioIcon}</span>
                             <span class="chat-title">${chat.title}</span>
@@ -149,6 +153,16 @@
         } catch (error) {
             console.error('Error loading chat history:', error);
             document.getElementById('chatList').innerHTML = '<li>Error loading history.</li>';
+        }
+    }
+
+    function handleHistoryClick(event, sessionId) {
+        event.preventDefault();
+        if (typeof loadSessionIntoView === 'function') {
+            loadSessionIntoView(sessionId);
+        } else {
+            console.error('loadSessionIntoView function is not defined for this studio.');
+            alert('This functionality is not yet implemented for this studio.');
         }
     }
 

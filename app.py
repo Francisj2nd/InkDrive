@@ -136,13 +136,15 @@ if missing_vars:
 # Studio Type Mapping
 STUDIO_TYPE_MAPPING = {
     'article': ['ARTICLE'],
-    'social': ['SOCIAL_POST', 'EMAIL'],
-    'editing': ['TEXT_REFINEMENT'],
-    'repurpose': ['REPURPOSE_TWEET'],
+    'social': ['SOCIAL_POST', 'EMAIL', 'AD_COPY'],
+    'editing': ['TEXT_REFINEMENT', 'SUMMARY', 'TRANSLATION'],
+    'repurpose': ['REPURPOSE_TWEET', 'REPURPOSE_SLIDES'],
     'seo': ['SEO_KEYWORDS', 'SEO_HEADLINES'],
     'business': ['PRESS_RELEASE', 'JOB_DESCRIPTION'],
     'brainstorming': ['IDEAS'],
-    'scriptwriting': ['SCRIPT']
+    'scriptwriting': ['SCRIPT'],
+    'ecommerce': ['ECOMMERCE'],
+    'webcopy': ['WEBCOPY'],
 }
 
 # --- Initialize genai client with Vertex AI ---
@@ -415,6 +417,90 @@ def construct_job_description_prompt(role, responsibilities):
     4.  **Return Only the Text:** Do not include any preamble or commentary.
 
     Generate the job description now.
+    """
+
+def construct_ad_copy_prompt(product, audience):
+    """Constructs a prompt for generating ad copy."""
+    return f"""
+    You are a senior copywriter at a top advertising agency. Your task is to generate 3 distinct pieces of ad copy for a given product and audience.
+
+    **Product/Service:** {product}
+    **Target Audience:** {audience}
+
+    **Instructions:**
+    1.  **Generate 3 Variations:** Create three distinct ad copy options. Each should have a different angle or hook (e.g., one focused on a pain point, one on a benefit, one with a strong call to action).
+    2.  **Structure:** For each variation, provide a "Headline" and a "Body".
+    3.  **Clarity and Persuasion:** The copy must be clear, concise, and persuasive.
+    4.  **Separator:** Use "---" on a new line to separate each ad copy variation.
+    5.  **Return Only the Ad Copy:** Do not include any preamble or commentary.
+
+    Generate the ad copy now.
+    """
+
+def construct_summarizer_prompt(text, length):
+    """Constructs a prompt for summarizing text."""
+    length_map = {
+        'short': 'a single, concise paragraph',
+        'medium': 'a series of key bullet points',
+        'long': 'a detailed summary of several paragraphs'
+    }
+    target_length = length_map.get(length, 'a single paragraph')
+
+    return f"""
+    You are an expert at summarizing text. Your task is to read the following text and create a summary in the specified format.
+
+    **Original Text:**
+    ---
+    {text}
+    ---
+
+    **Instructions:**
+    1.  **Summarize:** Distill the core ideas and most important information from the text.
+    2.  **Format:** The summary should be in the format of {target_length}.
+    3.  **Clarity:** The summary must be clear, accurate, and easy to understand.
+    4.  **Return Only the Summary:** Do not include any preamble or commentary.
+
+    Generate the summary now.
+    """
+
+def construct_translator_prompt(text, language):
+    """Constructs a prompt for translating text."""
+    return f"""
+    You are a professional translator. Your task is to translate the following text into the specified language.
+
+    **Text to Translate:**
+    ---
+    {text}
+    ---
+
+    **Target Language:** {language}
+
+    **Instructions:**
+    1.  **Translate Accurately:** Provide a high-quality, accurate translation of the text.
+    2.  **Maintain Tone:** Preserve the original tone and nuance as much as possible.
+    3.  **Return Only the Translation:** Do not include any preamble, commentary, or the original text.
+
+    Generate the translation now.
+    """
+
+def construct_presentation_prompt(text):
+    """Constructs a prompt for converting a blog post to a presentation outline."""
+    return f"""
+    You are an expert presentation designer. Your task is to convert the following blog post into a concise and compelling presentation outline with talking points.
+
+    **Blog Post Text:**
+    ---
+    {text}
+    ---
+
+    **Instructions:**
+    1.  **Create a Slide Structure:** Outline a presentation with a clear structure (e.g., Title Slide, Introduction, 3-5 Key Point Slides, Summary/Conclusion, Q&A).
+    2.  **Write Slide Titles:** For each slide, create a short, impactful title.
+    3.  **Generate Talking Points:** Under each slide title, provide 3-5 bullet points summarizing the key talking points for that slide.
+    4.  **Format with Markdown:** Use Markdown headings for slide titles (e.g., `## Slide 1: Title`) and bullet points for talking points.
+    5.  **Return Only the Outline:** Do not include any preamble or commentary.
+
+    Generate the presentation outline now.
     """
 
 def get_image_url(query):
@@ -1143,98 +1229,96 @@ def business_studio():
 
 @app.route('/api/v1/generate/social', methods=['POST'])
 @login_required
-def generate_social():
-    """Generates social media post content."""
+def generate_social_content():
+    """Handles various social and communication content generation requests."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    topic = data.get("topic")
-    goal = data.get("goal")
-    platform = data.get("platform")
+    tool = data.get("tool")
     chat_session_id = data.get("chat_session_id")
 
-    if not all([topic, goal, platform]):
-        return jsonify({"error": "Missing required fields: topic, goal, or platform."}), 400
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_social_post_prompt(topic, goal, platform)
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        raw_text = response.candidates[0].content.parts[0].text
+    if tool == 'social_post':
+        topic = data.get("topic")
+        goal = data.get("goal")
+        platform = data.get("platform")
+        if not all([topic, goal, platform]):
+            return jsonify({"error": "Missing required fields for social post."}), 400
 
-        # Split the response into individual posts
-        posts = [p.strip() for p in raw_text.split('---') if p.strip()]
+        full_prompt = construct_social_post_prompt(topic, goal, platform)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+            posts = [p.strip() for p in raw_text.split('---') if p.strip()]
 
-        # Save to chat history
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Topic: {topic}, Goal: {goal}, Platform: {platform}"
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Social Posts for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
 
-        # Create a user message that summarizes the request
-        user_message = f"Topic: {topic}, Goal: {goal}, Platform: {platform}"
+            return jsonify({"posts": posts, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Social post generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-        messages = [
-            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-        ]
+    elif tool == 'email':
+        topic = data.get("topic")
+        audience = data.get("audience")
+        tone = data.get("tone")
+        if not all([topic, audience, tone]):
+            return jsonify({"error": "Missing required fields for email."}), 400
 
-        session_title = f"Social Posts for '{topic}'"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
+        full_prompt = construct_email_prompt(topic, audience, tone)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
 
-        return jsonify({
-            "posts": posts,
-            "chat_session_id": chat_session_id
-        })
-    except Exception as e:
-        logger.error(f"Social post generation error: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Topic: {topic}, Audience: {audience}, Tone: {tone}"
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Email for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
 
-@app.route('/api/v1/generate/email', methods=['POST'])
-@login_required
-def generate_email():
-    """Generates email campaign content."""
-    if not CLIENT:
-        return jsonify({"error": "AI service is not available."}), 503
+            return jsonify({"email_content": raw_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Email generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-    data = request.get_json()
-    topic = data.get("topic")
-    audience = data.get("audience")
-    tone = data.get("tone")
-    chat_session_id = data.get("chat_session_id")
+    elif tool == 'ad_copy':
+        product = data.get("product")
+        audience = data.get("audience")
+        if not all([product, audience]):
+            return jsonify({"error": "Missing required fields for ad copy."}), 400
 
-    if not all([topic, audience, tone]):
-        return jsonify({"error": "Missing required fields: topic, audience, or tone."}), 400
+        full_prompt = construct_ad_copy_prompt(product, audience)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+            ad_copy = [ad.strip() for ad in raw_text.split('---') if ad.strip()]
 
-    if not check_monthly_word_quota(current_user):
-        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Generate ad copy for '{product}' targeting {audience}."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Ad Copy for {product}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='AD_COPY')
 
-    full_prompt = construct_email_prompt(topic, audience, tone)
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        raw_text = response.candidates[0].content.parts[0].text
+            return jsonify({"ad_copy": ad_copy, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Ad copy generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-        # Save to chat history
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-
-        user_message = f"Topic: {topic}, Audience: {audience}, Tone: {tone}"
-        messages = [
-            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-        ]
-
-        session_title = f"Email for '{topic}'"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
-
-        return jsonify({
-            "email_content": raw_text,
-            "chat_session_id": chat_session_id
-        })
-    except Exception as e:
-        logger.error(f"Email generation error: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
 @app.route('/api/v1/generate/ideas', methods=['POST'])
 @login_required
@@ -1673,90 +1757,149 @@ def refine_article():
 
 @app.route('/api/v1/refine/text', methods=['POST'])
 @login_required
-def refine_text():
-    """Refines a piece of text to a specific tone."""
+def refine_and_edit_text():
+    """Handles various text refinement and editing requests."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    text_to_refine = data.get("text")
-    target_tone = data.get("tone")
+    tool = data.get("tool")
     chat_session_id = data.get("chat_session_id")
 
-    if not text_to_refine or not target_tone:
-        return jsonify({"error": "Missing required fields: text or tone."}), 400
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_refine_text_prompt(text_to_refine, target_tone)
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        refined_text = response.candidates[0].content.parts[0].text
+    if tool == 'tone_style':
+        text = data.get("text")
+        tone = data.get("tone")
+        if not all([text, tone]):
+            return jsonify({"error": "Missing required fields for tone refinement."}), 400
 
-        # Save to chat history
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+        full_prompt = construct_refine_text_prompt(text, tone)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            refined_text = response.candidates[0].content.parts[0].text
 
-        user_message = f"Refine the following text to be more '{target_tone}':\n\n{text_to_refine[:200]}..."
-        messages = [
-            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-        ]
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Refine the following text to be more '{tone}':\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Refinement: {tone}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
 
-        session_title = f"Refinement: {target_tone}"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
+            return jsonify({"refined_text": refined_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Text refinement error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-        return jsonify({
-            "refined_text": refined_text,
-            "chat_session_id": chat_session_id
-        })
-    except Exception as e:
-        logger.error(f"Text refinement error: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+    elif tool == 'summarize':
+        text = data.get("text")
+        length = data.get("length")
+        if not all([text, length]):
+            return jsonify({"error": "Missing required fields for summarization."}), 400
 
-@app.route('/api/v1/repurpose/article-to-tweet', methods=['POST'])
+        full_prompt = construct_summarizer_prompt(text, length)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            summary = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Summarize the following text ({length}):\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": summary, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Summary ({length})"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, summary, studio_type='SUMMARY')
+
+            return jsonify({"summary": summary, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Summarization error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'translate':
+        text = data.get("text")
+        language = data.get("language")
+        if not all([text, language]):
+            return jsonify({"error": "Missing required fields for translation."}), 400
+
+        full_prompt = construct_translator_prompt(text, language)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            translated_text = response.candidates[0].content.parts[0].text
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Translate the following text to {language}:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": translated_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Translation to {language}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, translated_text, studio_type='TRANSLATION')
+
+            return jsonify({"translated_text": translated_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Translation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+@app.route('/api/v1/repurpose/content', methods=['POST'])
 @login_required
-def repurpose_article_to_tweet():
-    """Converts an article into a Twitter thread."""
+def repurpose_content():
+    """Handles various content repurposing requests."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    article_text = data.get("article")
+    tool = data.get("tool")
+    text = data.get("text")
     chat_session_id = data.get("chat_session_id")
 
-    if not article_text:
-        return jsonify({"error": "Missing required field: article."}), 400
+    if not all([tool, text]):
+        return jsonify({"error": "Missing required fields: tool or text."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_article_to_tweet_prompt(article_text)
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        tweet_thread = response.candidates[0].content.parts[0].text
+    if tool == 'tweet_thread':
+        full_prompt = construct_article_to_tweet_prompt(text)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            result_text = response.candidates[0].content.parts[0].text
 
-        # Save to chat history
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Convert the following article to a Twitter thread:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Article to Tweet Thread"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_TWEET')
 
-        user_message = f"Convert the following article to a Twitter thread:\n\n{article_text[:200]}..."
-        messages = [
-            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": tweet_thread, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-        ]
+            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Article to tweet error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-        session_title = "Article to Tweet Thread"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, tweet_thread, studio_type='REPURPOSE_TWEET')
+    elif tool == 'presentation':
+        full_prompt = construct_presentation_prompt(text)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            result_text = response.candidates[0].content.parts[0].text
 
-        return jsonify({
-            "tweet_thread": tweet_thread,
-            "chat_session_id": chat_session_id
-        })
-    except Exception as e:
-        logger.error(f"Article to tweet error: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Convert the following blog post to a presentation:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Blog to Presentation Outline"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_SLIDES')
+
+            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Presentation generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
 @app.route('/api/v1/seo/tools', methods=['POST'])
 @login_required

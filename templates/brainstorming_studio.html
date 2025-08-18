@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ideaChatSessionId = data.chat_session_id;
                     displayIdeas(data.ideas);
                     if (typeof loadChatHistory === 'function') {
-                        loadChatHistory();
+                        loadChatHistory(STUDIO_TYPE);
                     }
                 } else {
                     throw new Error(data.error || 'Failed to generate ideas');
@@ -122,6 +122,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 </ul>
             </div>
         `;
+    }
+
+    async function loadSessionIntoView(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+
+            ideaChatSessionId = session.session_id;
+            displayIdeas(session.raw_text.split('\\n').filter(i => i.trim()));
+
+            if (typeof showNotification === 'undefined') {
+                window.showNotification = (message, type = 'success') => {
+                    const existing = document.querySelector('.notification');
+                    if (existing) existing.remove();
+                    const notification = document.createElement('div');
+                    notification.className = `notification ${type}`;
+                    notification.textContent = message;
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.classList.add('show'), 100);
+                    setTimeout(() => {
+                        notification.classList.remove('show');
+                        setTimeout(() => notification.remove(), 300);
+                    }, 3000);
+                };
+            }
+            showNotification('Session loaded successfully!');
+
+        } catch (error) {
+            outputDisplay.innerHTML = `<div class="idea-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+        }
     }
 });
 </script>

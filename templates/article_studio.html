@@ -84,18 +84,6 @@
     </button>
     {% endif %}
 </div>
-
-<!-- Confirmation Modal (can be reused by other studios) -->
-<div class="modal-overlay" id="confirmModal">
-    <div class="modal">
-        <h2 class="modal-title" id="modalTitle">Confirm Action</h2>
-        <p class="modal-message" id="modalMessage">Are you sure you want to proceed?</p>
-        <div class="modal-actions">
-            <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
-            <button class="btn btn-danger" id="confirmBtn">Confirm</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -130,11 +118,6 @@
     const articleActions = document.getElementById('articleActions');
     const downloadBtn = document.getElementById('downloadBtn');
     const publishBtn = document.getElementById('publishBtn');
-    const confirmModal = document.getElementById('confirmModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalMessage = document.getElementById('modalMessage');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const confirmBtn = document.getElementById('confirmBtn');
 
     document.addEventListener('DOMContentLoaded', function() {
         generateBtn.addEventListener('click', generateArticle);
@@ -143,9 +126,6 @@
         if (publishBtn) {
             publishBtn.addEventListener('click', publishArticle);
         }
-
-        cancelBtn.addEventListener('click', closeModal);
-        confirmModal.addEventListener('click', (e) => e.target === confirmModal && closeModal());
     });
 
     function showNotification(message, type = 'success') {
@@ -174,11 +154,6 @@
             refinementInput.disabled = true;
             refinementInput.placeholder = 'No refinements remaining';
         }
-    }
-
-    function closeModal() {
-        confirmModal.style.display = 'none';
-        confirmBtn.onclick = null;
     }
 
     async function generateArticle() {
@@ -213,6 +188,7 @@
                 updateRefinementsDisplay();
                 showNotification('Article generated successfully!');
                 generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Generated`;
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
             } else {
                 throw new Error(data.error || 'Failed to generate article');
             }
@@ -258,6 +234,7 @@
                 updateRefinementsDisplay();
                 refinementInput.value = '';
                 showNotification('Article refined successfully!');
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
             } else {
                 throw new Error(data.error || 'Failed to refine article');
             }
@@ -295,6 +272,44 @@
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to download article');
             }
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+
+    async function loadSessionIntoView(sessionId) {
+        try {
+            showLoading('Loading session...');
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+
+            // Assuming the user's input is the first message, and AI response is the second.
+            const userMessage = session.messages[0].content;
+            const aiResponseHtml = session.messages[1].content;
+
+            topicInput.value = userMessage;
+            articleDisplay.innerHTML = `<div class="article-content">${aiResponseHtml}</div>`;
+
+            // Update state
+            currentChatSessionId = session.session_id;
+            currentArticleData = {
+                raw_text: session.raw_text,
+                article_html: aiResponseHtml,
+                article_id: session.article_id
+            };
+            refinementsUsed = 0; // Reset refinements for a loaded session for now
+            updateRefinementsDisplay();
+
+            refinementSection.style.display = 'block';
+            articleActions.style.display = 'flex';
+            if(publishBtn) publishBtn.style.display = 'inline-flex';
+            showNotification('Session loaded successfully!');
+            generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Loaded`;
+            generateBtn.disabled = true;
+
+
         } catch (error) {
             showNotification(error.message, 'error');
         }

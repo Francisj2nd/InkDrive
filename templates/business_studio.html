@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     businessChatSessionId = data.chat_session_id;
                     displayOutput(data.press_release, 'Press Release');
-                    if (typeof loadChatHistory === 'function') loadChatHistory();
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else { throw new Error(data.error); }
             } catch (error) {
                 showErrorState(error.message);
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     businessChatSessionId = data.chat_session_id;
                     displayOutput(data.job_description, 'Job Description');
-                    if (typeof loadChatHistory === 'function') loadChatHistory();
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else { throw new Error(data.error); }
             } catch (error) {
                 showErrorState(error.message);
@@ -247,6 +247,45 @@ document.addEventListener('DOMContentLoaded', function() {
         if(generateJdBtn) {
             generateJdBtn.disabled = false;
             generateJdBtn.innerHTML = '<span class="material-symbols-outlined">person_add</span> Generate Job Description';
+        }
+    }
+
+    async function loadSessionIntoView(sessionId) {
+        try {
+            showLoadingState("Loading session...");
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+
+            businessChatSessionId = session.session_id;
+            if (session.studio_type === 'PRESS_RELEASE') {
+                document.querySelector('.tab-button[data-tab="press-release"]').click();
+                displayOutput(session.raw_text, 'Press Release');
+            } else if (session.studio_type === 'JOB_DESCRIPTION') {
+                document.querySelector('.tab-button[data-tab="job-description"]').click();
+                displayOutput(session.raw_text, 'Job Description');
+            }
+
+            if (typeof showNotification === 'undefined') {
+                window.showNotification = (message, type = 'success') => {
+                    const existing = document.querySelector('.notification');
+                    if (existing) existing.remove();
+                    const notification = document.createElement('div');
+                    notification.className = `notification ${type}`;
+                    notification.textContent = message;
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.classList.add('show'), 100);
+                    setTimeout(() => {
+                        notification.classList.remove('show');
+                        setTimeout(() => notification.remove(), 300);
+                    }, 3000);
+                };
+            }
+            showNotification('Session loaded successfully!');
+
+        } catch (error) {
+            showErrorState(error.message);
         }
     }
 });
