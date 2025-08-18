@@ -246,6 +246,58 @@
             line-height: 1.5;
         }
 
+        /* Detailed Studios Section */
+        .detailed-studios {
+            padding: 80px 0;
+            background: var(--surface-variant);
+        }
+
+        .studio-feature {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            align-items: center;
+            margin-bottom: 80px;
+        }
+
+        .studio-feature.alt {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .studio-feature.alt .studio-feature-text {
+            order: 2;
+        }
+
+        .studio-feature.alt .studio-feature-image {
+            order: 1;
+        }
+
+        .studio-feature-image img {
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+        }
+
+        .studio-feature-text .studio-icon {
+            margin: 0 0 16px;
+        }
+
+        .studio-feature-text h3 {
+            font-size: 28px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .studio-feature-text p {
+            font-size: 16px;
+            color: var(--on-surface-variant);
+            margin-bottom: 24px;
+        }
+
+        .studio-feature-text .btn {
+            font-size: 16px;
+        }
+
         /* Social Proof Section */
         .social-proof {
             padding: 80px 0;
@@ -556,93 +608,132 @@
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features" id="studios">
+    <!-- Detailed Studios Section -->
+    <section class="detailed-studios" id="studios">
         <div class="features-container">
-            <h2 class="section-title">10 Specialized Studios, Endless Possibilities</h2>
-            <p class="section-subtitle">Every type of content you need, powered by advanced AI technology</p>
-            
-            <div class="studios-grid">
-                <div class="studio-card">
-                    <div class="studio-icon blue">
-                        <span class="material-symbols-outlined">article</span>
-                    </div>
-                    <h3 class="studio-title">Article Studio</h3>
-                    <p class="studio-description">Generate long-form, SEO-optimized articles and thought-leadership content with automatic image integration.</p>
+            <h2 class="section-title">A Studio for Every Idea</h2>
+            <p class="section-subtitle">Go beyond generic AI tools. InkDrive provides specialized studios, each fine-tuned for a specific content type, ensuring higher quality and more relevant results.</p>
+
+            <div class="studio-feature">
+                <div class="studio-feature-text">
+                    <div class="studio-icon blue"><span class="material-symbols-outlined">article</span></div>
+                    <h3>Article Studio</h3>
+                    <p>From in-depth blog posts to compelling thought-leadership pieces, the Article Studio is your go-to for long-form content. It intelligently structures your text, suggests headings, and can even integrate relevant, royalty-free images to bring your articles to life. Stop staring at a blank page and start publishing professional content in minutes.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Article Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon green">
-                        <span class="material-symbols-outlined">groups</span>
-                    </div>
-                    <h3 class="studio-title">Social & Comms Studio</h3>
-                    <p class="studio-description">Craft engaging social media posts, email campaigns, and ad copy for all platforms.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon yellow">
-                        <span class="material-symbols-outlined">edit_note</span>
-                    </div>
-                    <h3 class="studio-title">Editing & Refinement Studio</h3>
-                    <p class="studio-description">Improve existing text by changing tone, style, summarizing, and translating content.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon red">
-                        <span class="material-symbols-outlined">transform</span>
-                    </div>
-                    <h3 class="studio-title">Content Repurposing Studio</h3>
-                    <p class="studio-description">Convert content between formats - turn articles into Twitter threads or blog posts into presentations.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon purple">
-                        <span class="material-symbols-outlined">trending_up</span>
-                    </div>
-                    <h3 class="studio-title">SEO Strategy Studio</h3>
-                    <p class="studio-description">Generate keywords, analyze headlines, and build comprehensive content strategies for better rankings.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon orange">
-                        <span class="material-symbols-outlined">lightbulb</span>
-                    </div>
-                    <h3 class="studio-title">Brainstorming Studio</h3>
-                    <p class="studio-description">Generate fresh ideas, compelling titles, and detailed outlines for any type of content project.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon teal">
-                        <span class="material-symbols-outlined">movie</span>
-                    </div>
-                    <h3 class="studio-title">Scriptwriting Studio</h3>
-                    <p class="studio-description">Create engaging scripts for YouTube, TikTok, and other video platforms with proven formats.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon indigo">
-                        <span class="material-symbols-outlined">storefront</span>
-                    </div>
-                    <h3 class="studio-title">E-commerce Studio</h3>
-                    <p class="studio-description">Write compelling product descriptions and marketing copy that converts browsers into buyers.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon blue">
-                        <span class="material-symbols-outlined">web</span>
-                    </div>
-                    <h3 class="studio-title">Web Copy Studio</h3>
-                    <p class="studio-description">Craft high-converting landing pages, ad copy, and web content using proven copywriting frameworks.</p>
-                </div>
-                
-                <div class="studio-card">
-                    <div class="studio-icon green">
-                        <span class="material-symbols-outlined">business_center</span>
-                    </div>
-                    <h3 class="studio-title">Business Docs Studio</h3>
-                    <p class="studio-description">Generate professional press releases, job descriptions, reports, and other business documents.</p>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/d2e3fc/1a73e8?text=Article+Studio" alt="Article Studio Interface">
                 </div>
             </div>
+
+            <div class="studio-feature alt">
+                <div class="studio-feature-text">
+                    <div class="studio-icon green"><span class="material-symbols-outlined">groups</span></div>
+                    <h3>Social & Comms Studio</h3>
+                    <p>Dominate your social media and email marketing. This studio crafts everything from viral-worthy social posts for any platform to persuasive email campaigns and high-converting ad copy. Tailor your message's tone and style to perfectly match your audience and goals.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Social Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/e6f4ea/34a853?text=Social+Studio" alt="Social & Comms Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature">
+                <div class="studio-feature-text">
+                    <div class="studio-icon yellow"><span class="material-symbols-outlined">edit_note</span></div>
+                    <h3>Editing & Refinement Studio</h3>
+                    <p>Transform your rough drafts into polished masterpieces. This studio is your personal editor, helping you to change the tone of your text, summarize long documents into key points, and even translate your content into multiple languages. It's the ultimate tool for perfecting your message.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Editing Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/fff8e1/fbbc05?text=Editing+Studio" alt="Editing & Refinement Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature alt">
+                <div class="studio-feature-text">
+                    <div class="studio-icon red"><span class="material-symbols-outlined">transform</span></div>
+                    <h3>Content Repurposing Studio</h3>
+                    <p>Maximize the value of every piece of content you create. Effortlessly convert a detailed article into an engaging Twitter thread, or transform a blog post into a ready-to-use presentation outline. Save time and reach new audiences by recycling your best ideas into new formats.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Repurposing Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/fce8e6/ea4335?text=Repurposing+Studio" alt="Content Repurposing Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature">
+                <div class="studio-feature-text">
+                    <div class="studio-icon purple"><span class="material-symbols-outlined">trending_up</span></div>
+                    <h3>SEO Strategy Studio</h3>
+                    <p>Climb the search rankings with powerful SEO tools. Discover high-potential keywords, generate click-worthy headlines, and build out comprehensive content strategies that are designed to put your content in front of the right audience. Outrank the competition by making data-driven decisions.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try SEO Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/f3e5f5/9c27b0?text=SEO+Studio" alt="SEO Strategy Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature alt">
+                <div class="studio-feature-text">
+                    <div class="studio-icon orange"><span class="material-symbols-outlined">lightbulb</span></div>
+                    <h3>Brainstorming Studio</h3>
+                    <p>Never run out of great ideas again. Whether you need a catchy title for your next blog post or a full outline for a new video, this studio is your creative partner. Generate lists of fresh ideas to kickstart your content creation process and overcome writer's block for good.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Brainstorming Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/fff3e0/ff9800?text=Brainstorming" alt="Brainstorming Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature">
+                <div class="studio-feature-text">
+                    <div class="studio-icon teal"><span class="material-symbols-outlined">movie</span></div>
+                    <h3>Scriptwriting Studio</h3>
+                    <p>Create professional-grade scripts for your video content. From short, snappy TikToks to detailed YouTube tutorials, this studio helps you structure your narrative, write engaging dialogue, and pace your content perfectly for your target platform. Lights, camera, action!</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Scriptwriting Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/e0f2f1/009688?text=Scriptwriting" alt="Scriptwriting Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature alt">
+                <div class="studio-feature-text">
+                    <div class="studio-icon indigo"><span class="material-symbols-outlined">storefront</span></div>
+                    <h3>E-commerce Studio</h3>
+                    <p>Drive sales with product descriptions that sell. This studio helps you craft compelling copy that highlights the benefits of your products, resonates with your target customers, and converts browsers into buyers. Perfect for Shopify, Amazon, or any e-commerce platform.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try E-commerce Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/e8eaf6/3f51b5?text=E-commerce" alt="E-commerce Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature">
+                <div class="studio-feature-text">
+                    <div class="studio-icon blue"><span class="material-symbols-outlined">web</span></div>
+                    <h3>Web Copy Studio</h3>
+                    <p>Craft high-converting copy for your website and landing pages. Using proven copywriting frameworks like AIDA and PAS, this studio helps you write headlines, body copy, and calls-to-action that grab attention and persuade visitors to take the next step.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Web Copy Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/d2e3fc/1a73e8?text=Web+Copy+Studio" alt="Web Copy Studio Interface">
+                </div>
+            </div>
+
+            <div class="studio-feature alt">
+                <div class="studio-feature-text">
+                    <div class="studio-icon green"><span class="material-symbols-outlined">business_center</span></div>
+                    <h3>Business Docs Studio</h3>
+                    <p>Generate a wide range of professional documents with ease. From official press releases and detailed job descriptions to business reports and internal memos, this studio ensures your communications are clear, concise, and professional every time.</p>
+                    <a href="/auth/register" class="btn btn-secondary">Try Business Docs Studio <span class="material-symbols-outlined">arrow_forward</span></a>
+                </div>
+                <div class="studio-feature-image">
+                    <img src="https://placehold.co/600x400/e6f4ea/34a853?text=Business+Docs" alt="Business Docs Studio Interface">
+                </div>
+            </div>
+
         </div>
     </section>
 
