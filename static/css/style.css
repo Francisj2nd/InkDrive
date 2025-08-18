@@ -158,7 +158,7 @@ a:hover {
 .main-content {
   padding: 24px 32px 24px 24px;
   overflow-y: auto;
-  max-width: calc(100vw - 280px);
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -251,10 +251,10 @@ a:hover {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .chat-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -264,7 +264,7 @@ a:hover {
   text-decoration: none;
   color: var(--primary-text);
   transition: background-color 0.2s;
-  min-height: 36px;
+  min-height: 32px;
   gap: 6px;
 }
 .chat-item:hover {
@@ -351,6 +351,7 @@ a:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 24px;
+  width: 100%;
 }
 .stat-card {
   background: var(--surface);
