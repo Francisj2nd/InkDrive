@@ -8,7 +8,7 @@ const HOST = '0.0.0.0';
 // This tells the server to serve all the files from a 'build' or 'public' folder
 // *** IMPORTANT: Change 'build' to the name of your folder with HTML/CSS files ***
 // If your HTML files are in the root, you might use 'public' or create a new folder.
-app.use(express.static(path.join(__dirname, 'build')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // For a Single-Page Application (like React), this sends the main index.html
 // for any route that is not a static file.
@@ -18,4 +18,5 @@ app.get('/*', function (req, res) {
 
 app.listen(PORT, HOST, () => {
   console.log(`Server is listening on http://${HOST}:${PORT}`);
+
 });
