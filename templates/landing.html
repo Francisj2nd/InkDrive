@@ -298,6 +298,49 @@
             font-size: 16px;
         }
 
+        /* How It Works Section */
+        .how-it-works {
+            padding: 80px 0;
+            background: var(--surface);
+        }
+
+        .how-it-works-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 48px;
+        }
+
+        .how-it-works-card {
+            text-align: center;
+            padding: 24px;
+        }
+
+        .how-it-works-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 24px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid var(--surface-variant);
+        }
+
+        .how-it-works-card h3 {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .how-it-works-card p {
+            color: var(--on-surface-variant);
+        }
+
         /* Social Proof Section */
         .social-proof {
             padding: 80px 0;
@@ -488,6 +531,20 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            .studio-feature, .studio-feature.alt {
+                grid-template-columns: 1fr;
+                gap: 24px;
+                margin-bottom: 48px;
+            }
+
+            .studio-feature.alt .studio-feature-text {
+                order: 1;
+            }
+
+            .studio-feature.alt .studio-feature-image {
+                order: 2;
+            }
+
             .nav-container {
                 padding: 0 16px;
             }
@@ -594,7 +651,7 @@
                     <span>SEO-Optimized Copy</span>
                 </span>
             </h1>
-            <p class="hero-subtitle">Transform your ideas into professional content with 10 specialized AI studios. From articles to social posts, business docs to video scripts - everything you need in one powerful platform.</p>
+            <p class="hero-subtitle">Go from a simple idea to polished, professional content in seconds. Our 10 specialized AI studios give you the power to create, refine, and repurpose content for any platform, effortlessly.</p>
             <div class="hero-cta">
                 <a href="/auth/register" class="btn btn-primary btn-large">
                     <span class="material-symbols-outlined">auto_awesome</span>
@@ -622,7 +679,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Article Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/d2e3fc/1a73e8?text=Article+Studio" alt="Article Studio Interface">
+                    <img src="https://placehold.co/600x400/e3f2fd/1a73e8?text=+" alt="Abstract graphic for Article Studio">
                 </div>
             </div>
 
@@ -634,7 +691,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Social Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/e6f4ea/34a853?text=Social+Studio" alt="Social & Comms Studio Interface">
+                    <img src="https://placehold.co/600x400/e8f5e9/34a853?text=+" alt="Abstract graphic for Social & Comms Studio">
                 </div>
             </div>
 
@@ -646,7 +703,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Editing Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/fff8e1/fbbc05?text=Editing+Studio" alt="Editing & Refinement Studio Interface">
+                    <img src="https://placehold.co/600x400/fffde7/fbbc05?text=+" alt="Abstract graphic for Editing & Refinement Studio">
                 </div>
             </div>
 
@@ -658,7 +715,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Repurposing Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/fce8e6/ea4335?text=Repurposing+Studio" alt="Content Repurposing Studio Interface">
+                    <img src="https://placehold.co/600x400/fce4ec/ea4335?text=+" alt="Abstract graphic for Content Repurposing Studio">
                 </div>
             </div>
 
@@ -670,7 +727,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try SEO Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/f3e5f5/9c27b0?text=SEO+Studio" alt="SEO Strategy Studio Interface">
+                    <img src="https://placehold.co/600x400/f3e5f5/9c27b0?text=+" alt="Abstract graphic for SEO Strategy Studio">
                 </div>
             </div>
 
@@ -682,7 +739,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Brainstorming Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/fff3e0/ff9800?text=Brainstorming" alt="Brainstorming Studio Interface">
+                    <img src="https://placehold.co/600x400/fff3e0/ff9800?text=+" alt="Abstract graphic for Brainstorming Studio">
                 </div>
             </div>
 
@@ -694,7 +751,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Scriptwriting Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/e0f2f1/009688?text=Scriptwriting" alt="Scriptwriting Studio Interface">
+                    <img src="https://placehold.co/600x400/e0f7fa/009688?text=+" alt="Abstract graphic for Scriptwriting Studio">
                 </div>
             </div>
 
@@ -706,7 +763,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try E-commerce Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/e8eaf6/3f51b5?text=E-commerce" alt="E-commerce Studio Interface">
+                    <img src="https://placehold.co/600x400/e8eaf6/3f51b5?text=+" alt="Abstract graphic for E-commerce Studio">
                 </div>
             </div>
 
@@ -718,7 +775,7 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Web Copy Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/d2e3fc/1a73e8?text=Web+Copy+Studio" alt="Web Copy Studio Interface">
+                    <img src="https://placehold.co/600x400/e3f2fd/1a73e8?text=+" alt="Abstract graphic for Web Copy Studio">
                 </div>
             </div>
 
@@ -730,59 +787,39 @@
                     <a href="/auth/register" class="btn btn-secondary">Try Business Docs Studio <span class="material-symbols-outlined">arrow_forward</span></a>
                 </div>
                 <div class="studio-feature-image">
-                    <img src="https://placehold.co/600x400/e6f4ea/34a853?text=Business+Docs" alt="Business Docs Studio Interface">
+                    <img src="https://placehold.co/600x400/e8f5e9/34a853?text=+" alt="Abstract graphic for Business Docs Studio">
                 </div>
             </div>
 
         </div>
     </section>
 
-    <!-- Social Proof Section -->
-    {% if featured_articles %}
-    <section class="social-proof">
-        <div class="social-proof-container">
-            <h2 class="section-title">See What Users Are Creating</h2>
-            <p class="section-subtitle">Discover amazing content from our community across all studios</p>
-            
-            <div class="articles-grid">
-                {% for article in featured_articles %}
-                    <div class="article-card">
-                        {% set image_url = article.get_first_image_url() %}
-                        {% if image_url %}
-                            <img src="{{ image_url }}" alt="{{ article.title }}" class="article-image">
-                        {% else %}
-                            <div class="article-image">
-                                <span class="material-symbols-outlined">article</span>
-                            </div>
-                        {% endif %}
-                        <div class="article-card-content">
-                            <h3 class="article-card-title">{{ article.title }}</h3>
-                            <p class="article-card-excerpt">{{ article.get_excerpt(120) }}</p>
-                            <a href="{{ url_for('share_article', public_id=article.public_id) }}" class="article-card-link">
-                                Read Article
-                                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
-                            </a>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-    </section>
-    {% else %}
-    <section class="social-proof">
-        <div class="social-proof-container">
-            <h2 class="section-title">See What Users Are Creating</h2>
-            <p class="section-subtitle">Be the first to create amazing articles, social posts, and refined content with InkDrive</p>
-            
-            <div class="articles-grid">
-                <div class="no-articles">
-                    <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 16px; display: block;">auto_awesome</span>
-                    <p>No published content yet. Be the first to create and share amazing articles, social posts, and refined content!</p>
+    <!-- "Social Proof" section removed as requested -->
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <div class="features-container">
+            <h2 class="section-title">Get Started in Seconds</h2>
+            <p class="section-subtitle">Creating content with InkDrive is as easy as 1-2-3.</p>
+            <div class="how-it-works-grid">
+                <div class="how-it-works-card">
+                    <div class="how-it-works-icon">1</div>
+                    <h3>Choose Your Studio</h3>
+                    <p>Select one of the 10 specialized studios that best fits the type of content you want to create.</p>
+                </div>
+                <div class="how-it-works-card">
+                    <div class="how-it-works-icon">2</div>
+                    <h3>Provide Your Prompt</h3>
+                    <p>Give the AI a starting point. This can be a simple topic, a detailed brief, or existing text to refine.</p>
+                </div>
+                <div class="how-it-works-card">
+                    <div class="how-it-works-icon">3</div>
+                    <h3>Generate & Refine</h3>
+                    <p>Receive your high-quality, formatted content in seconds. Ask for revisions until it's perfect.</p>
                 </div>
             </div>
         </div>
     </section>
-    {% endif %}
 
     <!-- CTA Section -->
     <section class="cta">
