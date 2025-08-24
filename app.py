@@ -775,52 +775,116 @@ Generate the Value Proposition and USPs now.
 """
     return prompt
 
-def construct_press_release_prompt(announcement, company):
-    """Constructs a prompt for generating a press release."""
-    return f"""
-    You are a public relations (PR) expert. Your task is to write a professional press release based on the provided information.
+def construct_proposal_prompt(settings=None):
+    """Constructs a prompt for generating a business proposal."""
+    if settings is None: settings = {}
+    prompt = f"""
+You are a professional business consultant and proposal writer. Your task is to generate a formal and persuasive business proposal based on the provided details.
 
-    **Announcement Details:** {announcement}
-    **Company Name:** {company}
+**Proposal Details:**
+- **Your Company:** {settings.get('company', '')}
+- **Client Name:** {settings.get('client', '')}
+- **Client's Problem:** {settings.get('problem', '')}
+- **Proposed Solution:** {settings.get('solution', '')}
+- **Key Deliverables:**
+{settings.get('deliverables', '')}
+- **Desired Tone:** {settings.get('tone', 'Formal and confident')}
 
-    **Instructions:**
-    1.  **Use Standard Format:** Structure the document as a professional press release, including:
-        *   `FOR IMMEDIATE RELEASE` at the top.
-        *   A compelling headline.
-        *   A dateline (City, State – Date).
-        *   An introduction (the "lede") summarizing the key announcement.
-        *   A body with more details, quotes from a company spokesperson (e.g., CEO, Founder), and context.
-        *   An "About [Company Name]" section.
-        *   A media contact section (use placeholders like `[Name]`, `[Email]`).
-        *   `###` at the end to signify the conclusion.
-    2.  **Professional Tone:** Maintain a formal and objective tone throughout.
-    3.  **Return Only the Text:** Do not include any preamble or commentary.
+**Instructions:**
+1.  **Structure the Proposal:** Generate a complete proposal with the following sections, using clear Markdown headings:
+    - `## Introduction`: Briefly introduce your company and the purpose of the proposal.
+    - `## Understanding the Problem`: Show you understand the client's needs by summarizing their problem.
+    - `## Proposed Solution`: Detail your proposed solution, explaining how it addresses the client's problem.
+    - `## Deliverables & Timeline`: List the key deliverables and provide a high-level timeline.
+    - `## Conclusion`: End with a confident closing statement and a call to action (e.g., "We look forward to discussing this proposal with you further.").
+2.  **Adopt the Tone:** The entire proposal must be written in a **{settings.get('tone', 'Formal and confident')}** tone.
+3.  **Output:** Return only the complete proposal text. Do not include any of your own commentary.
 
-    Generate the press release now.
-    """
+Generate the business proposal now.
+"""
+    return prompt
 
-def construct_job_description_prompt(role, responsibilities):
-    """Constructs a prompt for generating a job description."""
-    return f"""
-    You are a senior hiring manager. Your task is to write a clear, compelling, and professional job description.
+def construct_report_prompt(settings=None):
+    """Constructs a dynamic prompt for generating a formal report."""
+    if settings is None: settings = {}
 
-    **Job Role/Title:** {role}
+    report_type = settings.get('reportType', 'status_update')
+    report_name = report_type.replace('_', ' ').title()
 
-    **Key Responsibilities:**
-    {responsibilities}
+    prompt = f"""
+You are a senior business analyst. Your task is to write a clear, structured, and formal **{report_name}**.
 
-    **Instructions:**
-    1.  **Standard Format:** Structure the job description with the following sections:
-        *   **Introduction:** A brief, engaging overview of the company and the role.
-        *   **Responsibilities:** Elaborate on the key responsibilities provided.
-        *   **Qualifications:** List essential skills, experience, and qualifications needed for the role.
-        *   **Benefits:** Mention common benefits like competitive salary, health insurance, and remote work options.
-    2.  **Inclusive Language:** Use inclusive and welcoming language.
-    3.  **Clarity:** Be clear and concise. Avoid jargon where possible.
-    4.  **Return Only the Text:** Do not include any preamble or commentary.
+**Report Details:**
+- **Subject:** {settings.get('subject', '')}
+- **Time Period:** {settings.get('period', '')}
+- **Target Audience:** {settings.get('audience', '')}
 
-    Generate the job description now.
-    """
+**Key Data Points / Information to Include:**
+---
+{settings.get('dataPoints', '')}
+---
+
+**Instructions:**
+1.  **Adopt the Persona:** Write from the perspective of a professional analyst reporting to the specified audience.
+2.  **Convert Data to Narrative:** Do not just list the data points. Weave them into a professional, easy-to-understand narrative.
+3.  **Use a Logical Structure:** The report must be well-structured. Use the following structure based on the report type:
+"""
+
+    if report_type == 'status_update':
+        prompt += """
+    - `## 1. Executive Summary`: A brief overview of the project status.
+    - `## 2. Accomplishments`: Detail what has been achieved during this period, referencing the data points.
+    - `## 3. Challenges & Roadblocks`: Outline any issues encountered.
+    - `## 4. Next Steps`: Describe the planned activities for the next period.
+"""
+    elif report_type == 'financial_summary':
+        prompt += """
+    - `## 1. Overview`: A high-level summary of the financial performance for the period.
+    - `## 2. Key Metrics`: Present the key data points with brief explanations.
+    - `## 3. Analysis & Insights`: Provide analysis on what the data means (e.g., trends, anomalies).
+    - `## 4. Outlook`: Provide a brief forecast or outlook based on the summary.
+"""
+    elif report_type == 'incident_report':
+        prompt += """
+    - `## 1. Summary of Incident`: What happened, when, and where.
+    - `## 2. Impact Assessment`: Detail the impact of the incident, using the provided data.
+    - `## 3. Root Cause Analysis`: Explain what caused the incident.
+    - `## 4. Resolution and Next Steps`: Describe the actions taken to resolve the issue and prevent recurrence.
+"""
+
+    prompt += "\n4. **Output:** Return only the complete, structured report. Do not include any of your own commentary."
+    return prompt
+
+def construct_press_release_prompt(settings=None):
+    """Constructs a prompt for generating a professional press release."""
+    if settings is None: settings = {}
+
+    prompt = f"""
+You are a public relations (PR) professional. Your task is to write a professional press release in strict AP style based on the provided information.
+
+**Press Release Details:**
+- **Headline:** {settings.get('headline', '')}
+- **Company Info (for dateline):** {settings.get('companyInfo', '')}
+- **Key Information (5 Ws):** {settings.get('keyInfo', '')}
+- **Quote (with speaker and title):** {settings.get('quote', '')}
+- **Company Boilerplate:** {settings.get('boilerplate', '')}
+
+**Instructions:**
+1.  **Strict AP Format:** The output MUST follow the standard Associated Press (AP) style for a press release.
+2.  **Structure:** The document must include the following elements in this exact order:
+    - `FOR IMMEDIATE RELEASE` (all caps).
+    - The **Headline** you are given.
+    - A **Dateline** in the format `CITY, State – (Date) –`.
+    - An **Introduction (Lede):** The first paragraph must summarize the most critical information from the 5 Ws.
+    - A **Body:** Subsequent paragraphs that elaborate on the key information and seamlessly integrate the provided **Quote**.
+    - An **About/Boilerplate Section:** A paragraph starting with "About [Company Name]" using the provided boilerplate text.
+    - **Media Contact:** A placeholder for media contact information (e.g., `Media Contact: [Name] [Email]`).
+    - A **Sign-off:** The document must end with three hash symbols (`###`) on a new line.
+3.  **Output:** Return only the complete, formatted press release. Do not include any of your own commentary.
+
+Generate the press release now.
+"""
+    return prompt
 
 def construct_ad_copy_prompt(product, audience, settings=None):
     """Constructs a prompt for generating ad copy."""
@@ -1933,8 +1997,9 @@ def generate_webcopy():
     if not tool:
         return jsonify({"error": "Missing required field: tool."}), 400
 
-    if not check_monthly_word_quota(current_user):
-        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+    if current_user.is_authenticated:
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
     # Route to the correct prompt constructor
     if tool == 'landing_page':
@@ -1973,7 +2038,7 @@ def generate_webcopy():
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/api/v1/generate/business', methods=['POST'])
-@login_required
+# @login_required
 def generate_business_doc():
     """Handles various business document generation requests."""
     if not CLIENT:
@@ -1981,85 +2046,52 @@ def generate_business_doc():
 
     data = request.get_json()
     tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not tool:
         return jsonify({"error": "Missing required field: tool."}), 400
 
-    if tool == 'press_release':
-        announcement = data.get("announcement")
-        company = data.get("company")
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-        if not all([announcement, company]):
-            return jsonify({"error": "Missing required fields for press release."}), 400
-
-        if not check_monthly_word_quota(current_user):
-            return jsonify({"error": f"You've reached your monthly word limit."}), 403
-
-        full_prompt = construct_press_release_prompt(announcement, company)
-        try:
-            response = CLIENT.generate_content(contents=full_prompt)
-            pr_text = response.candidates[0].content.parts[0].text
-
-            # Save to chat history
-            if not chat_session_id:
-                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-
-            user_message = f"Generate a press release for {company} about: {announcement}"
-            messages = [
-                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-                {"content": pr_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-            ]
-
-            session_title = f"Press Release: {announcement[:30]}..."
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, pr_text, studio_type='PRESS_RELEASE')
-
-            return jsonify({
-                "press_release": pr_text,
-                "chat_session_id": chat_session_id
-            })
-        except Exception as e:
-            logger.error(f"Press release generation error: {e}")
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-
-    elif tool == 'job_description':
-        role = data.get("role")
-        responsibilities = data.get("responsibilities")
-
-        if not all([role, responsibilities]):
-            return jsonify({"error": "Missing required fields for job description."}), 400
-
-        if not check_monthly_word_quota(current_user):
-            return jsonify({"error": f"You've reached your monthly word limit."}), 403
-
-        full_prompt = construct_job_description_prompt(role, responsibilities)
-        try:
-            response = CLIENT.generate_content(contents=full_prompt)
-            jd_text = response.candidates[0].content.parts[0].text
-
-            # Save to chat history
-            if not chat_session_id:
-                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-
-            user_message = f"Generate a job description for a {role}."
-            messages = [
-                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-                {"content": jd_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-            ]
-
-            session_title = f"Job Description: {role}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, jd_text, studio_type='JOB_DESCRIPTION')
-
-            return jsonify({
-                "job_description": jd_text,
-                "chat_session_id": chat_session_id
-            })
-        except Exception as e:
-            logger.error(f"Job description generation error: {e}")
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-
+    # Route to the correct prompt constructor
+    if tool == 'proposal':
+        full_prompt = construct_proposal_prompt(settings)
+        session_title = f"Proposal for {settings.get('client', 'New Client')}"
+    elif tool == 'report':
+        full_prompt = construct_report_prompt(settings)
+        session_title = f"Report: {settings.get('subject', 'New Report')[:30]}"
+    elif tool == 'press_release':
+        full_prompt = construct_press_release_prompt(settings)
+        session_title = f"PR: {settings.get('headline', 'New Release')[:30]}"
     else:
         return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        result_text = response.candidates[0].content.parts[0].text
+
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = json.dumps({"tool": tool, "settings": settings})
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        # Note: The studio_type is generic 'BUSINESS' now, but could be made more specific
+        if current_user.is_authenticated:
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='BUSINESS')
+
+        return jsonify({
+            "result": result_text,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Business doc generation error for tool {tool}: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
