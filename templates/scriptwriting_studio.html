@@ -42,16 +42,70 @@
 
 {% block studio_inputs %}
 <div class="form-group">
-    <label for="script-topic">Video Topic</label>
-    <input type="text" id="script-topic" class="form-control" placeholder="e.g., How to make the perfect sourdough bread">
+    <label for="script-topic">Core Topic or Premise</label>
+    <input type="text" id="script-topic" class="form-control" placeholder="e.g., A review of the latest flagship smartphone">
 </div>
+
 <div class="form-group">
-    <label for="script-duration">Target Duration (in minutes)</label>
-    <input type="number" id="script-duration" class="form-control" value="5">
+    <label for="script-format">Script Format</label>
+    <select id="script-format" class="form-control">
+        <option value="youtube_video" selected>YouTube Video</option>
+        <option value="tiktok_shorts">TikTok/Shorts</option>
+        <option value="podcast_episode">Podcast Episode</option>
+    </select>
 </div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="script-audience">Target Audience</label>
+            <input type="text" id="script-audience" class="form-control" placeholder="e.g., Tech enthusiasts, beginner photographers">
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="script-tone">Tone / Style</label>
+            <input type="text" id="script-tone" class="form-control" placeholder="e.g., Energetic and witty, calm and informative">
+        </div>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="script-characters">Characters / Hosts</label>
+    <textarea id="script-characters" class="form-control" rows="2" placeholder="e.g., Alex (main host), Ben (technical expert)"></textarea>
+    <small class="form-text text-muted">Define the speakers in the script. Use a new line for each.</small>
+</div>
+
+<div class="form-group">
+    <label>Structural Elements</label>
+    <div class="checkbox-grid">
+        <div class="checkbox-item">
+            <input type="checkbox" id="struct-hook" value="hook" checked>
+            <label for="struct-hook">Engaging Hook</label>
+        </div>
+        <div class="checkbox-item">
+            <input type="checkbox" id="struct-cta" value="cta" checked>
+            <label for="struct-cta">Call to Action</label>
+        </div>
+        <div class="checkbox-item">
+            <input type="checkbox" id="struct-ad" value="ad_break">
+            <label for="struct-ad">Ad Break Slot</label>
+        </div>
+        <div class="checkbox-item">
+            <input type="checkbox" id="struct-visuals" value="visual_cues" checked>
+            <label for="struct-visuals">Visual Cues</label>
+        </div>
+        <div class="checkbox-item">
+            <input type="checkbox" id="struct-sfx" value="sfx">
+            <label for="struct-sfx">Sound Effects</label>
+        </div>
+    </div>
+</div>
+
+
 <button id="generateScriptBtn" class="btn btn-primary" style="width: 100%;">
     <span class="material-symbols-outlined">movie</span>
-    Generate YouTube Script
+    Generate Script
 </button>
 {% endblock %}
 
@@ -77,12 +131,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
             const topic = document.getElementById('script-topic').value;
-            const duration = document.getElementById('script-duration').value;
-
             if (!topic.trim()) {
-                alert('Please enter a video topic.');
+                alert('Please enter a core topic or premise.');
                 return;
             }
+
+            const settings = {
+                format: document.getElementById('script-format').value,
+                audience: document.getElementById('script-audience').value,
+                tone: document.getElementById('script-tone').value,
+                characters: document.getElementById('script-characters').value,
+                structural_elements: Array.from(document.querySelectorAll('.checkbox-grid input:checked')).map(el => el.value)
+            };
 
             generateBtn.disabled = true;
             generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
@@ -94,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         topic: topic,
-                        duration: duration,
+                        settings: settings,
                         chat_session_id: scriptChatSessionId
                     })
                 });
@@ -102,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     scriptChatSessionId = data.chat_session_id;
-                    displayScript(data.script);
+                    displayScript(data.script, settings.format);
                     if (typeof loadChatHistory === 'function') {
                         loadChatHistory(STUDIO_TYPE);
                     }
@@ -113,20 +173,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
             } finally {
                 generateBtn.disabled = false;
-                generateBtn.innerHTML = '<span class="material-symbols-outlined">movie</span> Generate YouTube Script';
+                generateBtn.innerHTML = '<span class="material-symbols-outlined">movie</span> Generate Script';
             }
         });
     }
 
-    function displayScript(scriptText) {
+    function displayScript(scriptText, format) {
         if (!scriptText) {
             outputDisplay.innerHTML = '<div class="output-card"><p>The model did not return a script. Please try again.</p></div>';
             return;
         }
 
+        const title = format.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) + " Script";
+
         outputDisplay.innerHTML = `
             <div class="output-card">
-                <h4>YouTube Script Outline</h4>
+                <h4>${title}</h4>
                 <pre class="output-content">${scriptText.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
             </div>
         `;
@@ -141,12 +203,29 @@ document.addEventListener('DOMContentLoaded', function() {
             const session = await response.json();
             scriptChatSessionId = session.session_id;
 
+            // The first message contains the original user input
             const userInput = JSON.parse(session.messages[0].content);
+            const settings = userInput.settings || {};
+
             document.getElementById('script-topic').value = userInput.topic || '';
-            document.getElementById('script-duration').value = userInput.duration || '5';
+            document.getElementById('script-format').value = settings.format || 'youtube_video';
+            document.getElementById('script-audience').value = settings.audience || '';
+            document.getElementById('script-tone').value = settings.tone || '';
+            document.getElementById('script-characters').value = settings.characters || '';
+
+            // Reset all checkboxes
+            document.querySelectorAll('.checkbox-grid input[type="checkbox"]').forEach(cb => cb.checked = false);
+            // Check the ones from the loaded session
+            if (settings.structural_elements && Array.isArray(settings.structural_elements)) {
+                settings.structural_elements.forEach(val => {
+                    const cb = document.querySelector(`.checkbox-grid input[value="${val}"]`);
+                    if (cb) cb.checked = true;
+                });
+            }
+
             document.getElementById('generateScriptBtn').disabled = true;
 
-            displayScript(session.raw_text);
+            displayScript(session.raw_text, settings.format || 'youtube_video');
 
             if (typeof showNotification === 'function') {
                 showNotification('Session loaded successfully!');

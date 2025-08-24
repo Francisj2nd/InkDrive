@@ -503,26 +503,63 @@ You are an expert branding and naming consultant. Your task is to generate a lis
 """
     return prompt
 
-def construct_script_prompt(topic, duration):
-    """Constructs a prompt for generating a YouTube script."""
-    return f"""
-    You are a professional scriptwriter for YouTube creators. Your task is to create a structured script for a video on a given topic and duration.
+def construct_script_prompt(topic, settings=None):
+    """Constructs a dynamic prompt for generating a script based on detailed user settings."""
+    if settings is None:
+        settings = {}
 
-    **Topic:** "{topic}"
-    **Target Duration:** {duration} minutes
+    # Extract settings with defaults
+    format_map = {
+        "youtube_video": "YouTube Video",
+        "tiktok_shorts": "TikTok/Shorts Video",
+        "podcast_episode": "Podcast Episode"
+    }
+    script_format = format_map.get(settings.get('format'), "YouTube Video")
+    audience = settings.get('audience')
+    tone = settings.get('tone')
+    characters = settings.get('characters')
+    elements = settings.get('structural_elements', [])
 
-    **Instructions:**
-    1.  **Structure:** Organize the script into the following sections, using Markdown headings (e.g., `## Hook`):
-        *   **Hook:** An engaging opening (1-2 sentences) to grab the viewer's attention immediately.
-        *   **Intro:** A brief introduction (2-3 sentences) that explains what the video is about and what the viewer will learn.
-        *   **Main Points:** Break down the core content into 3-5 main points. For each point, provide a heading and a paragraph of talking points, examples, or explanations.
-        *   **Outro:** A concluding summary and a call to action (e.g., "like and subscribe," "check out this other video").
-    2.  **Pacing:** Pace the content to fit the target duration. A general rule is about 150 words per minute.
-    3.  **Visual Cues:** Include suggested visual cues or B-roll shots in parentheses where appropriate (e.g., `(Show a close-up of the sourdough starter)`).
-    4.  **Clarity and Tone:** Write in a clear, conversational, and engaging tone suitable for YouTube.
+    # Start building the prompt
+    prompt = f"""
+You are a professional scriptwriter. Your task is to create a detailed, engaging script for a "{script_format}" based on the user's specifications.
 
-    Generate the YouTube script now.
-    """
+**Core Topic/Premise:** {topic}
+"""
+    # Add optional context
+    if audience:
+        prompt += f"**Target Audience:** {audience}\n"
+    if tone:
+        prompt += f"**Desired Tone/Style:** {tone}\n"
+    if characters:
+        # Sanitize the input to remove potentially problematic newline characters
+        sane_characters = characters.replace('\n', ', ')
+        prompt += f"**Characters/Hosts:**\n- {sane_characters}\n"
+
+    # Add structural requirements
+    prompt += "\n**Script Requirements:**\n"
+    prompt += f"1.  **Format:** The script must be written specifically for a **{script_format}**. This means short, punchy segments for TikTok, a classic structure for YouTube, or a conversational flow for a podcast.\n"
+    prompt += "2.  **Structure:** The script must be well-organized. Use Markdown for headings (e.g., `## Scene 1`, `### Alex's Monologue`).\n"
+
+    # Add character dialogue instructions
+    if characters:
+        prompt += "3.  **Dialogue:** Clearly denote which character is speaking (e.g., `ALEX: [dialogue]`).\n"
+
+    # Add instructions for each selected structural element
+    element_instructions = {
+        "hook": "Include a powerful, attention-grabbing hook at the very beginning.",
+        "cta": "Include a clear Call to Action at the end of the script (e.g., asking to subscribe, comment, or visit a website).",
+        "ad_break": "Include a placeholder for an ad break, like `[AD BREAK - 60 seconds]`.",
+        "visual_cues": "If this is a visual format (YouTube/TikTok), include suggested visual cues, camera angles, or on-screen text in parentheses, like `(Close up on the product)`.",
+        "sfx": "Include suggestions for sound effects where they would enhance the script, like `(Sound of a dramatic whoosh)`."
+    }
+
+    for i, element_key in enumerate(elements, start=4):
+        if element_key in element_instructions:
+            prompt += f"{i}.  **{element_key.replace('_', ' ').title()}:** {element_instructions[element_key]}\n"
+
+    prompt += "\nGenerate the script now, adhering to all the requirements above. Return only the script content."
+    return prompt
 
 def construct_ecommerce_prompt(name, features, tone):
     """Constructs a prompt for generating a product description."""
@@ -1612,22 +1649,22 @@ def generate_brainstorm_content():
 @app.route('/api/v1/generate/script', methods=['POST'])
 @login_required
 def generate_script():
-    """Generates a YouTube script."""
+    """Generates a script based on detailed user settings."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
     topic = data.get("topic")
-    duration = data.get("duration")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
-    if not topic or not duration:
-        return jsonify({"error": "Missing required fields: topic or duration."}), 400
+    if not topic:
+        return jsonify({"error": "Missing required field: topic."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_script_prompt(topic, duration)
+    full_prompt = construct_script_prompt(topic, settings)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
         script_text = response.candidates[0].content.parts[0].text
@@ -1636,13 +1673,14 @@ def generate_script():
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-        user_message = f"Generate a {duration}-minute YouTube script about: '{topic}'"
+        # Store the original user request (topic and all settings) for session restoration
+        user_message = json.dumps({"topic": topic, "settings": settings})
         messages = [
             {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
             {"content": script_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        session_title = f"YouTube Script: {topic}"
+        session_title = f"Script: {topic[:40]}{'...' if len(topic) > 40 else ''}"
         save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, script_text, studio_type='SCRIPT')
 
         return jsonify({
