@@ -4,6 +4,32 @@
 
 {% block studio_head_css %}
 <style>
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
     .idea-card {
         background: var(--surface-variant);
         border: 1px solid var(--outline);
@@ -38,14 +64,78 @@
 {% block studio_description %}Generate new ideas, titles, and outlines for your content.{% endblock %}
 
 {% block studio_inputs %}
-<div class="form-group">
-    <label for="idea-topic">Topic</label>
-    <input type="text" id="idea-topic" class="form-control" placeholder="e.g., The future of remote work">
+<div class="tabs">
+    <button class="tab-button active" data-tab="general-brainstorming">General Brainstorming</button>
+    <button class="tab-button" data-tab="naming">Naming</button>
 </div>
-<button id="generateIdeasBtn" class="btn btn-primary" style="width: 100%;">
-    <span class="material-symbols-outlined">lightbulb</span>
-    Generate Ideas
-</button>
+
+<div id="general-brainstorming" class="tab-content active">
+    <div class="form-group">
+        <label for="brainstorm-goal">Brainstorming Goal / Objective</label>
+        <input type="text" id="brainstorm-goal" class="form-control" placeholder="e.g., Create a list of blog post ideas about AI in marketing">
+    </div>
+    <div class="form-group">
+        <label for="brainstorm-framework">Brainstorming Framework</label>
+        <select id="brainstorm-framework" class="form-control">
+            <option>Simple List</option>
+            <option>SWOT Analysis</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="brainstorm-constraints">Key Constraints (Optional)</label>
+        <input type="text" id="brainstorm-constraints" class="form-control" placeholder="e.g., Ideas must be suitable for a beginner audience">
+    </div>
+    <button id="generateIdeasBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">lightbulb</span>
+        Generate Ideas
+    </button>
+</div>
+
+<div id="naming" class="tab-content">
+    <div class="form-group">
+        <label for="naming-description">Product/Company Description</label>
+        <textarea id="naming-description" class="form-control" rows="3" placeholder="e.g., A mobile app that helps users find local hiking trails"></textarea>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="naming-style">Naming Style</label>
+                <select id="naming-style" class="form-control">
+                    <option>Descriptive</option>
+                    <option>Evocative</option>
+                    <option>Modern</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="naming-tone">Desired Tone</label>
+                <select id="naming-tone" class="form-control">
+                    <option>Playful</option>
+                    <option>Professional</option>
+                    <option>Classic</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="naming-keyword">Include a Keyword (Optional)</label>
+        <input type="text" id="naming-keyword" class="form-control" placeholder="e.g., 'path', 'trail', 'hike'">
+    </div>
+     <div class="form-group">
+        <label for="naming-length">Target Length/Syllables</label>
+        <select id="naming-length" class="form-control">
+            <option>Any</option>
+            <option>Short (1-2 syllables)</option>
+            <option>Medium (3-4 syllables)</option>
+            <option>Long (5+ syllables)</option>
+        </select>
+    </div>
+    <button id="generateNamesBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">label</span>
+        Generate Names
+    </button>
+</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -63,49 +153,107 @@
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const generateBtn = document.getElementById('generateIdeasBtn');
     const outputDisplay = document.getElementById('ideas-output-display');
-    let ideaChatSessionId = null;
+    const generateIdeasBtn = document.getElementById('generateIdeasBtn');
+    const generateNamesBtn = document.getElementById('generateNamesBtn');
+    let brainstormSessionId = null;
 
-    if (generateBtn) {
-        generateBtn.addEventListener('click', async () => {
-            const topic = document.getElementById('idea-topic').value;
-            if (!topic.trim()) {
-                alert('Please enter a topic.');
-                return;
-            }
-
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
-            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Brainstorming...</span></div>`;
-
-            try {
-                const response = await fetch('/api/v1/generate/ideas', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        topic: topic,
-                        chat_session_id: ideaChatSessionId
-                    })
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    ideaChatSessionId = data.chat_session_id;
-                    displayIdeas(data.ideas);
-                    if (typeof loadChatHistory === 'function') {
-                        loadChatHistory(STUDIO_TYPE);
-                    }
-                } else {
-                    throw new Error(data.error || 'Failed to generate ideas');
-                }
-            } catch (error) {
-                outputDisplay.innerHTML = `<div class="idea-card"><p style="color: red;">Error: ${error.message}</p></div>`;
-            } finally {
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '<span class="material-symbols-outlined">lightbulb</span> Generate Ideas';
-            }
+    // Tab switching logic
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+            outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">lightbulb</span><p>Your generated ideas will appear here.</p></div>`;
         });
+    });
+
+    // Event Listeners
+    generateIdeasBtn?.addEventListener('click', generateIdeas);
+    generateNamesBtn?.addEventListener('click', generateNames);
+
+    async function generateIdeas() {
+        const settings = {
+            goal: document.getElementById('brainstorm-goal').value,
+            framework: document.getElementById('brainstorm-framework').value,
+            constraints: document.getElementById('brainstorm-constraints').value
+        };
+        if (!settings.goal.trim()) {
+            alert('Please enter a goal or objective.');
+            return;
+        }
+
+        showLoading(generateIdeasBtn, "Brainstorming...");
+        try {
+            const response = await fetch('/api/v1/generate/brainstorm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tool: 'general', settings, chat_session_id: brainstormSessionId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                brainstormSessionId = data.chat_session_id;
+                displayIdeas(data.ideas);
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else { throw new Error(data.error); }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButton(generateIdeasBtn, 'lightbulb', 'Generate Ideas');
+        }
+    }
+
+    async function generateNames() {
+        const settings = {
+            description: document.getElementById('naming-description').value,
+            style: document.getElementById('naming-style').value,
+            tone: document.getElementById('naming-tone').value,
+            keyword: document.getElementById('naming-keyword').value,
+            length: document.getElementById('naming-length').value
+        };
+        if (!settings.description.trim()) {
+            alert('Please enter a description.');
+            return;
+        }
+
+        showLoading(generateNamesBtn, "Generating names...");
+        try {
+            const response = await fetch('/api/v1/generate/brainstorm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tool: 'naming', settings, chat_session_id: brainstormSessionId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                brainstormSessionId = data.chat_session_id;
+                displayIdeas(data.names);
+                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+            } else { throw new Error(data.error); }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButton(generateNamesBtn, 'label', 'Generate Names');
+        }
+    }
+
+    function showLoading(btn, message) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+        outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>${message}</span></div>`;
+    }
+
+    function showError(message) {
+        outputDisplay.innerHTML = `<div class="idea-card"><p style="color: red;">Error: ${message}</p></div>`;
+    }
+
+    function resetButton(btn, icon, text) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">${icon}</span> ${text}`;
+        }
     }
 
     function displayIdeas(ideas) {
@@ -113,39 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
             outputDisplay.innerHTML = '<div class="idea-card"><p>The model did not return any ideas. Please try again.</p></div>';
             return;
         }
-
-        outputDisplay.innerHTML = `
-            <div class="idea-card">
-                <h4>Blog Post Ideas & Titles</h4>
-                <ul class="idea-list">
-                    ${ideas.map(idea => `<li>${idea.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join('')}
-                </ul>
-            </div>
-        `;
-    }
-
-    window.loadSessionIntoView = async function(sessionId) {
-        try {
-            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
-            const response = await fetch(`/api/chat-session/${sessionId}`);
-            if (!response.ok) throw new Error('Failed to fetch session data.');
-
-            const session = await response.json();
-            ideaChatSessionId = session.session_id;
-
-            const userInput = JSON.parse(session.messages[0].content);
-            document.getElementById('idea-topic').value = userInput.topic || '';
-            document.getElementById('generateIdeasBtn').disabled = true;
-
-            displayIdeas(session.raw_text.split('\\n').filter(i => i.trim()));
-
-            if (typeof showNotification === 'function') {
-                showNotification('Session loaded successfully!');
-            }
-
-        } catch (error) {
-            outputDisplay.innerHTML = `<div class="idea-card"><p style="color: red;">Error: ${error.message}</p></div>`;
-        }
+        outputDisplay.innerHTML = `<div class="idea-card"><ul class="idea-list">${ideas.map(idea => `<li>${idea.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join('')}</ul></div>`;
     }
 });
 </script>
