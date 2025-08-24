@@ -357,31 +357,92 @@ You are a strategic content repurposing expert. Your task is to transform the fo
     prompt += "\n**Final Output:**\nReturn only the repurposed content as requested, without any of your own commentary or preamble."
     return prompt
 
-def construct_keyword_prompt(topic):
-    """Constructs a prompt for generating categorized SEO keywords."""
-    return f"""
-    You are an SEO strategist. Your task is to generate a comprehensive, categorized list of keywords for the given topic.
+def construct_keyword_strategy_prompt(settings=None):
+    """Constructs a prompt for a comprehensive keyword strategy."""
+    if settings is None:
+        settings = {}
 
-    **Topic:** "{topic}"
+    description = settings.get('description')
+    audience = settings.get('audience')
+    intents = ", ".join(settings.get('intents', ['Informational']))
+    competitors = settings.get('competitors')
 
-    **Instructions:**
-    1.  **Generate Keywords:** Create a list of relevant keywords for the topic.
-    2.  **Categorize:** Group the keywords into the following categories:
-        *   `long_tail_keywords`: More specific phrases, typically longer.
-        *   `lsi_keywords`: (Latent Semantic Indexing) Thematically related keywords.
-        *   `question_keywords`: Common questions people ask about the topic.
-    3.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the category names from step 2, and the values should be an array of strings (the keywords).
-    4.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting like ```json. Only return the raw JSON object.
+    prompt = f"""
+You are a world-class SEO strategist. Your task is to develop a comprehensive keyword strategy based on the following business context.
 
-    **Example Output for topic "organic coffee":**
-    {{
-        "long_tail_keywords": ["best organic coffee beans for espresso", "where to buy fair trade organic coffee"],
-        "lsi_keywords": ["shade-grown coffee", "arabica beans", "single-origin", "coffee acidity"],
-        "question_keywords": ["what is the best organic coffee?", "is organic coffee better for you?"]
-    }}
+**Business Context:**
+-   **Description:** {description}
+-   **Target Audience:** {audience}
+-   **Desired Search Intent Focus:** {intents}
 
-    Generate the keyword JSON for the topic "{topic}" now.
-    """
+**Instructions:**
+1.  **Core Keyword Clusters:** Identify 3-5 primary keyword clusters (themes) central to the business.
+2.  **Keyword Generation:** For each cluster, generate a list of relevant keywords, including:
+    *   `primary_keywords`: (2-3 words) High-volume, core terms.
+    *   `long_tail_keywords`: (4+ words) More specific, lower-volume phrases.
+    *   `question_keywords`: Common questions the target audience asks.
+"""
+    if competitors:
+        prompt += f"""
+3.  **Competitive Gap Analysis:**
+    *   **Analyze Competitors:** Briefly analyze the keyword strategy of the following competitors: {competitors}
+    *   **Identify Opportunities:** Suggest 5-10 "gap" keywords that the competitors are ranking for but are also attainable and relevant for our business.
+"""
+    prompt += """
+4.  **Format as JSON:** Return the entire strategy as a single, valid JSON object. The main keys should be "keyword_clusters" and, if applicable, "competitive_gap_analysis".
+5.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting.
+
+Generate the keyword strategy now.
+"""
+    return prompt
+
+def construct_seo_audit_prompt(settings=None):
+    """Constructs a prompt for an on-page SEO audit."""
+    if settings is None:
+        settings = {}
+
+    url = settings.get('url')
+    primary_keyword = settings.get('primaryKeyword')
+    secondary_keywords = settings.get('secondaryKeywords')
+    page_goal = settings.get('pageGoal')
+    competitor_url = settings.get('competitorUrl')
+
+    prompt = f"""
+You are a senior technical SEO analyst. Your task is to perform a detailed on-page SEO audit for the given URL, focusing on outranking competitors.
+
+**Audit Target:**
+-   **URL:** {url}
+-   **Primary Target Keyword:** "{primary_keyword}"
+"""
+    if secondary_keywords:
+        prompt += f"-   **Secondary Keywords:** {secondary_keywords}\n"
+    if page_goal:
+        prompt += f"-   **Desired Page Goal/CTA:** {page_goal}\n"
+    if competitor_url:
+        prompt += f"-   **Primary Competitor to Outrank:** {competitor_url}\n"
+
+    prompt += """
+**Instructions:**
+Provide a step-by-step audit in Markdown format. For each point, provide a "Current State" (if you can infer it), an "Assessment" (Good, Needs Improvement, Poor), and a specific, actionable "Recommendation".
+
+**Audit Checklist:**
+1.  **Title Tag:**
+2.  **Meta Description:**
+3.  **H1 Tag:**
+4.  **Subheadings (H2, H3):**
+5.  **Keyword Usage:** (Primary and secondary keywords)
+6.  **Content Quality & Depth:**
+7.  **URL Structure:**
+8.  **Internal Linking:**
+"""
+    if competitor_url:
+        prompt += """
+9.  **Competitive Analysis & Recommendations:**
+    *   Analyze the on-page SEO of the competitor's URL.
+    *   Provide 3-5 specific, actionable recommendations on how our page can be improved to outperform them for the target keywords.
+"""
+    prompt += "\nReturn only the audit in Markdown format, without any preamble."
+    return prompt
 
 def construct_idea_prompt(topic):
     """Constructs a prompt for generating blog post ideas."""
@@ -400,22 +461,6 @@ def construct_idea_prompt(topic):
     Generate the list of ideas for the topic "{topic}" now.
     """
 
-def construct_headline_prompt(topic):
-    """Constructs a prompt for generating SEO-friendly headlines."""
-    return f"""
-    You are an expert copywriter and SEO specialist. Your task is to generate a list of 10 click-worthy headlines for a blog post about the given topic.
-
-    **Topic:** "{topic}"
-
-    **Instructions:**
-    1.  **Generate 10 Headlines:** Create a diverse list of 10 headline options.
-    2.  **Use Proven Formulas:** Incorporate a mix of proven copywriting formulas (e.g., How-To, Listicle, Question, Negative Angle, Benefit-Driven).
-    3.  **Optimize for Clicks:** The headlines should be engaging, create curiosity, and promise a clear benefit to the reader.
-    4.  **Format as a List:** Return the output as a simple list, with each headline on a new line.
-    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
-
-    Generate the list of headlines for the topic "{topic}" now.
-    """
 
 def construct_script_prompt(topic, duration):
     """Constructs a prompt for generating a YouTube script."""
@@ -2039,89 +2084,59 @@ def seo_tools():
 
     data = request.get_json()
     tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not tool:
         return jsonify({"error": "Missing required field: tool."}), 400
 
-    if tool == 'keywords':
-        topic = data.get("topic")
-        if not topic:
-            return jsonify({"error": "Missing required field: topic."}), 400
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-        if not check_monthly_word_quota(current_user):
-            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+    if tool == 'keyword_strategy':
+        if not settings.get('description') or not settings.get('audience'):
+            return jsonify({"error": "Missing required fields for keyword strategy."}), 400
 
-        full_prompt = construct_keyword_prompt(topic)
+        full_prompt = construct_keyword_strategy_prompt(settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
+            keywords_json = json.loads(raw_text)
 
-            # Clean and parse the JSON response
-            # The model sometimes returns the JSON wrapped in ```json ... ```
-            clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
-            keywords_json = json.loads(clean_text)
-
-            # Save to chat history
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-
-            user_message = f"Generate SEO keywords for the topic: '{topic}'"
-            # We save the raw text to the history, not the parsed JSON object
-            messages = [
-                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-            ]
-
-            session_title = f"Keywords for '{topic}'"
+            user_message = json.dumps({"tool": "keyword_strategy", "settings": settings})
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Keyword Strategy"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_KEYWORDS')
 
-            return jsonify({
-                "keywords": keywords_json,
-                "chat_session_id": chat_session_id
-            })
+            return jsonify({"keywords": keywords_json, "chat_session_id": chat_session_id})
         except json.JSONDecodeError:
             logger.error(f"SEO keywords JSON parsing error. Raw text: {raw_text}")
             return jsonify({"error": "Failed to parse the keyword data from the AI. Please try again."}), 500
         except Exception as e:
-            logger.error(f"SEO keywords error: {e}")
+            logger.error(f"Keyword strategy error: {e}")
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-    elif tool == 'headlines':
-        topic = data.get("topic")
-        if not topic:
-            return jsonify({"error": "Missing required field: topic."}), 400
+    elif tool == 'on_page_audit':
+        if not settings.get('url') or not settings.get('primaryKeyword'):
+            return jsonify({"error": "Missing required fields for on-page audit."}), 400
 
-        if not check_monthly_word_quota(current_user):
-            return jsonify({"error": f"You've reached your monthly word limit."}), 403
-
-        full_prompt = construct_headline_prompt(topic)
+        full_prompt = construct_seo_audit_prompt(settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
-            raw_text = response.candidates[0].content.parts[0].text
+            audit_results = response.candidates[0].content.parts[0].text
 
-            # Split the response into a list of headlines
-            headlines = [h.strip() for h in raw_text.split('\n') if h.strip()]
-
-            # Save to chat history
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = json.dumps({"tool": "on_page_audit", "settings": settings})
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": audit_results, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"On-Page Audit for {settings.get('primaryKeyword')}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, audit_results, studio_type='SEO_AUDIT')
 
-            user_message = f"Generate headlines for the topic: '{topic}'"
-            messages = [
-                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-            ]
-
-            session_title = f"Headlines for '{topic}'"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_HEADLINES')
-
-            return jsonify({
-                "headlines": headlines,
-                "chat_session_id": chat_session_id
-            })
+            return jsonify({"audit_results": audit_results, "chat_session_id": chat_session_id})
         except Exception as e:
-            logger.error(f"SEO headlines error: {e}")
+            logger.error(f"On-page audit error: {e}")
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
     else:
