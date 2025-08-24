@@ -160,20 +160,54 @@ except Exception as e:
     logger.error(f"Failed to initialize Google AI client: {e}")
 
 # Helper functions
-def construct_initial_prompt(topic):
-    article_requirements = """
-**Article Requirements:**
-1. Focus and Depth: Focus entirely on the topic. Educate the reader in-depth.
-2. Length: Aim for over 1000 words.
-3. Structure: Use clear sections with H2 and H3 subheadings using Markdown.
-4. Placeholders: Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`
-5. SEO Elements: At the very end of the article, provide "SEO Keywords:" and "Meta Description:".
-6. Quality: The content must be original, human-readable, and valuable.
-"""
-    return f"""I want you to generate a high-quality, SEO-optimized thought-leadership article on the topic of: "{topic}"
+def construct_initial_prompt(topic, settings=None):
+    if settings is None:
+        settings = {}
 
-{article_requirements}
-"""
+    # Start building the prompt
+    prompt_lines = [
+        f"I want you to generate a high-quality, SEO-optimized thought-leadership article on the topic of: \"{topic}\"",
+        "\n**Article Requirements:**"
+    ]
+
+    # Dynamically add instructions based on settings
+    word_count = settings.get('wordCount', '1000')
+    prompt_lines.append(f"1. **Length:** Aim for approximately {word_count} words.")
+
+    tone = settings.get('tone', 'Professional')
+    prompt_lines.append(f"2. **Tone of Voice:** The article's tone must be {tone}.")
+
+    audience = settings.get('audience')
+    if audience:
+        prompt_lines.append(f"3. **Target Audience:** Write for an audience of {audience}.")
+
+    prompt_lines.extend([
+        "4. **Structure:** Use clear sections with H2 and H3 subheadings using Markdown.",
+        "5. **Placeholders:** Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`",
+        "6. **Quality:** The content must be original, human-readable, and valuable."
+    ])
+
+    key_points = settings.get('keyPoints')
+    if key_points:
+        prompt_lines.append("\n**Key Points to Include:**")
+        prompt_lines.append("The article must incorporate and expand upon the following key points:")
+        prompt_lines.append(key_points)
+
+    seo_keyword = settings.get('seoKeyword')
+    if seo_keyword:
+        prompt_lines.append("\n**SEO Optimization:**")
+        prompt_lines.append(f"The primary SEO keyword to focus on is \"{seo_keyword}\". Please integrate this keyword naturally throughout the article, including in headings where appropriate.")
+
+    cta = settings.get('cta')
+    if cta:
+        prompt_lines.append("\n**Call to Action:**")
+        prompt_lines.append(f"Conclude the article with the following call to action: \"{cta}\"")
+
+    # Add the standard closing for SEO elements
+    prompt_lines.append("\n**Final Output:**")
+    prompt_lines.append("At the very end of the article, after all other content, provide \"SEO Keywords:\" and \"Meta Description:\".")
+
+    return "\n".join(prompt_lines)
 
 def construct_social_post_prompt(topic, goal, platform):
     """Constructs a prompt for generating social media posts."""
@@ -1603,6 +1637,7 @@ def generate_article():
 
     data = request.get_json()
     user_topic = data.get("topic")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not user_topic:
@@ -1612,7 +1647,7 @@ def generate_article():
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
 
-    full_prompt = construct_initial_prompt(user_topic)
+    full_prompt = construct_initial_prompt(user_topic, settings)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
 

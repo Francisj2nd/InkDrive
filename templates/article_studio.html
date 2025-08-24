@@ -13,6 +13,57 @@
     <label for="topicInput">Topic</label>
     <textarea id="topicInput" class="form-control" placeholder="What would you like to write about? Be specific for better results..." rows="3"></textarea>
 </div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="wordCountSelect">Target Word Count</label>
+            <select id="wordCountSelect" class="form-control">
+                <option value="500">Short (~500 words)</option>
+                <option value="1000" selected>Medium (~1000 words)</option>
+                <option value="2000">Long (~2000+ words)</option>
+            </select>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="toneSelect">Tone of Voice</label>
+            <select id="toneSelect" class="form-control">
+                <option selected>Professional</option>
+                <option>Casual & Friendly</option>
+                <option>Academic</option>
+                <option>Humorous</option>
+                <option>Persuasive</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="audienceInput">Target Audience</label>
+    <input type="text" id="audienceInput" class="form-control" placeholder="e.g., Beginners, experts, marketing managers">
+</div>
+
+<div class="form-group">
+    <label for="keyPointsInput">Key Points to Include (Optional)</label>
+    <textarea id="keyPointsInput" class="form-control" placeholder="Enter key topics or arguments you want the article to cover, one per line." rows="4"></textarea>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="keywordInput">Primary SEO Keyword (Optional)</label>
+            <input type="text" id="keywordInput" class="form-control" placeholder="e.g., 'sustainable energy solutions'">
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="ctaInput">Call to Action (Optional)</label>
+            <input type="text" id="ctaInput" class="form-control" placeholder="e.g., 'Sign up for our newsletter for more tips.'">
+        </div>
+    </div>
+</div>
+
 <button id="generateBtn" class="btn btn-primary">
     <span class="material-symbols-outlined">auto_awesome</span>
     Generate Article
@@ -72,6 +123,12 @@
     let isAuthenticated = {{ 'true' if user else 'false' }};
 
     const topicInput = document.getElementById('topicInput');
+    const wordCountSelect = document.getElementById('wordCountSelect');
+    const audienceInput = document.getElementById('audienceInput');
+    const toneSelect = document.getElementById('toneSelect');
+    const keyPointsInput = document.getElementById('keyPointsInput');
+    const keywordInput = document.getElementById('keywordInput');
+    const ctaInput = document.getElementById('ctaInput');
     const generateBtn = document.getElementById('generateBtn');
     const articleDisplay = document.getElementById('articleDisplay');
     const refinementSection = document.getElementById('refinementSection');
@@ -129,12 +186,25 @@
         generateBtn.disabled = true;
         showLoading();
 
+        const settings = {
+            wordCount: wordCountSelect.value,
+            audience: audienceInput.value.trim(),
+            tone: toneSelect.value,
+            keyPoints: keyPointsInput.value.trim(),
+            seoKeyword: keywordInput.value.trim(),
+            cta: ctaInput.value.trim()
+        };
+
         try {
             const endpoint = isAuthenticated ? '/api/v1/generate/article' : '/api/v1/generate/article-guest';
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic: topic, chat_session_id: currentChatSessionId })
+                body: JSON.stringify({
+                    topic: topic,
+                    settings: settings,
+                    chat_session_id: currentChatSessionId
+                })
             });
             const data = await response.json();
 
