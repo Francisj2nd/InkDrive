@@ -100,6 +100,36 @@
             <option value="Facebook">Facebook</option>
         </select>
     </div>
+    <div class="form-group">
+        <label for="social-tone">Tone of Voice</label>
+        <select id="social-tone" class="form-control">
+            <option>Professional</option>
+            <option>Casual</option>
+            <option>Witty</option>
+            <option>Enthusiastic</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="social-cta">Include CTA/Link (Optional)</label>
+        <input type="text" id="social-cta" class="form-control" placeholder="e.g., https://example.com/blog">
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="social-variations">Number of Variations</label>
+                <input type="number" id="social-variations" class="form-control" value="3" min="1" max="5">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-group">
+                <label>&nbsp;</label>
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="social-emojis" checked>
+                    <label class="custom-control-label" for="social-emojis">Include Emojis</label>
+                </div>
+            </div>
+        </div>
+    </div>
     <button id="generateSocialBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">auto_awesome</span>
         Generate Posts
@@ -124,6 +154,22 @@
             <option value="Urgently">Urgently</option>
         </select>
     </div>
+    <div class="form-group">
+        <label for="email-type">Email Type</label>
+        <select id="email-type" class="form-control">
+            <option>Promotional</option>
+            <option>Newsletter</option>
+            <option>Welcome Email</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="email-brand">Company/Brand Name</label>
+        <input type="text" id="email-brand" class="form-control" placeholder="e.g., InkDrive">
+    </div>
+    <div class="form-group">
+        <label for="email-cta">CTA Button Text (Optional)</label>
+        <input type="text" id="email-cta" class="form-control" placeholder="e.g., Shop Now, Learn More">
+    </div>
     <button id="generateEmailBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">mark_email_unread</span>
         Generate Email
@@ -138,6 +184,27 @@
     <div class="form-group">
         <label for="ad-audience">Target Audience</label>
         <input type="text" id="ad-audience" class="form-control" placeholder="e.g., Environmentally conscious millennials">
+    </div>
+    <div class="form-group">
+        <label for="ad-platform">Advertising Platform</label>
+        <select id="ad-platform" class="form-control">
+            <option>Google Ads</option>
+            <option>Facebook/Instagram</option>
+            <option>LinkedIn Ads</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="ad-benefit">Key Benefit / Pain Point</label>
+        <input type="text" id="ad-benefit" class="form-control" placeholder="e.g., Save time on writing, Boost your creativity">
+    </div>
+    <div class="form-group">
+        <label for="ad-tone">Tone of Voice</label>
+        <select id="ad-tone" class="form-control">
+            <option>Urgent</option>
+            <option>Inspirational</option>
+            <option>Playful</option>
+            <option>Direct</option>
+        </select>
     </div>
     <button id="generateAdBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">campaign</span>
@@ -191,12 +258,19 @@
             const platform = document.getElementById('social-platform').value;
             if (!topic) { alert('Please enter a topic.'); return; }
 
+            const settings = {
+                tone: document.getElementById('social-tone').value,
+                cta: document.getElementById('social-cta').value,
+                variations: document.getElementById('social-variations').value,
+                emojis: document.getElementById('social-emojis').checked
+            };
+
             showLoading(this, "Generating posts...");
             try {
                 const response = await fetch('/api/v1/generate/social', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tool: 'social_post', topic, goal, platform, chat_session_id: socialChatSessionId })
+                    body: JSON.stringify({ tool: 'social_post', topic, goal, platform, settings, chat_session_id: socialChatSessionId })
                 });
                 const data = await response.json();
                 if (response.ok) {
@@ -217,12 +291,18 @@
             const tone = document.getElementById('email-tone').value;
             if (!topic) { alert('Please enter a topic.'); return; }
 
+            const settings = {
+                emailType: document.getElementById('email-type').value,
+                brandName: document.getElementById('email-brand').value,
+                ctaButton: document.getElementById('email-cta').value
+            };
+
             showLoading(this, "Generating email...");
             try {
                 const response = await fetch('/api/v1/generate/social', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tool: 'email', topic, audience, tone, chat_session_id: socialChatSessionId })
+                    body: JSON.stringify({ tool: 'email', topic, audience, tone, settings, chat_session_id: socialChatSessionId })
                 });
                 const data = await response.json();
                 if (response.ok) {
@@ -242,12 +322,18 @@
             const audience = document.getElementById('ad-audience').value;
             if (!product || !audience) { alert('Please enter a product and audience.'); return; }
 
+            const settings = {
+                platform: document.getElementById('ad-platform').value,
+                keyBenefit: document.getElementById('ad-benefit').value,
+                tone: document.getElementById('ad-tone').value
+            };
+
             showLoading(this, "Generating ad copy...");
             try {
                 const response = await fetch('/api/v1/generate/social', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tool: 'ad_copy', product, audience, chat_session_id: socialChatSessionId })
+                    body: JSON.stringify({ tool: 'ad_copy', product, audience, settings, chat_session_id: socialChatSessionId })
                 });
                 const data = await response.json();
                 if (response.ok) {
