@@ -561,6 +561,90 @@ You are a professional scriptwriter. Your task is to create a detailed, engaging
     prompt += "\nGenerate the script now, adhering to all the requirements above. Return only the script content."
     return prompt
 
+def construct_product_description_prompt(settings=None):
+    """Constructs a prompt for generating a product description."""
+    if settings is None: settings = {}
+
+    prompt = f"""
+You are an expert e-commerce copywriter with a knack for persuasive, benefit-driven language.
+Your task is to write a compelling product description for the following product.
+
+**Product Name:** {settings.get('productName', '')}
+**Target Audience:** {settings.get('audience', '')}
+**Tone of Voice:** {settings.get('tone', '')}
+**Primary Benefit to Emphasize:** {settings.get('benefit', '')}
+
+**Key Features:**
+---
+{settings.get('features', '')}
+---
+
+**Instructions:**
+1.  **Analyze the Features:** Do not just list the features. For each one, explain the *benefit* it provides to the target audience.
+2.  **Focus on the Primary Benefit:** Ensure the primary benefit, "{settings.get('benefit', '')}", is the central theme of the description.
+3.  **Adopt the Tone:** The entire description must be written in a {settings.get('tone', '')} tone.
+4.  **Structure:** Format the output as a "{settings.get('format', 'paragraph')}". If using bullets, make them benefit-oriented.
+5.  **Output:** Return only the final product description, without any of your own commentary.
+
+Generate the product description now.
+"""
+    return prompt
+
+def construct_campaign_prompt(settings=None):
+    """Constructs a prompt for generating a promotional campaign."""
+    if settings is None: settings = {}
+
+    assets_text = ", ".join(settings.get('assets', ['email', 'social']))
+
+    prompt = f"""
+You are a senior marketing manager tasked with creating a new promotional campaign.
+
+**Campaign Details:**
+- **Product/Service:** {settings.get('product', '')}
+- **Occasion:** {settings.get('occasion', '')}
+- **The Offer:** {settings.get('offer', '')}
+- **Urgency Element:** {settings.get('urgency', '')}
+
+**Task:**
+Generate a cohesive set of marketing assets for this campaign. The required assets are: **{assets_text}**.
+
+**Instructions:**
+1.  **Create a Section for Each Asset:** Use a clear Markdown heading (e.g., `### Email Copy`) for each requested asset.
+2.  **Maintain Cohesion:** Ensure the messaging, tone, and offer are consistent across all assets.
+3.  **Incorporate Urgency:** Weave the urgency element ("{settings.get('urgency', '')}") into the copy where appropriate to drive action.
+4.  **Action-Oriented:** All copy should be persuasive and guide the customer towards making a purchase with the offer.
+5.  **Output:** Return only the generated marketing assets, without any of your own commentary.
+
+Generate the campaign assets now.
+"""
+    return prompt
+
+def construct_review_response_prompt(settings=None):
+    """Constructs a prompt for responding to a customer review."""
+    if settings is None: settings = {}
+
+    prompt = f"""
+You are a senior customer support manager. Your goal is to respond to a customer review in a way that is helpful, on-brand, and resolves any issues.
+
+**Customer Review Details:**
+- **Star Rating Given:** {settings.get('rating', '3')}/5
+- **Review Content:** "{settings.get('review', '')}"
+
+**Response Requirements:**
+- **Tone:** Your response must be **{settings.get('tone', 'Empathetic & Helpful')}**.
+- **Action/Offer:** {settings.get('offer') if settings.get('offer') else 'No special offer is required.'}
+
+**Instructions:**
+1.  **Analyze Sentiment:** Based on the star rating and the review content, correctly identify the customer's sentiment (e.g., happy, frustrated, confused).
+2.  **Address Key Points:** Directly address the specific points, positive or negative, mentioned in the review.
+3.  **Incorporate the Tone:** Maintain the required tone throughout the entire response.
+4.  **Integrate the Offer:** If an action or offer is specified (e.g., "Offer a 15% discount"), seamlessly weave it into the response as a gesture of goodwill or a solution. Do not make it sound like a bribe.
+5.  **Output:** Return only the customer-facing response, without any of your own commentary or analysis.
+
+Generate the customer review response now.
+"""
+    return prompt
+
 def construct_ecommerce_prompt(name, features, tone):
     """Constructs a prompt for generating a product description."""
     return f"""
@@ -1694,46 +1778,56 @@ def generate_script():
 @app.route('/api/v1/generate/ecommerce', methods=['POST'])
 @login_required
 def generate_ecommerce():
-    """Generates an e-commerce product description."""
+    """Handles various e-commerce content generation requests."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    name = data.get("name")
-    features = data.get("features")
-    tone = data.get("tone")
+    tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
-    if not all([name, features, tone]):
-        return jsonify({"error": "Missing required fields."}), 400
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_ecommerce_prompt(name, features, tone)
+    # Route to the correct prompt constructor based on the tool
+    if tool == 'description':
+        full_prompt = construct_product_description_prompt(settings)
+        session_title = f"Desc: {settings.get('productName', 'New Product')[:30]}"
+    elif tool == 'campaign':
+        full_prompt = construct_campaign_prompt(settings)
+        session_title = f"Campaign: {settings.get('occasion', 'New Event')[:30]}"
+    elif tool == 'review':
+        full_prompt = construct_review_response_prompt(settings)
+        session_title = f"Review Resp: {settings.get('review', 'New Review')[:30]}"
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
     try:
         response = CLIENT.generate_content(contents=full_prompt)
-        description_text = response.candidates[0].content.parts[0].text
+        result_text = response.candidates[0].content.parts[0].text
 
         # Save to chat history
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-        user_message = f"Generate a product description for '{name}' with a {tone} tone."
+        user_message = json.dumps({"tool": tool, "settings": settings})
         messages = [
             {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": description_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        session_title = f"Product Description: {name}"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, description_text, studio_type='ECOMMERCE')
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='ECOMMERCE')
 
         return jsonify({
-            "description": description_text,
+            "result": result_text,
             "chat_session_id": chat_session_id
         })
     except Exception as e:
-        logger.error(f"E-commerce generation error: {e}")
+        logger.error(f"E-commerce generation error for tool {tool}: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/api/v1/generate/webcopy', methods=['POST'])
