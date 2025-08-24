@@ -4,6 +4,35 @@
 
 {% block studio_head_css %}
 <style>
+    /* Custom Tab Styles from Brainstorming Studio */
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    /* General Studio Styles */
     .output-card {
         background: var(--surface-variant);
         border: 1px solid var(--outline);
@@ -11,17 +40,8 @@
         padding: 16px;
         margin-top: 16px;
     }
-    .output-card h4 {
-        margin-top: 0;
-        margin-bottom: 12px;
-        font-weight: 500;
-        text-transform: capitalize;
-    }
     .output-content {
         white-space: pre-wrap;
-        font-family: inherit;
-        font-size: 14px;
-        color: var(--on-surface);
     }
     .spinner {
         width: 16px;
@@ -39,20 +59,55 @@
 {% endblock %}
 
 {% block studio_title %}Web Copy Studio{% endblock %}
-{% block studio_description %}Craft landing page copy, ad copy, and more using proven frameworks.{% endblock %}
+{% block studio_description %}Craft foundational, persuasive copy for your website.{% endblock %}
 
 {% block studio_inputs %}
-<div class="form-group">
-    <label for="webcopy-product">Product/Service Name</label>
-    <input type="text" id="webcopy-product" class="form-control" placeholder="e.g., InkDrive AI Writing Assistant">
+<div class="tabs">
+    <button class="tab-button active" data-tab="landing-page">Landing Page</button>
+    <button class="tab-button" data-tab="homepage-section">Homepage Section</button>
+    <button class="tab-button" data-tab="usp">Value Proposition</button>
 </div>
-<div class="form-group">
-    <label for="webcopy-audience">Target Audience</label>
-    <input type="text" id="webcopy-audience" class="form-control" placeholder="e.g., Content creators, marketers, authors">
+
+<!-- Landing Page Writer Tab -->
+<div id="landing-page" class="tab-content active">
+    <div class="form-group"><label for="lp-product-name">Product Name</label><input type="text" id="lp-product-name" class="form-control" placeholder="e.g., Quantum CRM"></div>
+    <div class="form-group"><label for="lp-audience">Target Audience</label><input type="text" id="lp-audience" class="form-control" placeholder="e.g., Small business owners"></div>
+    <div class="form-group"><label for="lp-goal">Page Goal</label><input type="text" id="lp-goal" class="form-control" placeholder="e.g., Get users to sign up for a free trial"></div>
+    <div class="form-group"><label for="lp-features">Features (one per line)</label><textarea id="lp-features" class="form-control" rows="3" placeholder="e.g., AI-powered contact sorting&#10;Automated email follow-ups"></textarea></div>
+    <div class="form-group"><label for="lp-pain-point">Primary Pain Point to Solve</label><input type="text" id="lp-pain-point" class="form-control" placeholder="e.g., Wasting time on manual data entry"></div>
+    <div class="form-group"><label for="lp-tone">Tone</label><input type="text" id="lp-tone" class="form-control" placeholder="e.g., Professional and efficient"></div>
 </div>
-<button id="generateWebcopyBtn" class="btn btn-primary" style="width: 100%;">
+
+<!-- Homepage Section Writer Tab -->
+<div id="homepage-section" class="tab-content">
+    <div class="form-group"><label for="hs-company-name">Company Name</label><input type="text" id="hs-company-name" class="form-control" placeholder="e.g., Innovate Inc."></div>
+    <div class="form-group"><label for="hs-one-liner">Company One-Liner</label><input type="text" id="hs-one-liner" class="form-control" placeholder="e.g., We build software that simplifies your workflow."></div>
+    <div class="form-group">
+        <label for="hs-section-type">Section to Generate</label>
+        <select id="hs-section-type" class="form-control">
+            <option value="hero" selected>Hero Section</option>
+            <option value="features">Features/Benefits Section</option>
+            <option value="how_it_works">How It Works Section</option>
+            <option value="faq">FAQ Section</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="hs-key-info" id="hs-key-info-label">Key Information for Hero Section</label>
+        <textarea id="hs-key-info" class="form-control" rows="3" placeholder="e.g., List the main value proposition and desired call to action."></textarea>
+    </div>
+</div>
+
+<!-- Value Proposition & USP Generator Tab -->
+<div id="usp" class="tab-content">
+    <div class="form-group"><label for="usp-product-desc">Product Description</label><textarea id="usp-product-desc" class="form-control" rows="3" placeholder="Describe what your product is and what it does."></textarea></div>
+    <div class="form-group"><label for="usp-customer">Target Customer</label><input type="text" id="usp-customer" class="form-control" placeholder="e.g., Freelancers who need simple invoicing."></div>
+    <div class="form-group"><label for="usp-differentiators">Key Differentiators</label><textarea id="usp-differentiators" class="form-control" rows="2" placeholder="What makes you unique? e.g., Unbeatable price, lifetime support"></textarea></div>
+    <div class="form-group"><label for="usp-competitors">Competitors (Optional)</label><input type="text" id="usp-competitors" class="form-control" placeholder="e.g., FreshBooks, Wave"></div>
+</div>
+
+<button id="generateBtn" class="btn btn-primary mt-3" style="width: 100%;">
     <span class="material-symbols-outlined">web</span>
-    Generate Landing Page Copy
+    Generate Web Copy
 </button>
 {% endblock %}
 
@@ -71,97 +126,116 @@
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const generateBtn = document.getElementById('generateWebcopyBtn');
+    const generateBtn = document.getElementById('generateBtn');
     const outputDisplay = document.getElementById('webcopy-output-display');
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const sectionTypeSelect = document.getElementById('hs-section-type');
+    const keyInfoLabel = document.getElementById('hs-key-info-label');
+    const keyInfoTextarea = document.getElementById('hs-key-info');
     let webcopyChatSessionId = null;
 
+    // --- Tab Switching Logic ---
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // --- Dynamic UI for Homepage Section Tool ---
+    const keyInfoPlaceholders = {
+        hero: "Provide the main value proposition and desired calls to action (e.g., 'Sign Up Free', 'Learn More').",
+        features: "List 3-5 key features and their primary benefit to the user.",
+        how_it_works: "Outline the simple, 3-4 steps a user takes to get value from your product.",
+        faq: "List 4-5 common questions a potential customer might have."
+    };
+    sectionTypeSelect?.addEventListener('change', function() {
+        const selectedType = this.value;
+        keyInfoLabel.textContent = `Key Information for ${this.options[this.selectedIndex].text}`;
+        keyInfoTextarea.placeholder = keyInfoPlaceholders[selectedType] || '';
+    });
+
+    // --- Main Generate Function ---
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
-            const product = document.getElementById('webcopy-product').value;
-            const audience = document.getElementById('webcopy-audience').value;
+            const tool = document.querySelector('.tab-button.active')?.dataset.tab;
+            if (!tool) return alert('Error: Could not find active tool.');
 
-            if (!product.trim() || !audience.trim()) {
-                alert('Please enter a product/service and target audience.');
-                return;
-            }
+            const settings = gatherInputs(tool);
+            if (!settings) return alert('Please fill in all required fields for the selected tool.');
 
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
-            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Writing your landing page...</span></div>`;
-
+            showLoading();
             try {
                 const response = await fetch('/api/v1/generate/webcopy', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        product: product,
-                        audience: audience,
-                        chat_session_id: webcopyChatSessionId
-                    })
+                    body: JSON.stringify({ tool, settings, chat_session_id: webcopyChatSessionId })
                 });
                 const data = await response.json();
-
                 if (response.ok) {
                     webcopyChatSessionId = data.chat_session_id;
-                    displayWebCopy(data.webcopy);
-                    if (typeof loadChatHistory === 'function') {
-                        loadChatHistory(STUDIO_TYPE);
-                    }
+                    displayOutput(data.result);
+                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else {
-                    throw new Error(data.error || 'Failed to generate web copy');
+                    throw new Error(data.error || 'Failed to generate content');
                 }
             } catch (error) {
-                outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
+                showError(error.message);
             } finally {
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '<span class="material-symbols-outlined">web</span> Generate Landing Page Copy';
+                resetButton();
             }
         });
     }
 
-    function displayWebCopy(copyJson) {
-        if (!copyJson) {
-            outputDisplay.innerHTML = '<div class="output-card"><p>The model did not return any copy. Please try again.</p></div>';
-            return;
+    function gatherInputs(tool) {
+        let settings = {};
+        let isValid = true;
+        if (tool === 'landing-page') {
+            settings.productName = document.getElementById('lp-product-name').value;
+            settings.audience = document.getElementById('lp-audience').value;
+            settings.goal = document.getElementById('lp-goal').value;
+            settings.features = document.getElementById('lp-features').value;
+            settings.painPoint = document.getElementById('lp-pain-point').value;
+            settings.tone = document.getElementById('lp-tone').value;
+            if (!settings.productName || !settings.audience || !settings.goal || !settings.features || !settings.painPoint) isValid = false;
+        } else if (tool === 'homepage-section') {
+            settings.companyName = document.getElementById('hs-company-name').value;
+            settings.oneLiner = document.getElementById('hs-one-liner').value;
+            settings.sectionType = document.getElementById('hs-section-type').value;
+            settings.keyInfo = document.getElementById('hs-key-info').value;
+            if (!settings.companyName || !settings.oneLiner || !settings.keyInfo) isValid = false;
+        } else if (tool === 'usp') {
+            settings.productDesc = document.getElementById('usp-product-desc').value;
+            settings.customer = document.getElementById('usp-customer').value;
+            settings.differentiators = document.getElementById('usp-differentiators').value;
+            settings.competitors = document.getElementById('usp-competitors').value;
+            if (!settings.productDesc || !settings.customer || !settings.differentiators) isValid = false;
         }
-
-        let html = '';
-        for (const section in copyJson) {
-            if (copyJson.hasOwnProperty(section)) {
-                html += `
-                    <div class="output-card">
-                        <h4>${section.replace(/_/g, ' ')}</h4>
-                        <pre class="output-content">${copyJson[section].replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
-                    </div>
-                `;
-            }
-        }
-        outputDisplay.innerHTML = html;
+        return isValid ? settings : null;
     }
 
-    window.loadSessionIntoView = async function(sessionId) {
-        try {
-            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
-            const response = await fetch(`/api/chat-session/${sessionId}`);
-            if (!response.ok) throw new Error('Failed to fetch session data.');
+    // --- UI Helper Functions ---
+    function showLoading() {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+        outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Crafting your web copy...</span></div>`;
+    }
 
-            const session = await response.json();
-            webcopyChatSessionId = session.session_id;
+    function showError(message) {
+        outputDisplay.innerHTML = `<div class="output-card" style="color: var(--error);"><p><strong>Error:</strong> ${message}</p></div>`;
+    }
 
-            const userInput = JSON.parse(session.messages[0].content);
-            document.getElementById('webcopy-product').value = userInput.product || '';
-            document.getElementById('webcopy-audience').value = userInput.audience || '';
-            document.getElementById('generateWebcopyBtn').disabled = true;
+    function resetButton() {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span class="material-symbols-outlined">web</span> Generate Web Copy';
+    }
 
-            displayWebCopy(JSON.parse(session.raw_text));
-
-            if (typeof showNotification === 'function') {
-                showNotification('Session loaded successfully!');
-            }
-
-        } catch (error) {
-            outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
-        }
+    function displayOutput(text) {
+        if (!text) return showError('The model did not return any content. Please try again.');
+        outputDisplay.innerHTML = `<div class="output-card"><pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></div>`;
     }
 });
 </script>

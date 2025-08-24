@@ -667,25 +667,113 @@ def construct_ecommerce_prompt(name, features, tone):
     Generate the product description now.
     """
 
-def construct_webcopy_prompt(product, audience):
-    """Constructs a prompt for generating landing page copy using the AIDA framework."""
-    return f"""
-    You are a master copywriter who specializes in high-converting landing pages. Your task is to write copy for a product/service based on the AIDA (Attention, Interest, Desire, Action) framework.
+def construct_landing_page_prompt(settings=None):
+    """Constructs a prompt for generating a full landing page."""
+    if settings is None: settings = {}
 
-    **Product/Service:** {product}
-    **Target Audience:** {audience}
+    prompt = f"""
+You are an expert direct-response copywriter. Your task is to write a complete set of copy for a landing page with a single, clear goal.
 
-    **Instructions:**
-    1.  **Write for Each AIDA Stage:** Create distinct copy for each of the four stages:
-        *   `attention`: A powerful headline and sub-headline to grab the attention of the {audience}.
-        *   `interest`: Build interest by highlighting the core problems of the audience and hinting at a better way. Use bullet points or a short paragraph.
-        *   `desire`: Create desire by explaining the product's features and, more importantly, its benefits. Show the audience how their life or work will improve.
-        *   `action`: A clear and compelling call to action (CTA) that tells the user exactly what to do next (e.g., "Sign Up Now," "Get Your Free Demo").
-    2.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the AIDA stages (`attention`, `interest`, `desire`, `action`), and the values should be the corresponding copy as a string.
-    3.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting. Only return the raw JSON object.
+**Landing Page Details:**
+- **Product Name:** {settings.get('productName', '')}
+- **Target Audience:** {settings.get('audience', '')}
+- **Page Goal:** {settings.get('goal', '')}
+- **Primary Pain Point to Solve:** {settings.get('painPoint', '')}
+- **Tone:** {settings.get('tone', '')}
 
-    Generate the AIDA landing page copy now.
-    """
+**Key Features:**
+---
+{settings.get('features', '')}
+---
+
+**Instructions:**
+1.  **Solve the Pain Point:** All copy must focus on how the product's features solve the primary pain point for the target audience.
+2.  **Benefit-Oriented:** Do not just list features; explain the tangible benefits and outcomes for the user.
+3.  **Clear Structure:** Structure the output using the following Markdown headings: `### Headline`, `### Sub-headline`, `### Body`, and `### Call-to-Action`.
+4.  **Persuasive Body:** The Body copy should be compelling, persuasive, and directly encourage the user to achieve the page goal.
+5.  **Actionable CTA:** The Call-to-Action should be a short, punchy phrase that tells the user exactly what to do (e.g., "Get Started Free," "Claim Your Discount").
+6.  **Output:** Return only the structured copy, without any of your own commentary.
+
+Generate the landing page copy now.
+"""
+    return prompt
+
+def construct_homepage_section_prompt(settings=None):
+    """Constructs a dynamic prompt for generating a specific homepage section."""
+    if settings is None: settings = {}
+
+    section_type = settings.get('sectionType', 'hero')
+    section_map = {
+        "hero": "Hero Section",
+        "features": "Features/Benefits Section",
+        "how_it_works": "How It Works Section",
+        "faq": "FAQ Section"
+    }
+    section_name = section_map.get(section_type, "Hero Section")
+
+    prompt = f"""
+You are a specialist web copywriter. Your task is to write the copy for a specific section of a company's homepage.
+
+**Company Name:** {settings.get('companyName', '')}
+**Company One-Liner:** {settings.get('oneLiner', '')}
+**Section to Generate:** {section_name}
+
+**Key Information Provided by User:**
+---
+{settings.get('keyInfo', '')}
+---
+
+**Instructions:**
+Your output must be structured correctly for the requested section.
+"""
+
+    if section_type == 'hero':
+        prompt += """
+- **Task:** Write a powerful, attention-grabbing headline, a clear and concise sub-headline that expands on the headline, and two distinct, compelling CTA button texts.
+- **Structure:** Use the following Markdown headings for each part: `#### Headline`, `#### Sub-headline`, `#### Primary CTA`, `#### Secondary CTA`.
+"""
+    elif section_type == 'features':
+        prompt += """
+- **Task:** Write a main headline for the features section. Then, for 3-5 key features, write a short, benefit-focused title and a 1-2 sentence description for each.
+- **Structure:** Use a main `### Features Section Headline`. For each feature, use a `#### Feature Title` and a paragraph for the description.
+"""
+    elif section_type == 'how_it_works':
+        prompt += """
+- **Task:** Write a main headline for this section. Then, write copy for 3-4 simple steps that explain how the service works.
+- **Structure:** Use a main `### How It Works Headline`. For each step, use a `#### Step X: [Step Title]` heading followed by a short descriptive paragraph.
+"""
+    elif section_type == 'faq':
+        prompt += """
+- **Task:** Write a main headline for the FAQ section. Then, based on the user's key information, write 4-5 questions and their corresponding clear, concise answers.
+- **Structure:** Use a main `### FAQ Section Headline`. For each question, use a `#### Question:` heading and a paragraph for the answer.
+"""
+
+    prompt += "\nReturn only the generated copy in the requested structure, without any of your own commentary."
+    return prompt
+
+def construct_usp_prompt(settings=None):
+    """Constructs a prompt for generating a Value Proposition and USP."""
+    if settings is None: settings = {}
+
+    prompt = f"""
+You are a senior brand strategist. Your task is to analyze the following product information and generate a powerful Value Proposition and a list of Unique Selling Propositions (USPs).
+
+**Product Information:**
+- **Product Description:** {settings.get('productDesc', '')}
+- **Target Customer:** {settings.get('customer', '')}
+- **Key Differentiators:** {settings.get('differentiators', '')}
+- **Competitors:** {settings.get('competitors', 'Not specified')}
+
+**Instructions:**
+1.  **Analyze the Data:** Carefully consider how the product's features and differentiators appeal to the target customer, especially in contrast to the competitors.
+2.  **Generate Value Proposition:** Create a single, clear, and compelling sentence that explains the core benefit the product provides to the customer. This should be customer-centric and outcome-focused.
+3.  **Generate USPs:** Create a list of 3-5 concise, memorable, and powerful statements that highlight the key differentiators. These are the specific, unique reasons a customer should choose this product over others.
+4.  **Structure the Output:** Use the following Markdown headings: `### Value Proposition` and `### Unique Selling Propositions (USPs)`. List the USPs as a bulleted list.
+5.  **Output:** Return only the generated propositions, without any of your own commentary.
+
+Generate the Value Proposition and USPs now.
+"""
+    return prompt
 
 def construct_press_release_prompt(announcement, company):
     """Constructs a prompt for generating a press release."""
@@ -1833,52 +1921,55 @@ def generate_ecommerce():
 @app.route('/api/v1/generate/webcopy', methods=['POST'])
 @login_required
 def generate_webcopy():
-    """Generates landing page copy using the AIDA framework."""
+    """Handles various web copy generation requests."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    product = data.get("product")
-    audience = data.get("audience")
+    tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
-    if not all([product, audience]):
-        return jsonify({"error": "Missing required fields."}), 400
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_webcopy_prompt(product, audience)
+    # Route to the correct prompt constructor
+    if tool == 'landing_page':
+        full_prompt = construct_landing_page_prompt(settings)
+        session_title = f"LP: {settings.get('productName', 'New Page')[:30]}"
+    elif tool == 'homepage_section':
+        full_prompt = construct_homepage_section_prompt(settings)
+        session_title = f"Homepage: {settings.get('sectionType', 'New Section')[:30]}"
+    elif tool == 'usp':
+        full_prompt = construct_usp_prompt(settings)
+        session_title = f"USP for: {settings.get('productDesc', 'New Product')[:30]}"
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+
     try:
         response = CLIENT.generate_content(contents=full_prompt)
-        raw_text = response.candidates[0].content.parts[0].text
+        result_text = response.candidates[0].content.parts[0].text
 
-        # Clean and parse the JSON response
-        clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
-        webcopy_json = json.loads(clean_text)
-
-        # Save to chat history
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-        user_message = f"Generate AIDA landing page copy for '{product}' targeting {audience}."
+        user_message = json.dumps({"tool": tool, "settings": settings})
         messages = [
             {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        session_title = f"Web Copy for {product}"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='WEBCOPY')
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='WEBCOPY')
 
         return jsonify({
-            "webcopy": webcopy_json,
+            "result": result_text,
             "chat_session_id": chat_session_id
         })
-    except json.JSONDecodeError:
-        logger.error(f"Web copy JSON parsing error. Raw text: {raw_text}")
-        return jsonify({"error": "Failed to parse the web copy data from the AI. Please try again."}), 500
     except Exception as e:
-        logger.error(f"Web copy generation error: {e}")
+        logger.error(f"Web copy generation error for tool {tool}: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/api/v1/generate/business', methods=['POST'])
