@@ -209,39 +209,64 @@ def construct_initial_prompt(topic, settings=None):
 
     return "\n".join(prompt_lines)
 
-def construct_social_post_prompt(topic, goal, platform):
+def construct_social_post_prompt(topic, goal, platform, settings=None):
     """Constructs a prompt for generating social media posts."""
-    return f"""
-    You are a social media marketing expert. Your task is to generate 3 distinct social media posts for the {platform} platform.
+    if settings is None:
+        settings = {}
 
-    **Topic:** {topic}
-    **Goal of the posts:** {goal}
+    variations = settings.get('variations', 3)
+    tone = settings.get('tone', 'professional')
+    emojis = "Include relevant emojis." if settings.get('emojis', True) else "Do not use any emojis."
+    cta = settings.get('cta')
 
-    **Requirements:**
-    1.  **Platform:** Tailor the tone and length for {platform}.
-    2.  **Variety:** Provide three distinct options with different angles or hooks.
-    3.  **Hashtags:** Include relevant and trending hashtags for each post.
-    4.  **Formatting:** Present each post clearly separated. Use "---" between each post option.
+    prompt = f"""
+You are a social media marketing expert. Your task is to generate {variations} distinct social media posts for the {platform} platform.
 
-    Generate the social media posts now.
-    """
+**Topic:** {topic}
+**Goal of the posts:** {goal}
+**Tone:** {tone}
 
-def construct_email_prompt(topic, audience, tone):
+**Requirements:**
+1.  **Platform:** Tailor the tone and length for {platform}. For Twitter, keep it concise. For LinkedIn, be more professional.
+2.  **Variety:** Provide {variations} distinct options with different angles or hooks.
+3.  **Hashtags:** Include relevant and trending hashtags for each post.
+4.  **Emojis:** {emojis}
+"""
+    if cta:
+        prompt += f"5.  **Call to Action/Link:** Include the following call to action or link: {cta}\n"
+
+    prompt += "6.  **Formatting:** Present each post clearly separated. Use \"---\" on a new line between each post option.\n\nGenerate the social media posts now."
+    return prompt
+
+def construct_email_prompt(topic, audience, tone, settings=None):
     """Constructs a prompt for generating an email."""
-    return f"""
-    You are an expert copywriter specializing in email marketing. Your task is to write a compelling marketing email.
+    if settings is None:
+        settings = {}
 
-    **Topic/Product:** {topic}
-    **Target Audience:** {audience}
-    **Desired Tone:** {tone}
+    email_type = settings.get('emailType', 'Promotional')
+    brand_name = settings.get('brandName')
+    cta_button = settings.get('ctaButton')
 
-    **Requirements:**
-    1.  **Subject Line:** Generate 3-5 engaging subject line options.
-    2.  **Email Body:** Write a complete email body based on the topic. It should have a clear hook, body, and call-to-action (CTA).
-    3.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by "---", then the email body.
+    prompt = f"""
+You are an expert copywriter specializing in email marketing. Your task is to write a compelling {email_type} email.
 
-    Generate the email content now.
-    """
+**Topic/Product:** {topic}
+**Target Audience:** {audience}
+**Desired Tone:** {tone}
+"""
+    if brand_name:
+        prompt += f"**Brand Name:** {brand_name}\n"
+
+    prompt += """
+**Requirements:**
+1.  **Subject Line:** Generate 3-5 engaging subject line options.
+2.  **Email Body:** Write a complete email body based on the topic. It should have a clear hook, body, and a strong call-to-action (CTA).
+"""
+    if cta_button:
+        prompt += f"3.  **CTA Button:** The final call to action should ideally lead to a button with the text: \"{cta_button}\".\n"
+
+    prompt += "4.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by \"---\", then the email body.\n\nGenerate the email content now."
+    return prompt
 
 def construct_refine_text_prompt(text_to_refine, target_tone):
     """Constructs a prompt for refining text to a specific tone."""
@@ -453,23 +478,44 @@ def construct_job_description_prompt(role, responsibilities):
     Generate the job description now.
     """
 
-def construct_ad_copy_prompt(product, audience):
+def construct_ad_copy_prompt(product, audience, settings=None):
     """Constructs a prompt for generating ad copy."""
-    return f"""
-    You are a senior copywriter at a top advertising agency. Your task is to generate 3 distinct pieces of ad copy for a given product and audience.
+    if settings is None:
+        settings = {}
 
-    **Product/Service:** {product}
-    **Target Audience:** {audience}
+    platform = settings.get('platform', 'Google Ads')
+    key_benefit = settings.get('keyBenefit')
+    tone = settings.get('tone', 'Urgent')
 
-    **Instructions:**
-    1.  **Generate 3 Variations:** Create three distinct ad copy options. Each should have a different angle or hook (e.g., one focused on a pain point, one on a benefit, one with a strong call to action).
-    2.  **Structure:** For each variation, provide a "Headline" and a "Body".
-    3.  **Clarity and Persuasion:** The copy must be clear, concise, and persuasive.
-    4.  **Separator:** Use "---" on a new line to separate each ad copy variation.
-    5.  **Return Only the Ad Copy:** Do not include any preamble or commentary.
+    platform_constraints = {
+        'Google Ads': 'Headline max 30 chars, Description max 90 chars.',
+        'Facebook/Instagram': 'Keep copy visual-focused and engaging. Use emojis.',
+        'LinkedIn Ads': 'Maintain a professional and business-oriented tone.'
+    }
+    constraint = platform_constraints.get(platform, '')
 
-    Generate the ad copy now.
-    """
+    prompt = f"""
+You are a senior copywriter at a top advertising agency. Your task is to generate 3 distinct pieces of ad copy for a given product and audience, optimized for the {platform} platform.
+
+**Product/Service:** {product}
+**Target Audience:** {audience}
+**Desired Tone:** {tone}
+"""
+    if key_benefit:
+        prompt += f"**Key Benefit/Pain Point to Address:** {key_benefit}\n"
+
+    prompt += f"""
+**Instructions:**
+1.  **Generate 3 Variations:** Create three distinct ad copy options. Each should have a different angle or hook.
+2.  **Structure:** For each variation, provide a "Headline:" and a "Body:".
+3.  **Platform Constraints:** Adhere to the following constraints for {platform}: {constraint}
+4.  **Clarity and Persuasion:** The copy must be clear, concise, and persuasive.
+5.  **Separator:** Use "---" on a new line to separate each ad copy variation.
+6.  **Return Only the Ad Copy:** Do not include any preamble or commentary.
+
+Generate the ad copy now.
+"""
+    return prompt
 
 def construct_summarizer_prompt(text, length):
     """Constructs a prompt for summarizing text."""
@@ -1270,6 +1316,7 @@ def generate_social_content():
 
     data = request.get_json()
     tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not tool:
@@ -1285,7 +1332,7 @@ def generate_social_content():
         if not all([topic, goal, platform]):
             return jsonify({"error": "Missing required fields for social post."}), 400
 
-        full_prompt = construct_social_post_prompt(topic, goal, platform)
+        full_prompt = construct_social_post_prompt(topic, goal, platform, settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
@@ -1293,7 +1340,7 @@ def generate_social_content():
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Topic: {topic}, Goal: {goal}, Platform: {platform}"
+            user_message = json.dumps({"tool": "social_post", "topic": topic, "goal": goal, "platform": platform, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Social Posts for '{topic}'"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
@@ -1310,14 +1357,14 @@ def generate_social_content():
         if not all([topic, audience, tone]):
             return jsonify({"error": "Missing required fields for email."}), 400
 
-        full_prompt = construct_email_prompt(topic, audience, tone)
+        full_prompt = construct_email_prompt(topic, audience, tone, settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Topic: {topic}, Audience: {audience}, Tone: {tone}"
+            user_message = json.dumps({"tool": "email", "topic": topic, "audience": audience, "tone": tone, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Email for '{topic}'"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
@@ -1333,7 +1380,7 @@ def generate_social_content():
         if not all([product, audience]):
             return jsonify({"error": "Missing required fields for ad copy."}), 400
 
-        full_prompt = construct_ad_copy_prompt(product, audience)
+        full_prompt = construct_ad_copy_prompt(product, audience, settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
@@ -1341,7 +1388,7 @@ def generate_social_content():
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Generate ad copy for '{product}' targeting {audience}."
+            user_message = json.dumps({"tool": "ad_copy", "product": product, "audience": audience, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Ad Copy for {product}"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='AD_COPY')
