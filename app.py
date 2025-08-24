@@ -296,27 +296,66 @@ You are an expert editor. Your task is to revise the following text.
     prompt += "5.  **Output:** Return only the revised text, without any commentary or preamble.\n\nRevise the text now."
     return prompt
 
-def construct_article_to_tweet_prompt(article_text):
-    """Constructs a prompt for converting an article into a Twitter thread."""
-    return f"""
-    You are a social media expert specializing in content repurposing. Your task is to convert the following article into a compelling, numbered Twitter thread.
+def construct_repurpose_prompt(repurpose_type, original_content, settings=None):
+    """Constructs a dynamic prompt for various content repurposing tasks."""
+    if settings is None:
+        settings = {}
 
-    **Article Text:**
-    ---
-    {article_text}
-    ---
+    # Universal settings
+    audience = settings.get('audience', 'a general audience')
+    goal = settings.get('goal', 'to inform and engage')
+    message = settings.get('message')
 
-    **Instructions:**
-    1.  **Create a Thread:** Generate a series of tweets that summarize the key points of the article.
-    2.  **Numbered Tweets:** Start each tweet with a number (e.g., "1/n", "2/n").
-    3.  **Engaging Hook:** The first tweet should be a strong hook to grab the reader's attention.
-    4.  **Concise and Clear:** Each tweet must be under 280 characters.
-    5.  **Add Hashtags:** Include relevant hashtags in the final tweet.
-    6.  **Separator:** Use "---" on a new line to separate each tweet in the output.
-    7.  **Return Only the Thread:** Do not include any preamble, commentary, or extra text. Only return the tweets separated by "---".
+    # Base prompt
+    prompt = f"""
+You are a strategic content repurposing expert. Your task is to transform the following original content into a new format.
 
-    Generate the Twitter thread now.
-    """
+**Original Content:**
+---
+{original_content}
+---
+
+**Repurposing Goal:**
+-   **New Format:** {repurpose_type.replace('_', ' ').title()}
+-   **Target Audience:** {audience}
+-   **Primary Goal:** {goal}
+"""
+    if message:
+        prompt += f"-   **Key Message to Emphasize:** {message}\n"
+
+    prompt += "\n**Format-Specific Instructions:**\n"
+
+    # Dynamic instructions based on type
+    if repurpose_type == 'twitter_thread':
+        tweet_count = settings.get('tweetCount', 5)
+        hook = "**Include a strong, engaging hook** in the first tweet." if settings.get('includeHook', True) else ""
+        hashtags = "**Include relevant hashtags** in the final tweet." if settings.get('includeHashtags', True) else ""
+        prompt += f"""
+-   **Structure:** Create a numbered Twitter thread with {tweet_count} tweets.
+-   **Content:** Summarize the key points of the original content. {hook} {hashtags}
+-   **Constraints:** Each tweet must be under 280 characters.
+-   **Separator:** Use "---" on a new line to separate each tweet.
+"""
+    elif repurpose_type == 'linkedin_post':
+        professional_tone = "Maintain a professional and business-oriented tone." if settings.get('useProfessionalTone', True) else ""
+        prompt += f"""
+-   **Structure:** A single, well-formatted LinkedIn post.
+-   **Content:** Summarize the key takeaways for a professional audience. {professional_tone}
+-   **Formatting:** Use bullet points or numbered lists for readability. Include 3-5 relevant hashtags.
+"""
+    elif repurpose_type == 'video_script':
+        target_length = settings.get('targetLength', '3-5 minutes')
+        spoken_by = settings.get('spokenBy', 'a single narrator')
+        visual_cues = "**Include suggested visual cues** or B-roll shots in parentheses where appropriate (e.g., `(Show a chart of Q3 growth)`)." if settings.get('includeVisualCues', True) else ""
+        prompt += f"""
+-   **Structure:** A video script with clear sections (Hook, Intro, Main Points, Outro).
+-   **Target Length:** The script should be paced for a video of approximately {target_length}.
+-   **Dialogue:** The script should be written for {spoken_by}.
+-   **Content:** {visual_cues}
+"""
+
+    prompt += "\n**Final Output:**\nReturn only the repurposed content as requested, without any of your own commentary or preamble."
+    return prompt
 
 def construct_keyword_prompt(topic):
     """Constructs a prompt for generating categorized SEO keywords."""
@@ -600,25 +639,6 @@ Localize the text now.
 """
     return prompt
 
-def construct_presentation_prompt(text):
-    """Constructs a prompt for converting a blog post to a presentation outline."""
-    return f"""
-    You are an expert presentation designer. Your task is to convert the following blog post into a concise and compelling presentation outline with talking points.
-
-    **Blog Post Text:**
-    ---
-    {text}
-    ---
-
-    **Instructions:**
-    1.  **Create a Slide Structure:** Outline a presentation with a clear structure (e.g., Title Slide, Introduction, 3-5 Key Point Slides, Summary/Conclusion, Q&A).
-    2.  **Write Slide Titles:** For each slide, create a short, impactful title.
-    3.  **Generate Talking Points:** Under each slide title, provide 3-5 bullet points summarizing the key talking points for that slide.
-    4.  **Format with Markdown:** Use Markdown headings for slide titles (e.g., `## Slide 1: Title`) and bullet points for talking points.
-    5.  **Return Only the Outline:** Do not include any preamble or commentary.
-
-    Generate the presentation outline now.
-    """
 
 def get_image_url(query):
     if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
@@ -1975,6 +1995,7 @@ def repurpose_content():
     data = request.get_json()
     tool = data.get("tool")
     text = data.get("text")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not all([tool, text]):
@@ -1983,44 +2004,31 @@ def repurpose_content():
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    if tool == 'tweet_thread':
-        full_prompt = construct_article_to_tweet_prompt(text)
-        try:
-            response = CLIENT.generate_content(contents=full_prompt)
-            result_text = response.candidates[0].content.parts[0].text
+    full_prompt = construct_repurpose_prompt(tool, text, settings)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        result_text = response.candidates[0].content.parts[0].text
 
-            if not chat_session_id:
-                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Convert the following article to a Twitter thread:\n\n{text[:200]}..."
-            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = "Article to Tweet Thread"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_TWEET')
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
-        except Exception as e:
-            logger.error(f"Article to tweet error: {e}")
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+        # Determine the studio type for saving the session
+        studio_type_map = {
+            "twitter_thread": "REPURPOSE_TWEET",
+            "linkedin_post": "REPURPOSE_LINKEDIN", # Assuming a new type
+            "video_script": "REPURPOSE_SLIDES" # As per user clarification
+        }
+        studio_type = studio_type_map.get(tool, "REPURPOSE")
 
-    elif tool == 'presentation':
-        full_prompt = construct_presentation_prompt(text)
-        try:
-            response = CLIENT.generate_content(contents=full_prompt)
-            result_text = response.candidates[0].content.parts[0].text
+        user_message = json.dumps({"tool": tool, "text": text, "settings": settings})
+        messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+        session_title = f"Repurposed into: {tool.replace('_', ' ').title()}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type=studio_type)
 
-            if not chat_session_id:
-                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Convert the following blog post to a presentation:\n\n{text[:200]}..."
-            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = "Blog to Presentation Outline"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_SLIDES')
-
-            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
-        except Exception as e:
-            logger.error(f"Presentation generation error: {e}")
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-
-    else:
-        return jsonify({"error": f"Unknown tool: {tool}"}), 400
+        return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+    except Exception as e:
+        logger.error(f"Content repurposing error for tool {tool}: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/api/v1/seo/tools', methods=['POST'])
 @login_required

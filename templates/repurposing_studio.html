@@ -67,32 +67,108 @@
 {% block studio_description %}Turn one piece of content into many, like an article into a Twitter thread or a blog post into a presentation.{% endblock %}
 
 {% block studio_inputs %}
-<div class="tabs">
-    <button class="tab-button active" data-tab="article-to-tweet">Article to Twitter Thread</button>
-    <button class="tab-button" data-tab="blog-to-slides">Blog to Presentation</button>
+<div class="form-group">
+    <label for="repurpose-text-input">Original Content</label>
+    <textarea id="repurpose-text-input" class="form-control" rows="8" placeholder="Paste your article, blog post, or any other text here..."></textarea>
 </div>
 
-<div id="article-to-tweet" class="tab-content active">
-    <div class="form-group">
-        <label for="repurpose-article-input">Full Article Text</label>
-        <textarea id="repurpose-article-input" class="form-control" rows="12" placeholder="Paste your full article here..."></textarea>
-    </div>
-    <button id="repurposeTweetBtn" class="btn btn-primary" style="width: 100%;">
-        <span class="material-symbols-outlined">repeat</span>
-        Generate Twitter Thread
-    </button>
+<div class="form-group">
+    <label for="repurpose-into">Repurpose Into</label>
+    <select id="repurpose-into" class="form-control">
+        <option value="twitter_thread">Twitter Thread</option>
+        <option value="linkedin_post">LinkedIn Post</option>
+        <option value="video_script">Video Script</option>
+    </select>
 </div>
 
-<div id="blog-to-slides" class="tab-content">
-    <div class="form-group">
-        <label for="repurpose-blog-input">Full Blog Post Text</label>
-        <textarea id="repurpose-blog-input" class="form-control" rows="12" placeholder="Paste your full blog post here..."></textarea>
-    </div>
-    <button id="repurposeSlidesBtn" class="btn btn-primary" style="width: 100%;">
-        <span class="material-symbols-outlined">slideshow</span>
-        Generate Presentation Outline
-    </button>
+<hr>
+
+<!-- Universal Settings -->
+<div class="form-group">
+    <label for="repurpose-audience">Target Audience for New Content</label>
+    <input type="text" id="repurpose-audience" class="form-control" placeholder="e.g., Marketing professionals, tech enthusiasts">
 </div>
+<div class="form-group">
+    <label for="repurpose-goal">Goal of Repurposed Content</label>
+    <select id="repurpose-goal" class="form-control">
+        <option>Drive traffic</option>
+        <option>Increase engagement</option>
+        <option>Build authority</option>
+        <option>Inform and educate</option>
+    </select>
+</div>
+<div class="form-group">
+    <label for="repurpose-message">Key Message to Emphasize (Optional)</label>
+    <input type="text" id="repurpose-message" class="form-control" placeholder="e.g., The importance of sustainable packaging">
+</div>
+
+<!-- Dynamic Settings Sections -->
+<div id="dynamic-settings-container">
+    <div class="dynamic-settings" id="settings-twitter_thread" style="display: block;">
+        <h5>Twitter Thread Settings</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="twitter-tweets-count">Number of Tweets</label>
+                    <input type="number" id="twitter-tweets-count" class="form-control" value="5" min="2" max="15">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label>&nbsp;</label>
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="twitter-hook" checked>
+                    <label class="custom-control-label" for="twitter-hook">Include engaging hook</label>
+                </div>
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="twitter-hashtags" checked>
+                    <label class="custom-control-label" for="twitter-hashtags">Include hashtags</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dynamic-settings" id="settings-linkedin_post" style="display: none;">
+        <h5>LinkedIn Post Settings</h5>
+        <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="linkedin-professional-tone" checked>
+            <label class="custom-control-label" for="linkedin-professional-tone">Use a professional tone</label>
+        </div>
+    </div>
+
+    <div class="dynamic-settings" id="settings-video_script" style="display: none;">
+        <h5>Video Script Settings</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="video-length">Target Length</label>
+                    <select id="video-length" class="form-control">
+                        <option>1-2 minutes</option>
+                        <option>3-5 minutes</option>
+                        <option>5-10 minutes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="video-speaker">Spoken By</label>
+                    <select id="video-speaker" class="form-control">
+                        <option>Single narrator</option>
+                        <option>Two hosts (dialogue)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="video-cues" checked>
+            <label class="custom-control-label" for="video-cues">Include visual cues</label>
+        </div>
+    </div>
+</div>
+
+<button id="repurposeBtn" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
+    <span class="material-symbols-outlined">repeat</span>
+    Repurpose Content
+</button>
 {% endblock %}
 
 {% block studio_output %}
@@ -112,71 +188,83 @@
 document.addEventListener('DOMContentLoaded', function() {
     // --- COMMON ELEMENTS ---
     const outputDisplay = document.getElementById('repurposing-output-display');
+    const repurposeIntoSelect = document.getElementById('repurpose-into');
+    const dynamicSettingsContainer = document.getElementById('dynamic-settings-container');
+    const repurposeBtn = document.getElementById('repurposeBtn');
     let repurposeChatSessionId = null;
 
-    // --- TAB SWITCHING ---
-    const tabs = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(tab.dataset.tab).classList.add('active');
-            outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">transform</span><p>Your repurposed content will appear here.</p></div>`;
-        });
+    // --- DYNAMIC SETTINGS LOGIC ---
+    repurposeIntoSelect.addEventListener('change', function() {
+        // Hide all dynamic settings
+        const allSettings = dynamicSettingsContainer.querySelectorAll('.dynamic-settings');
+        allSettings.forEach(s => s.style.display = 'none');
+
+        // Show the selected one
+        const selectedSettingsId = `settings-${this.value}`;
+        const selectedSettings = document.getElementById(selectedSettingsId);
+        if (selectedSettings) {
+            selectedSettings.style.display = 'block';
+        }
     });
 
-    // --- EVENT LISTENERS ---
-    document.getElementById('repurposeTweetBtn')?.addEventListener('click', generateTweetThread);
-    document.getElementById('repurposeSlidesBtn')?.addEventListener('click', generateSlides);
+    // --- EVENT LISTENER ---
+    repurposeBtn?.addEventListener('click', repurposeContent);
 
-    // --- API FUNCTIONS ---
-    async function generateTweetThread() {
-        const articleText = document.getElementById('repurpose-article-input').value;
-        if (!articleText.trim()) { alert('Please paste the article text.'); return; }
-
-        showLoading(this, "Brewing your Twitter thread...");
-        try {
-            const response = await fetch('/api/v1/repurpose/content', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool: 'tweet_thread', text: articleText, chat_session_id: repurposeChatSessionId })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                repurposeChatSessionId = data.chat_session_id;
-                displayTweetThread(data.result);
-                if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
-            } else { throw new Error(data.error); }
-        } catch (error) {
-            showError(error.message);
-        } finally {
-            resetButtonStates();
+    // --- API FUNCTION ---
+    async function repurposeContent() {
+        const originalContent = document.getElementById('repurpose-text-input').value;
+        if (!originalContent.trim()) {
+            alert('Please paste the original content.');
+            return;
         }
-    }
 
-    async function generateSlides() {
-        const blogText = document.getElementById('repurpose-blog-input').value;
-        if (!blogText.trim()) { alert('Please paste the blog post text.'); return; }
+        const repurposeType = repurposeIntoSelect.value;
 
-        showLoading(this, "Outlining your presentation...");
+        // Gather universal settings
+        const settings = {
+            audience: document.getElementById('repurpose-audience').value,
+            goal: document.getElementById('repurpose-goal').value,
+            message: document.getElementById('repurpose-message').value,
+        };
+
+        // Gather format-specific settings
+        if (repurposeType === 'twitter_thread') {
+            settings.tweetCount = document.getElementById('twitter-tweets-count').value;
+            settings.includeHook = document.getElementById('twitter-hook').checked;
+            settings.includeHashtags = document.getElementById('twitter-hashtags').checked;
+        } else if (repurposeType === 'video_script') {
+            settings.targetLength = document.getElementById('video-length').value;
+            settings.spokenBy = document.getElementById('video-speaker').value;
+            settings.includeVisualCues = document.getElementById('video-cues').checked;
+        } else if (repurposeType === 'linkedin_post') {
+            settings.useProfessionalTone = document.getElementById('linkedin-professional-tone').checked;
+        }
+
+        showLoading(this, "Repurposing your content...");
         try {
             const response = await fetch('/api/v1/repurpose/content', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool: 'presentation', text: blogText, chat_session_id: repurposeChatSessionId })
+                body: JSON.stringify({
+                    tool: repurposeType,
+                    text: originalContent,
+                    settings: settings,
+                    chat_session_id: repurposeChatSessionId
+                })
             });
             const data = await response.json();
             if (response.ok) {
                 repurposeChatSessionId = data.chat_session_id;
-                displaySlides(data.result);
+                // A generic display function can handle different outputs
+                displayOutput(data.result, `Repurposed into: ${repurposeIntoSelect.options[repurposeIntoSelect.selectedIndex].text}`);
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
-            } else { throw new Error(data.error); }
+            } else {
+                throw new Error(data.error);
+            }
         } catch (error) {
             showError(error.message);
         } finally {
-            resetButtonStates();
+            resetButton(this, 'repeat', 'Repurpose Content');
         }
     }
 
@@ -189,53 +277,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showError(message) {
         outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${message}</p></div>`;
-        resetButtonStates();
+        resetButton(repurposeBtn, 'repeat', 'Repurpose Content');
     }
 
-    function resetButtonStates() {
-        const tweetBtn = document.getElementById('repurposeTweetBtn');
-        const slidesBtn = document.getElementById('repurposeSlidesBtn');
-        if(tweetBtn) {
-            tweetBtn.disabled = false;
-            tweetBtn.innerHTML = '<span class="material-symbols-outlined">repeat</span> Generate Twitter Thread';
-        }
-        if(slidesBtn) {
-            slidesBtn.disabled = false;
-            slidesBtn.innerHTML = '<span class="material-symbols-outlined">slideshow</span> Generate Presentation Outline';
+    function resetButton(btn, icon, text) {
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">${icon}</span> ${text}`;
         }
     }
 
-    function displayTweetThread(threadText) {
-        const tweets = threadText.split('---').map(t => t.trim()).filter(t => t);
-        outputDisplay.innerHTML = tweets.map((tweet, index) => `
-            <div class="output-card"><div class="output-header">Tweet ${index + 1} of ${tweets.length}</div><pre class="output-content">${escapeHtml(tweet)}</pre><button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px; margin-top: 12px;" onclick="copyToClipboard(this)">Copy Tweet</button></div>
-        `).join('');
-    }
-
-    function displaySlides(slidesText) {
-        outputDisplay.innerHTML = `<div class="output-card"><div class="output-header">Presentation Outline</div><pre class="output-content">${escapeHtml(slidesText)}</pre></div>`;
-    }
-
-    window.loadSessionIntoView = async function(sessionId) {
-        try {
-            showLoadingState("Loading session...");
-            const response = await fetch(`/api/chat-session/${sessionId}`);
-            if (!response.ok) throw new Error('Failed to fetch session data.');
-
-            const session = await response.json();
-            repurposeChatSessionId = session.session_id;
-
-            if (session.studio_type === 'REPURPOSE_TWEET') {
-                document.querySelector('.tab-button[data-tab="article-to-tweet"]').click();
-                displayTweetThread(session.raw_text);
-            } else if (session.studio_type === 'REPURPOSE_SLIDES') {
-                document.querySelector('.tab-button[data-tab="blog-to-slides"]').click();
-                displaySlides(session.raw_text);
-            }
-            showNotification('Session loaded successfully!');
-        } catch (error) {
-            showError(error.message);
+    function displayOutput(text, title) {
+        const content = text.split('---').map(t => t.trim()).filter(t => t);
+        if (content.length > 1) {
+             outputDisplay.innerHTML = content.map((item, index) => `
+                <div class="output-card"><div class="output-header">${title} - Part ${index + 1}</div><pre class="output-content">${escapeHtml(item)}</pre><button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px; margin-top: 12px;" onclick="copyToClipboard(this)">Copy</button></div>
+            `).join('');
+        } else {
+            outputDisplay.innerHTML = `<div class="output-card"><div class="output-header">${title}</div><pre class="output-content">${escapeHtml(text)}</pre></div>`;
         }
+    }
+
+    function escapeHtml(unsafe) {
+        return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     function copyToClipboard(button) {
@@ -244,10 +308,6 @@ document.addEventListener('DOMContentLoaded', function() {
             button.textContent = 'Copied!';
             setTimeout(() => { button.textContent = 'Copy' }, 2000);
         }).catch(err => console.error('Copy failed', err));
-    }
-
-    function escapeHtml(unsafe) {
-        return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     function showNotification(message, type = 'success') {
