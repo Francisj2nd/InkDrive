@@ -4,6 +4,7 @@
 
 {% block studio_head_css %}
 <style>
+    /* Custom Tab Styles from Brainstorming Studio */
     .tabs {
         display: flex;
         border-bottom: 1px solid var(--outline);
@@ -19,6 +20,7 @@
         font-weight: 500;
         color: var(--on-surface-variant);
         border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
     }
     .tab-button.active {
         color: var(--primary-blue);
@@ -37,16 +39,8 @@
         padding: 16px;
         margin-top: 16px;
     }
-    .output-card h4 {
-        margin-top: 0;
-        margin-bottom: 12px;
-        font-weight: 500;
-    }
     .output-content {
         white-space: pre-wrap;
-        font-family: inherit;
-        font-size: 14px;
-        color: var(--on-surface);
     }
     .spinner {
         width: 16px;
@@ -64,43 +58,47 @@
 {% endblock %}
 
 {% block studio_title %}Business Docs Studio{% endblock %}
-{% block studio_description %}Generate professional press releases, job descriptions, and reports.{% endblock %}
+{% block studio_description %}Generate structured proposals, formal reports, and professional press releases.{% endblock %}
 
 {% block studio_inputs %}
 <div class="tabs">
-    <button class="tab-button active" data-tab="press-release">Press Release</button>
-    <button class="tab-button" data-tab="job-description">Job Description</button>
+    <button class="tab-button active" data-tab="proposal">Proposal Writer</button>
+    <button class="tab-button" data-tab="report">Formal Report</button>
+    <button class="tab-button" data-tab="press-release">Press Release</button>
 </div>
 
-<div id="press-release" class="tab-content active">
-    <div class="form-group">
-        <label for="pr-announcement">Announcement / Key Information</label>
-        <textarea id="pr-announcement" class="form-control" rows="4" placeholder="e.g., Launch of our new flagship product, the 'Quantum Leap', on October 25th."></textarea>
-    </div>
-    <div class="form-group">
-        <label for="pr-company">Company Name</label>
-        <input type="text" id="pr-company" class="form-control" placeholder="e.g., Quantum Innovations Inc.">
-    </div>
-    <button id="generatePrBtn" class="btn btn-primary" style="width: 100%;">
-        <span class="material-symbols-outlined">feed</span>
-        Generate Press Release
-    </button>
+<!-- Proposal Writer Tab -->
+<div id="proposal" class="tab-content active">
+    <div class="form-group"><label for="prop-company">Your Company</label><input type="text" id="prop-company" class="form-control" placeholder="e.g., Nexus Digital Solutions"></div>
+    <div class="form-group"><label for="prop-client">Client Name</label><input type="text" id="prop-client" class="form-control" placeholder="e.g., Innovate Corp"></div>
+    <div class="form-group"><label for="prop-problem">Client's Problem</label><textarea id="prop-problem" class="form-control" rows="2" placeholder="e.g., Inefficient customer data management..."></textarea></div>
+    <div class="form-group"><label for="prop-solution">Proposed Solution</label><textarea id="prop-solution" class="form-control" rows="3" placeholder="e.g., Implement a custom CRM..."></textarea></div>
+    <div class="form-group"><label for="prop-deliverables">Deliverables (one per line)</label><textarea id="prop-deliverables" class="form-control" rows="3" placeholder="e.g., Phase 1: Discovery&#10;Phase 2: Implementation"></textarea></div>
+    <div class="form-group"><label for="prop-tone">Tone</label><input type="text" id="prop-tone" class="form-control" placeholder="e.g., Formal and confident"></div>
 </div>
 
-<div id="job-description" class="tab-content">
-    <div class="form-group">
-        <label for="jd-role">Job Role / Title</label>
-        <input type="text" id="jd-role" class="form-control" placeholder="e.g., Senior Frontend Developer">
-    </div>
-    <div class="form-group">
-        <label for="jd-responsibilities">Key Responsibilities (one per line)</label>
-        <textarea id="jd-responsibilities" class="form-control" rows="4" placeholder="e.g., Develop and maintain user-facing features&#10;Collaborate with UI/UX designers&#10;Optimize applications for speed and scalability"></textarea>
-    </div>
-    <button id="generateJdBtn" class="btn btn-primary" style="width: 100%;">
-        <span class="material-symbols-outlined">person_add</span>
-        Generate Job Description
-    </button>
+<!-- Formal Report Generator Tab -->
+<div id="report" class="tab-content">
+    <div class="form-group"><label for="rep-type">Report Type</label><select id="rep-type" class="form-control"><option value="status_update" selected>Status Update</option><option value="financial_summary">Financial Summary</option><option value="incident_report">Incident Report</option></select></div>
+    <div class="form-group"><label for="rep-subject">Subject</label><input type="text" id="rep-subject" class="form-control" placeholder="e.g., Q3 Marketing Campaign Performance"></div>
+    <div class="form-group"><label for="rep-period">Time Period</label><input type="text" id="rep-period" class="form-control" placeholder="e.g., July 1, 2024 - September 30, 2024"></div>
+    <div class="form-group"><label for="rep-data">Key Data Points (one per line)</label><textarea id="rep-data" class="form-control" rows="4" placeholder="e.g., Website traffic increased by 15%&#10;Lead conversion rate at 5.2%"></textarea></div>
+    <div class="form-group"><label for="rep-audience">Target Audience</label><input type="text" id="rep-audience" class="form-control" placeholder="e.g., Senior Management"></div>
 </div>
+
+<!-- Press Release Writer Tab -->
+<div id="press-release" class="tab-content">
+    <div class="form-group"><label for="pr-headline">Headline</label><input type="text" id="pr-headline" class="form-control" placeholder="e.g., Innovate Inc. Launches Groundbreaking New AI Platform"></div>
+    <div class="form-group"><label for="pr-company-info">Company Info (City, State)</label><input type="text" id="pr-company-info" class="form-control" placeholder="e.g., San Francisco, CA"></div>
+    <div class="form-group"><label for="pr-key-info">Key Information (The 5 Ws)</label><textarea id="pr-key-info" class="form-control" rows="3" placeholder="Who, What, When, Where, Why..."></textarea></div>
+    <div class="form-group"><label for="pr-quote">Quote (including speaker and title)</label><textarea id="pr-quote" class="form-control" rows="2" placeholder="e.g., 'This changes everything,' says Jane Doe, CEO."></textarea></div>
+    <div class="form-group"><label for="pr-boilerplate">Company Boilerplate</label><textarea id="pr-boilerplate" class="form-control" rows="2" placeholder="e.g., Innovate Inc. is a leading provider of..."></textarea></div>
+</div>
+
+<button id="generateBtn" class="btn btn-primary mt-3" style="width: 100%;">
+    <span class="material-symbols-outlined">business_center</span>
+    Generate Document
+</button>
 {% endblock %}
 
 {% block studio_output %}
@@ -118,170 +116,102 @@
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- COMMON ELEMENTS ---
+    const generateBtn = document.getElementById('generateBtn');
     const outputDisplay = document.getElementById('business-output-display');
-    let businessChatSessionId = null; // Shared session for this studio
-
-    // --- TAB SWITCHING ---
     const tabs = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
+    let businessChatSessionId = null;
+
+    // --- Tab Switching Logic ---
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             tabs.forEach(t => t.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
             tab.classList.add('active');
             document.getElementById(tab.dataset.tab).classList.add('active');
-            // Clear output when switching tabs
-            outputDisplay.innerHTML = `
-                <div class="empty-state">
-                    <span class="material-symbols-outlined" style="font-size: 48px;">business_center</span>
-                    <p>Your generated business document will appear here.</p>
-                </div>`;
         });
     });
 
-    // --- PRESS RELEASE LOGIC ---
-    const generatePrBtn = document.getElementById('generatePrBtn');
-    if (generatePrBtn) {
-        generatePrBtn.addEventListener('click', async () => {
-            const announcement = document.getElementById('pr-announcement').value;
-            const company = document.getElementById('pr-company').value;
+    // --- Main Generate Function ---
+    if (generateBtn) {
+        generateBtn.addEventListener('click', async () => {
+            const tool = document.querySelector('.tab-button.active')?.dataset.tab;
+            if (!tool) return alert('Error: Could not find active tool.');
 
-            if (!announcement.trim() || !company.trim()) {
-                alert('Please provide the announcement details and company name.');
-                return;
-            }
-            showLoadingState("Writing your press release...");
+            const settings = gatherInputs(tool);
+            if (!settings) return alert('Please fill in all required fields for the selected tool.');
 
+            showLoading();
             try {
                 const response = await fetch('/api/v1/generate/business', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tool: 'press_release',
-                        announcement: announcement,
-                        company: company,
-                        chat_session_id: businessChatSessionId
-                    })
+                    body: JSON.stringify({ tool, settings, chat_session_id: businessChatSessionId })
                 });
                 const data = await response.json();
                 if (response.ok) {
                     businessChatSessionId = data.chat_session_id;
-                    displayOutput(data.press_release, 'Press Release');
+                    displayOutput(data.result);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
-                } else { throw new Error(data.error); }
+                } else {
+                    throw new Error(data.error || 'Failed to generate content');
+                }
             } catch (error) {
-                showErrorState(error.message);
+                showError(error.message);
+            } finally {
+                resetButton();
             }
         });
     }
 
-    // --- JOB DESCRIPTION LOGIC ---
-    const generateJdBtn = document.getElementById('generateJdBtn');
-    if (generateJdBtn) {
-        generateJdBtn.addEventListener('click', async () => {
-            const role = document.getElementById('jd-role').value;
-            const responsibilities = document.getElementById('jd-responsibilities').value;
-
-            if (!role.trim() || !responsibilities.trim()) {
-                alert('Please provide the job role and key responsibilities.');
-                return;
-            }
-            showLoadingState("Writing your job description...");
-
-            try {
-                const response = await fetch('/api/v1/generate/business', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tool: 'job_description',
-                        role: role,
-                        responsibilities: responsibilities,
-                        chat_session_id: businessChatSessionId
-                    })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    businessChatSessionId = data.chat_session_id;
-                    displayOutput(data.job_description, 'Job Description');
-                    if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
-                } else { throw new Error(data.error); }
-            } catch (error) {
-                showErrorState(error.message);
-            }
-        });
-    }
-
-    // --- DISPLAY FUNCTIONS ---
-    function showLoadingState(message) {
-        const btn = document.querySelector('.tab-content.active button');
-        btn.disabled = true;
-        btn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
-        outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>${message}</span></div>`;
-    }
-
-    function showErrorState(message) {
-        resetButtonStates();
-        outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${message}</p></div>`;
-    }
-
-    function displayOutput(text, title) {
-        resetButtonStates();
-        if (!text) {
-            showErrorState(`The model did not return a ${title.toLowerCase()}. Please try again.`);
-            return;
+    function gatherInputs(tool) {
+        let settings = {};
+        let isValid = true;
+        if (tool === 'proposal') {
+            settings.company = document.getElementById('prop-company').value;
+            settings.client = document.getElementById('prop-client').value;
+            settings.problem = document.getElementById('prop-problem').value;
+            settings.solution = document.getElementById('prop-solution').value;
+            settings.deliverables = document.getElementById('prop-deliverables').value;
+            settings.tone = document.getElementById('prop-tone').value;
+            if (!settings.company || !settings.client || !settings.problem || !settings.solution) isValid = false;
+        } else if (tool === 'report') {
+            settings.reportType = document.getElementById('rep-type').value;
+            settings.subject = document.getElementById('rep-subject').value;
+            settings.period = document.getElementById('rep-period').value;
+            settings.dataPoints = document.getElementById('rep-data').value;
+            settings.audience = document.getElementById('rep-audience').value;
+            if (!settings.subject || !settings.period || !settings.dataPoints) isValid = false;
+        } else if (tool === 'press-release') {
+            settings.headline = document.getElementById('pr-headline').value;
+            settings.companyInfo = document.getElementById('pr-company-info').value;
+            settings.keyInfo = document.getElementById('pr-key-info').value;
+            settings.quote = document.getElementById('pr-quote').value;
+            settings.boilerplate = document.getElementById('pr-boilerplate').value;
+            if (!settings.headline || !settings.keyInfo) isValid = false;
         }
-        outputDisplay.innerHTML = `
-            <div class="output-card">
-                <h4>${title}</h4>
-                <pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
-            </div>
-        `;
+        return isValid ? settings : null;
     }
 
-    function resetButtonStates() {
-        if(generatePrBtn) {
-            generatePrBtn.disabled = false;
-            generatePrBtn.innerHTML = '<span class="material-symbols-outlined">feed</span> Generate Press Release';
-        }
-        if(generateJdBtn) {
-            generateJdBtn.disabled = false;
-            generateJdBtn.innerHTML = '<span class="material-symbols-outlined">person_add</span> Generate Job Description';
-        }
+    // --- UI Helper Functions ---
+    function showLoading() {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
+        outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Drafting your document...</span></div>`;
     }
 
-    window.loadSessionIntoView = async function(sessionId) {
-        try {
-            showLoadingState("Loading session...");
-            const response = await fetch(`/api/chat-session/${sessionId}`);
-            if (!response.ok) throw new Error('Failed to fetch session data.');
+    function showError(message) {
+        outputDisplay.innerHTML = `<div class="output-card" style="color: var(--error);"><p><strong>Error:</strong> ${message}</p></div>`;
+    }
 
-            const session = await response.json();
-            businessChatSessionId = session.session_id;
+    function resetButton() {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span class="material-symbols-outlined">business_center</span> Generate Document';
+    }
 
-            const userInput = JSON.parse(session.messages[0].content);
-
-            if (session.studio_type === 'PRESS_RELEASE') {
-                document.querySelector('.tab-button[data-tab="press-release"]').click();
-                document.getElementById('pr-announcement').value = userInput.announcement || '';
-                document.getElementById('pr-company').value = userInput.company || '';
-                document.getElementById('generatePrBtn').disabled = true;
-                displayOutput(session.raw_text, 'Press Release');
-            } else if (session.studio_type === 'JOB_DESCRIPTION') {
-                document.querySelector('.tab-button[data-tab="job-description"]').click();
-                document.getElementById('jd-role').value = userInput.role || '';
-                document.getElementById('jd-responsibilities').value = userInput.responsibilities || '';
-                document.getElementById('generateJdBtn').disabled = true;
-                displayOutput(session.raw_text, 'Job Description');
-            }
-
-            if (typeof showNotification === 'function') {
-                showNotification('Session loaded successfully!');
-            }
-
-        } catch (error) {
-            showErrorState(error.message);
-        }
+    function displayOutput(text) {
+        if (!text) return showError('The model did not return any content. Please try again.');
+        outputDisplay.innerHTML = `<div class="output-card"><pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></div>`;
     }
 });
 </script>
