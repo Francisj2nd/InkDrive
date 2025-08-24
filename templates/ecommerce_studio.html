@@ -4,11 +4,34 @@
 
 {% block studio_head_css %}
 <style>
-    .nav-tabs .nav-link.active {
-        background-color: var(--surface-container-highest);
-        border-bottom-color: var(--primary-blue);
-        border-bottom-width: 2px;
+    #ecommerce-tabs.nav-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        padding-left: 0;
+        margin-bottom: 0;
+        list-style: none;
+        border-bottom: 1px solid var(--outline);
+    }
+    #ecommerce-tabs .nav-link {
+        display: block; /* Override the global flex display */
+        border: 1px solid transparent;
+        border-top-left-radius: .5rem;
+        border-top-right-radius: .5rem;
+        color: var(--on-surface-variant);
+        background-color: transparent;
+        margin-bottom: -1px;
+        padding: .5rem 1rem;
+        transition: background-color 0.2s, border-color 0.2s;
+    }
+    #ecommerce-tabs .nav-link:hover {
+        border-color: var(--surface-container-high);
+        background-color: var(--surface-container-high);
+    }
+    #ecommerce-tabs .nav-link.active {
+        background-color: var(--surface-container-low);
+        border-color: var(--outline) var(--outline) var(--surface-container-low);
         color: var(--on-surface);
+        font-weight: 500;
     }
     .tab-content {
         background-color: var(--surface-container-low);
