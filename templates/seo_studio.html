@@ -70,29 +70,70 @@
 
 {% block studio_inputs %}
 <div class="tabs">
-    <button class="tab-button active" data-tab="keywords">Keyword Generator</button>
-    <button class="tab-button" data-tab="headlines">Headline Generator</button>
+    <button class="tab-button active" data-tab="keyword-strategy">Keyword Strategy</button>
+    <button class="tab-button" data-tab="on-page-audit">On-Page SEO Audit</button>
 </div>
 
-<div id="keywords" class="tab-content active">
+<div id="keyword-strategy" class="tab-content active">
     <div class="form-group">
-        <label for="keyword-topic">Topic</label>
-        <input type="text" id="keyword-topic" class="form-control" placeholder="e.g., sustainable gardening">
+        <label for="business-description">Business/Product Description</label>
+        <textarea id="business-description" class="form-control" rows="3" placeholder="e.g., We sell eco-friendly, handmade soaps for sensitive skin."></textarea>
+    </div>
+    <div class="form-group">
+        <label for="target-audience">Target Audience</label>
+        <input type="text" id="target-audience" class="form-control" placeholder="e.g., Environmentally conscious millennials">
+    </div>
+    <div class="form-group">
+        <label>Search Intent Focus</label>
+        <div>
+            <div class="custom-control custom-checkbox custom-control-inline">
+                <input type="checkbox" class="custom-control-input" id="intent-informational" name="intent" value="Informational" checked>
+                <label class="custom-control-label" for="intent-informational">Informational</label>
+            </div>
+            <div class="custom-control custom-checkbox custom-control-inline">
+                <input type="checkbox" class="custom-control-input" id="intent-commercial" name="intent" value="Commercial">
+                <label class="custom-control-label" for="intent-commercial">Commercial</label>
+            </div>
+            <div class="custom-control custom-checkbox custom-control-inline">
+                <input type="checkbox" class="custom-control-input" id="intent-transactional" name="intent" value="Transactional">
+                <label class="custom-control-label" for="intent-transactional">Transactional</label>
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="competitor-domains">Competitor Domains (Optional, one per line)</label>
+        <textarea id="competitor-domains" class="form-control" rows="2" placeholder="e.g., lush.com&#x0a;drsquatch.com"></textarea>
     </div>
     <button id="generateKeywordsBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">key</span>
-        Generate Keywords
+        Generate Keyword Strategy
     </button>
 </div>
 
-<div id="headlines" class="tab-content">
+<div id="on-page-audit" class="tab-content">
     <div class="form-group">
-        <label for="headline-topic">Topic</label>
-        <input type="text" id="headline-topic" class="form-control" placeholder="e.g., The benefits of intermittent fasting">
+        <label for="audit-url">Page URL to Audit</label>
+        <input type="text" id="audit-url" class="form-control" placeholder="https://example.com/your-page-to-audit">
     </div>
-    <button id="generateHeadlinesBtn" class="btn btn-primary" style="width: 100%;">
-        <span class="material-symbols-outlined">title</span>
-        Generate Headlines
+     <div class="form-group">
+        <label for="primary-keyword">Primary Target Keyword</label>
+        <input type="text" id="primary-keyword" class="form-control" placeholder="e.g., 'handmade sensitive skin soap'" required>
+    </div>
+    <div class="form-group">
+        <label for="secondary-keywords">Secondary Keywords (Optional, comma-separated)</label>
+        <input type="text" id="secondary-keywords" class="form-control" placeholder="e.g., 'natural soap', 'oatmeal soap for eczema'">
+    </div>
+    <div class="form-group">
+        <label for="page-goal">Page Goal / Call-to-Action</label>
+        <input type="text" id="page-goal" class="form-control" placeholder="e.g., 'User clicks buy now on the featured soap'">
+    </div>
+    <div class="form-group">
+        <label for="competitor-url">Competitor URL to Outrank (Optional)</label>
+        <input type="text" id="competitor-url" class="form-control" placeholder="https://competitor.com/their-soap-page">
+    </div>
+    <button id="runAuditBtn" class="btn btn-primary" style="width: 100%;">
+        <span class="material-symbols-outlined">pageview</span>
+        Run On-Page Audit
     </button>
 </div>
 {% endblock %}
@@ -134,27 +175,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // --- KEYWORD GENERATOR LOGIC ---
+    // --- KEYWORD STRATEGY LOGIC ---
     const generateKeywordsBtn = document.getElementById('generateKeywordsBtn');
     if (generateKeywordsBtn) {
         generateKeywordsBtn.addEventListener('click', async () => {
-            const topic = document.getElementById('keyword-topic').value;
-            if (!topic.trim()) {
-                alert('Please enter a topic for keywords.');
+            const settings = {
+                description: document.getElementById('business-description').value,
+                audience: document.getElementById('target-audience').value,
+                intents: Array.from(document.querySelectorAll('input[name="intent"]:checked')).map(cb => cb.value),
+                competitors: document.getElementById('competitor-domains').value
+            };
+
+            if (!settings.description.trim() || !settings.audience.trim()) {
+                alert('Please provide a business description and target audience.');
                 return;
             }
 
             generateKeywordsBtn.disabled = true;
             generateKeywordsBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
-            showLoadingState("Finding keywords...");
+            showLoadingState("Building keyword strategy...");
 
             try {
                 const response = await fetch('/api/v1/seo/tools', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        tool: 'keywords',
-                        topic: topic,
+                        tool: 'keyword_strategy',
+                        settings: settings,
                         chat_session_id: seoChatSessionId
                     })
                 });
@@ -165,38 +212,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     displayKeywords(data.keywords);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else {
-                    throw new Error(data.error || 'Failed to generate keywords');
+                    throw new Error(data.error || 'Failed to generate keyword strategy');
                 }
             } catch (error) {
                 showErrorState(error.message);
             } finally {
                 generateKeywordsBtn.disabled = false;
-                generateKeywordsBtn.innerHTML = '<span class="material-symbols-outlined">key</span> Generate Keywords';
+                generateKeywordsBtn.innerHTML = '<span class="material-symbols-outlined">key</span> Generate Keyword Strategy';
             }
         });
     }
 
-    // --- HEADLINE GENERATOR LOGIC ---
-    const generateHeadlinesBtn = document.getElementById('generateHeadlinesBtn');
-    if (generateHeadlinesBtn) {
-        generateHeadlinesBtn.addEventListener('click', async () => {
-            const topic = document.getElementById('headline-topic').value;
-            if (!topic.trim()) {
-                alert('Please enter a topic for headlines.');
+    // --- ON-PAGE SEO AUDIT LOGIC ---
+    const runAuditBtn = document.getElementById('runAuditBtn');
+    if (runAuditBtn) {
+        runAuditBtn.addEventListener('click', async () => {
+            const settings = {
+                url: document.getElementById('audit-url').value,
+                primaryKeyword: document.getElementById('primary-keyword').value,
+                secondaryKeywords: document.getElementById('secondary-keywords').value,
+                pageGoal: document.getElementById('page-goal').value,
+                competitorUrl: document.getElementById('competitor-url').value
+            };
+
+            if (!settings.url.trim() || !settings.primaryKeyword.trim()) {
+                alert('Please provide a URL and a primary keyword for the audit.');
                 return;
             }
 
-            generateHeadlinesBtn.disabled = true;
-            generateHeadlinesBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Generating...`;
-            showLoadingState("Creating headlines...");
+            runAuditBtn.disabled = true;
+            runAuditBtn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span> Running Audit...`;
+            showLoadingState("Auditing your page...");
 
             try {
                 const response = await fetch('/api/v1/seo/tools', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        tool: 'headlines',
-                        topic: topic,
+                        tool: 'on_page_audit',
+                        settings: settings,
                         chat_session_id: seoChatSessionId
                     })
                 });
@@ -204,16 +258,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     seoChatSessionId = data.chat_session_id;
-                    displayHeadlines(data.headlines);
+                    displayAudit(data.audit_results);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
                 } else {
-                    throw new Error(data.error || 'Failed to generate headlines');
+                    throw new Error(data.error || 'Failed to run audit');
                 }
             } catch (error) {
                 showErrorState(error.message);
             } finally {
-                generateHeadlinesBtn.disabled = false;
-                generateHeadlinesBtn.innerHTML = '<span class="material-symbols-outlined">title</span> Generate Headlines';
+                runAuditBtn.disabled = false;
+                runAuditBtn.innerHTML = '<span class="material-symbols-outlined">pageview</span> Run On-Page Audit';
             }
         });
     }
@@ -261,6 +315,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 </ul>
             </div>
         `;
+    }
+
+    function displayAudit(auditResults) {
+        if (!auditResults) {
+            showErrorState('The model did not return any audit results. Please try again.');
+            return;
+        }
+        // Assuming audit_results is a markdown formatted string
+        outputDisplay.innerHTML = `<div class="output-card"><h4>On-Page SEO Audit</h4><div class="output-content">${markdownToHtml(auditResults)}</div></div>`;
+    }
+
+    function markdownToHtml(md) {
+        // Basic markdown to HTML conversion
+        md = md.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+        md = md.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+        md = md.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+        md = md.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+        md = md.replace(/\*(.*)\*/gim, '<em>$1</em>');
+        md = md.replace(/^\* (.*$)/gim, '<ul><li>$1</li></ul>');
+        md = md.replace(/^\s*\n\*/gim, '<li>');
+        md = md.replace(/<\/ul>\n<ul>/gim, '');
+        return md.replace(/\n/g, '<br>');
     }
 
     window.loadSessionIntoView = async function(sessionId) {
