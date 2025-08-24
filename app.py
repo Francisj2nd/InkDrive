@@ -444,23 +444,64 @@ Provide a step-by-step audit in Markdown format. For each point, provide a "Curr
     prompt += "\nReturn only the audit in Markdown format, without any preamble."
     return prompt
 
-def construct_idea_prompt(topic):
-    """Constructs a prompt for generating blog post ideas."""
-    return f"""
-    You are a content strategist and expert copywriter. Your task is to brainstorm a list of engaging blog post titles and ideas based on a given topic.
+def construct_brainstorm_prompt(settings=None):
+    """Constructs a prompt for general brainstorming."""
+    if settings is None:
+        settings = {}
 
-    **Topic:** "{topic}"
+    goal = settings.get('goal')
+    framework = settings.get('framework', 'Simple List')
+    constraints = settings.get('constraints')
 
-    **Instructions:**
-    1.  **Generate 10 Ideas:** Create a list of 10 distinct and compelling blog post titles.
-    2.  **Focus on Engagement:** The titles should be click-worthy, interesting, and promise value to the reader.
-    3.  **Vary the Angles:** Cover different facets of the topic (e.g., how-to guides, listicles, thought leadership, common mistakes).
-    4.  **Format as a List:** Return the output as a simple list, with each title on a new line.
-    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+    prompt = f"""
+You are a strategic facilitator. Your task is to lead a brainstorming session based on the following objective and framework.
 
-    Generate the list of ideas for the topic "{topic}" now.
-    """
+**Objective:** {goal}
+**Framework:** {framework}
+"""
+    if constraints:
+        prompt += f"**Constraints:** {constraints}\n"
 
+    prompt += """
+**Instructions:**
+-   Generate a list of creative, relevant, and actionable ideas.
+-   If using SWOT, structure the output with 'Strengths', 'Weaknesses', 'Opportunities', and 'Threats' headings.
+-   If using a Simple List, provide a direct list of ideas.
+-   Return only the generated ideas, without any preamble.
+"""
+    return prompt
+
+def construct_naming_prompt(settings=None):
+    """Constructs a prompt for generating names."""
+    if settings is None:
+        settings = {}
+
+    description = settings.get('description')
+    style = settings.get('style', 'Descriptive')
+    tone = settings.get('tone', 'Modern')
+    keyword = settings.get('keyword')
+    length = settings.get('length', 'Any')
+
+    prompt = f"""
+You are an expert branding and naming consultant. Your task is to generate a list of 10-15 potential names for a product or company.
+
+**Product/Company Description:** {description}
+
+**Naming Guidelines:**
+-   **Style:** {style}
+-   **Tone:** {tone}
+-   **Length/Syllables:** {length}
+"""
+    if keyword:
+        prompt += f"-   **Required Keyword:** Must include the word or concept '{keyword}'.\n"
+
+    prompt += """
+**Instructions:**
+-   Provide a diverse list of names that fit the guidelines.
+-   The names should be memorable, easy to spell, and ideally have domain name potential.
+-   Return only the list of names, each on a new line, without any commentary.
+"""
+    return prompt
 
 def construct_script_prompt(topic, duration):
     """Constructs a prompt for generating a YouTube script."""
@@ -1503,51 +1544,70 @@ def generate_social_content():
     else:
         return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
-@app.route('/api/v1/generate/ideas', methods=['POST'])
+@app.route('/api/v1/generate/brainstorm', methods=['POST'])
 @login_required
-def generate_ideas():
-    """Generates blog post ideas and titles."""
+def generate_brainstorm_content():
+    """Handles various brainstorming and naming requests."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    topic = data.get("topic")
+    tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
-    if not topic:
-        return jsonify({"error": "Missing required field: topic."}), 400
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_idea_prompt(topic)
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        raw_text = response.candidates[0].content.parts[0].text
+    if tool == 'general':
+        if not settings.get('goal'):
+            return jsonify({"error": "Missing required field: goal."}), 400
 
-        # Split the response into a list of ideas
-        ideas = [idea.strip() for idea in raw_text.split('\n') if idea.strip()]
+        full_prompt = construct_brainstorm_prompt(settings)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+            ideas = [idea.strip() for idea in raw_text.split('\n') if idea.strip()]
 
-        # Save to chat history
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = json.dumps({"tool": "general", "settings": settings})
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Brainstorm: {settings.get('goal', 'General')}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
 
-        user_message = f"Generate blog post ideas for the topic: '{topic}'"
-        messages = [
-            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-        ]
+            return jsonify({"ideas": ideas, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Brainstorming error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-        session_title = f"Ideas for '{topic}'"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
+    elif tool == 'naming':
+        if not settings.get('description'):
+            return jsonify({"error": "Missing required field: description."}), 400
 
-        return jsonify({
-            "ideas": ideas,
-            "chat_session_id": chat_session_id
-        })
-    except Exception as e:
-        logger.error(f"Idea generation error: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+        full_prompt = construct_naming_prompt(settings)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            raw_text = response.candidates[0].content.parts[0].text
+            names = [name.strip() for name in raw_text.split('\n') if name.strip()]
+
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = json.dumps({"tool": "naming", "settings": settings})
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = f"Names for: {settings.get('description', 'New Project')[:30]}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='NAMING')
+
+            return jsonify({"names": names, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Naming error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
 @app.route('/api/v1/generate/script', methods=['POST'])
 @login_required
