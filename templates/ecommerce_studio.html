@@ -4,42 +4,36 @@
 
 {% block studio_head_css %}
 <style>
-    #ecommerce-tabs.nav-tabs {
+    /* Custom Tab Styles from Brainstorming Studio */
+    .tabs {
         display: flex;
-        flex-wrap: wrap;
-        padding-left: 0;
-        margin-bottom: 0;
-        list-style: none;
         border-bottom: 1px solid var(--outline);
+        margin-bottom: 20px;
     }
-    #ecommerce-tabs .nav-link {
-        display: block; /* Override the global flex display */
-        border: 1px solid transparent;
-        border-top-left-radius: .5rem;
-        border-top-right-radius: .5rem;
-        color: var(--on-surface-variant);
-        background-color: transparent;
-        margin-bottom: -1px;
-        padding: .5rem 1rem;
-        transition: background-color 0.2s, border-color 0.2s;
-    }
-    #ecommerce-tabs .nav-link:hover {
-        border-color: var(--surface-container-high);
-        background-color: var(--surface-container-high);
-    }
-    #ecommerce-tabs .nav-link.active {
-        background-color: var(--surface-container-low);
-        border-color: var(--outline) var(--outline) var(--surface-container-low);
-        color: var(--on-surface);
+    .tab-button {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 14px;
         font-weight: 500;
+        color: var(--on-surface-variant);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+    }
+    .tab-button.active {
+        color: var(--primary-blue);
+        border-bottom-color: var(--primary-blue);
     }
     .tab-content {
-        background-color: var(--surface-container-low);
-        padding: 20px;
-        border: 1px solid var(--outline);
-        border-top: none;
-        border-radius: 0 0 8px 8px;
+        display: none;
     }
+    .tab-content.active {
+        display: block;
+    }
+
+    /* General Studio Styles */
     .output-card {
         background: var(--surface-variant);
         border: 1px solid var(--outline);
@@ -97,135 +91,70 @@
 {% block studio_description %}Generate product descriptions, campaign ideas, and customer review responses.{% endblock %}
 
 {% block studio_inputs %}
-<!-- Tab Navigation -->
-<ul class="nav nav-tabs" id="ecommerce-tabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="description-tab-btn" data-bs-toggle="tab" data-bs-target="#description-tab" type="button" role="tab" aria-controls="description-tab" aria-selected="true" data-tool="description">Product Description</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="campaign-tab-btn" data-bs-toggle="tab" data-bs-target="#campaign-tab" type="button" role="tab" aria-controls="campaign-tab" aria-selected="false" data-tool="campaign">Promo Campaign</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="review-tab-btn" data-bs-toggle="tab" data-bs-target="#review-tab" type="button" role="tab" aria-controls="review-tab" aria-selected="false" data-tool="review">Review Responder</button>
-    </li>
-</ul>
+<div class="tabs">
+    <button class="tab-button active" data-tab="description">Product Description</button>
+    <button class="tab-button" data-tab="campaign">Promo Campaign</button>
+    <button class="tab-button" data-tab="review">Review Responder</button>
+</div>
 
-<!-- Tab Content -->
-<div class="tab-content" id="ecommerce-tabs-content">
-    <!-- Product Description Tab -->
-    <div class="tab-pane fade show active" id="description-tab" role="tabpanel" aria-labelledby="description-tab-btn">
-        <div class="form-group">
-            <label for="desc-product-name">Product Name</label>
-            <input type="text" id="desc-product-name" class="form-control" placeholder="e.g., Artisan Leather Journal">
-        </div>
-        <div class="form-group">
-            <label for="desc-features">Key Features (one per line)</label>
-            <textarea id="desc-features" class="form-control" rows="3" placeholder="e.g., Hand-stitched binding&#10;120gsm recycled paper"></textarea>
-        </div>
-        <div class="row">
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="desc-audience">Target Audience</label>
-                    <input type="text" id="desc-audience" class="form-control" placeholder="e.g., Writers, students">
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="desc-tone">Tone of Voice</label>
-                    <input type="text" id="desc-tone" class="form-control" placeholder="e.g., Luxurious, playful">
-                </div>
-            </div>
-        </div>
-        <div class="row">
-             <div class="col-md-6">
-                <div class="form-group">
-                    <label for="desc-benefit">Primary Benefit</label>
-                    <input type="text" id="desc-benefit" class="form-control" placeholder="e.g., Capture your best ideas">
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="desc-format">Output Format</label>
-                    <select id="desc-format" class="form-control">
-                        <option value="paragraph" selected>Paragraph</option>
-                        <option value="bullet_points">Bullet Points</option>
-                        <option value="paragraph_with_bullets">Paragraph with Bullets</option>
-                    </select>
-                </div>
-            </div>
+<!-- Product Description Tab -->
+<div id="description" class="tab-content active">
+    <div class="form-group">
+        <label for="desc-product-name">Product Name</label>
+        <input type="text" id="desc-product-name" class="form-control" placeholder="e.g., Artisan Leather Journal">
+    </div>
+    <div class="form-group">
+        <label for="desc-features">Key Features (one per line)</label>
+        <textarea id="desc-features" class="form-control" rows="3" placeholder="e.g., Hand-stitched binding&#10;120gsm recycled paper"></textarea>
+    </div>
+    <div class="row">
+        <div class="col-md-6"><div class="form-group"><label for="desc-audience">Target Audience</label><input type="text" id="desc-audience" class="form-control" placeholder="e.g., Writers, students"></div></div>
+        <div class="col-md-6"><div class="form-group"><label for="desc-tone">Tone of Voice</label><input type="text" id="desc-tone" class="form-control" placeholder="e.g., Luxurious, playful"></div></div>
+    </div>
+    <div class="row">
+         <div class="col-md-6"><div class="form-group"><label for="desc-benefit">Primary Benefit</label><input type="text" id="desc-benefit" class="form-control" placeholder="e.g., Capture your best ideas"></div></div>
+        <div class="col-md-6"><div class="form-group"><label for="desc-format">Output Format</label><select id="desc-format" class="form-control"><option value="paragraph" selected>Paragraph</option><option value="bullet_points">Bullet Points</option><option value="paragraph_with_bullets">Paragraph with Bullets</option></select></div></div>
+    </div>
+</div>
+
+<!-- Promotional Campaign Tab -->
+<div id="campaign" class="tab-content">
+    <div class="form-group"><label for="camp-product">Product/Service</label><input type="text" id="camp-product" class="form-control" placeholder="e.g., Premium Coffee Subscription Box"></div>
+    <div class="row">
+        <div class="col-md-6"><div class="form-group"><label for="camp-occasion">Campaign Occasion</label><input type="text" id="camp-occasion" class="form-control" placeholder="e.g., Black Friday, New Year Sale"></div></div>
+        <div class="col-md-6"><div class="form-group"><label for="camp-offer">The Offer</label><input type="text" id="camp-offer" class="form-control" placeholder="e.g., 25% off all plans"></div></div>
+    </div>
+    <div class="form-group"><label for="camp-urgency">Urgency Element</label><input type="text" id="camp-urgency" class="form-control" placeholder="e.g., 48-hour flash sale"></div>
+    <div class="form-group">
+        <label>Assets to Generate</label>
+        <div class="checkbox-grid">
+            <div class="checkbox-item"><input type="checkbox" id="asset-email" value="email" checked><label for="asset-email">Email Copy</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="asset-sms" value="sms"><label for="asset-sms">SMS Blast</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="asset-social" value="social" checked><label for="asset-social">Social Media Post</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="asset-banner" value="banner"><label for="asset-banner">Banner Ad Copy</label></div>
         </div>
     </div>
+</div>
 
-    <!-- Promotional Campaign Tab -->
-    <div class="tab-pane fade" id="campaign-tab" role="tabpanel" aria-labelledby="campaign-tab-btn">
-        <div class="form-group">
-            <label for="camp-product">Product/Service</label>
-            <input type="text" id="camp-product" class="form-control" placeholder="e.g., Premium Coffee Subscription Box">
-        </div>
-        <div class="row">
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="camp-occasion">Campaign Occasion</label>
-                    <input type="text" id="camp-occasion" class="form-control" placeholder="e.g., Black Friday, New Year Sale">
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="camp-offer">The Offer</label>
-                    <input type="text" id="camp-offer" class="form-control" placeholder="e.g., 25% off all plans">
+<!-- Customer Review Responder Tab -->
+<div id="review" class="tab-content">
+    <div class="form-group"><label for="rev-review">Customer's Review</label><textarea id="rev-review" class="form-control" rows="4" placeholder="Paste the customer's review here..."></textarea></div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label>Star Rating</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5" /><label for="star5" title="5 stars">&#9733;</label>
+                    <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">&#9733;</label>
+                    <input type="radio" id="star3" name="rating" value="3" checked /><label for="star3" title="3 stars">&#9733;</label>
+                    <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">&#9733;</label>
+                    <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">&#9733;</label>
                 </div>
             </div>
         </div>
-        <div class="form-group">
-            <label for="camp-urgency">Urgency Element</label>
-            <input type="text" id="camp-urgency" class="form-control" placeholder="e.g., 48-hour flash sale, Ends Sunday night">
-        </div>
-        <div class="form-group">
-            <label>Assets to Generate</label>
-            <div class="checkbox-grid">
-                <div class="checkbox-item"><input type="checkbox" id="asset-email" value="email" checked><label for="asset-email">Email Copy</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="asset-sms" value="sms"><label for="asset-sms">SMS Blast</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="asset-social" value="social" checked><label for="asset-social">Social Media Post</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="asset-banner" value="banner"><label for="asset-banner">Banner Ad Copy</label></div>
-            </div>
-        </div>
+        <div class="col-md-6"><div class="form-group"><label for="rev-tone">Response Tone</label><select id="rev-tone" class="form-control"><option value="Empathetic & Helpful" selected>Empathetic & Helpful</option><option value="Professional & Direct">Professional & Direct</option><option value="Friendly & Appreciative">Friendly & Appreciative</option></select></div></div>
     </div>
-
-    <!-- Customer Review Responder Tab -->
-    <div class="tab-pane fade" id="review-tab" role="tabpanel" aria-labelledby="review-tab-btn">
-        <div class="form-group">
-            <label for="rev-review">Customer's Review</label>
-            <textarea id="rev-review" class="form-control" rows="4" placeholder="Paste the customer's review here..."></textarea>
-        </div>
-        <div class="row">
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label>Star Rating</label>
-                    <div class="star-rating">
-                        <input type="radio" id="star5" name="rating" value="5" /><label for="star5" title="5 stars">&#9733;</label>
-                        <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">&#9733;</label>
-                        <input type="radio" id="star3" name="rating" value="3" checked /><label for="star3" title="3 stars">&#9733;</label>
-                        <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">&#9733;</label>
-                        <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">&#9733;</label>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="rev-tone">Response Tone</label>
-                    <select id="rev-tone" class="form-control">
-                        <option value="Empathetic & Helpful" selected>Empathetic & Helpful</option>
-                        <option value="Professional & Direct">Professional & Direct</option>
-                        <option value="Friendly & Appreciative">Friendly & Appreciative</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="rev-offer">Action / Offer (Optional)</label>
-            <input type="text" id="rev-offer" class="form-control" placeholder="e.g., Offer a 15% discount on their next purchase">
-        </div>
-    </div>
+    <div class="form-group"><label for="rev-offer">Action / Offer (Optional)</label><input type="text" id="rev-offer" class="form-control" placeholder="e.g., Offer a 15% discount"></div>
 </div>
 
 <button id="generateBtn" class="btn btn-primary mt-3" style="width: 100%;">
@@ -251,16 +180,27 @@
 document.addEventListener('DOMContentLoaded', function() {
     const generateBtn = document.getElementById('generateBtn');
     const outputDisplay = document.getElementById('ecommerce-output-display');
-    const tabs = document.querySelectorAll('#ecommerce-tabs .nav-link');
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
     let ecommerceChatSessionId = null;
 
+    // Custom Tab switching logic
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
     function getActiveTool() {
-        const activeTab = document.querySelector('#ecommerce-tabs .nav-link.active');
-        return activeTab ? activeTab.getAttribute('data-tool') : null;
+        const activeTab = document.querySelector('.tab-button.active');
+        return activeTab ? activeTab.getAttribute('data-tab') : null;
     }
 
     function gatherInputs(tool) {
-        let settings = { tool: tool };
+        let settings = {};
         let isValid = true;
 
         if (tool === 'description') {
@@ -276,11 +216,11 @@ document.addEventListener('DOMContentLoaded', function() {
             settings.occasion = document.getElementById('camp-occasion').value;
             settings.offer = document.getElementById('camp-offer').value;
             settings.urgency = document.getElementById('camp-urgency').value;
-            settings.assets = Array.from(document.querySelectorAll('#campaign-tab .checkbox-grid input:checked')).map(el => el.value);
+            settings.assets = Array.from(document.querySelectorAll('#campaign .checkbox-grid input:checked')).map(el => el.value);
             if (!settings.product || !settings.occasion || !settings.offer) isValid = false;
         } else if (tool === 'review') {
             settings.review = document.getElementById('rev-review').value;
-            const ratingElement = document.querySelector('#review-tab .star-rating input:checked');
+            const ratingElement = document.querySelector('#review .star-rating input:checked');
             settings.rating = ratingElement ? ratingElement.value : '3';
             settings.tone = document.getElementById('rev-tone').value;
             settings.offer = document.getElementById('rev-offer').value;
@@ -349,43 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
             </div>
         `;
-    }
-
-    // Simplified session loading for now. A more robust solution would be needed for production.
-    window.loadSessionIntoView = async function(sessionId) {
-        try {
-            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
-            const response = await fetch(`/api/chat-session/${sessionId}`);
-            if (!response.ok) throw new Error('Failed to fetch session data.');
-
-            const session = await response.json();
-            ecommerceChatSessionId = session.session_id;
-
-            const userInput = JSON.parse(session.messages[0].content);
-            const tool = userInput.tool;
-            const settings = userInput.settings || {};
-
-            // Activate the correct tab
-            const tabButton = document.querySelector(`#ecommerce-tabs .nav-link[data-tool="${tool}"]`);
-            if (tabButton) {
-                new bootstrap.Tab(tabButton).show();
-            }
-
-            // Populate fields - this is a simplified example
-            if (tool === 'description') {
-                document.getElementById('desc-product-name').value = settings.productName || '';
-                document.getElementById('desc-features').value = settings.features || '';
-            } // ... add logic for other tabs if needed
-
-            displayOutput(session.raw_text);
-
-            if (typeof showNotification === 'function') {
-                showNotification('Session loaded successfully!');
-            }
-
-        } catch (error) {
-            outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;
-        }
     }
 });
 </script>
