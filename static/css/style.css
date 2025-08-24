@@ -344,6 +344,8 @@ a:hover {
   width: 100%;
   overflow-x: auto;
   box-sizing: border-box;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 
 /* --- DASHBOARD STYLES --- */
