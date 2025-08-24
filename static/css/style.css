@@ -140,7 +140,7 @@ a:hover {
 .app-container {
   display: grid;
   grid-template-columns: 280px 1fr;
-  min-height: 100vh;
+  height: 100vh; /* Changed from min-height to constrain the total page height */
   gap: 0;
 }
 .app-container.no-sidebar {
@@ -334,11 +334,11 @@ a:hover {
   border-radius: 16px;
   padding: 24px;
   border: 1px solid var(--outline);
-  /* The parent grid now controls the height */
+  /* The parent grid now controls the height, so sticky is not needed */
   overflow-y: auto;
   width: 100%;
   box-sizing: border-box;
-  min-height: 0; /* Ensure it can shrink */
+  min-height: 0; /* Allow panel to shrink correctly in the grid */
 }
 .studio-output {
   background: var(--surface);

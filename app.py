@@ -160,490 +160,175 @@ except Exception as e:
     logger.error(f"Failed to initialize Google AI client: {e}")
 
 # Helper functions
-def construct_initial_prompt(topic, settings=None):
-    if settings is None:
-        settings = {}
+def construct_initial_prompt(topic):
+    article_requirements = """
+**Article Requirements:**
+1. Focus and Depth: Focus entirely on the topic. Educate the reader in-depth.
+2. Length: Aim for over 1000 words.
+3. Structure: Use clear sections with H2 and H3 subheadings using Markdown.
+4. Placeholders: Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`
+5. SEO Elements: At the very end of the article, provide "SEO Keywords:" and "Meta Description:".
+6. Quality: The content must be original, human-readable, and valuable.
+"""
+    return f"""I want you to generate a high-quality, SEO-optimized thought-leadership article on the topic of: "{topic}"
 
-    # Start building the prompt
-    prompt_lines = [
-        f"I want you to generate a high-quality, SEO-optimized thought-leadership article on the topic of: \"{topic}\"",
-        "\n**Article Requirements:**"
-    ]
+{article_requirements}
+"""
 
-    # Dynamically add instructions based on settings
-    word_count = settings.get('wordCount', '1000')
-    prompt_lines.append(f"1. **Length:** Aim for approximately {word_count} words.")
-
-    tone = settings.get('tone', 'Professional')
-    prompt_lines.append(f"2. **Tone of Voice:** The article's tone must be {tone}.")
-
-    audience = settings.get('audience')
-    if audience:
-        prompt_lines.append(f"3. **Target Audience:** Write for an audience of {audience}.")
-
-    prompt_lines.extend([
-        "4. **Structure:** Use clear sections with H2 and H3 subheadings using Markdown.",
-        "5. **Placeholders:** Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`",
-        "6. **Quality:** The content must be original, human-readable, and valuable."
-    ])
-
-    key_points = settings.get('keyPoints')
-    if key_points:
-        prompt_lines.append("\n**Key Points to Include:**")
-        prompt_lines.append("The article must incorporate and expand upon the following key points:")
-        prompt_lines.append(key_points)
-
-    seo_keyword = settings.get('seoKeyword')
-    if seo_keyword:
-        prompt_lines.append("\n**SEO Optimization:**")
-        prompt_lines.append(f"The primary SEO keyword to focus on is \"{seo_keyword}\". Please integrate this keyword naturally throughout the article, including in headings where appropriate.")
-
-    cta = settings.get('cta')
-    if cta:
-        prompt_lines.append("\n**Call to Action:**")
-        prompt_lines.append(f"Conclude the article with the following call to action: \"{cta}\"")
-
-    # Add the standard closing for SEO elements
-    prompt_lines.append("\n**Final Output:**")
-    prompt_lines.append("At the very end of the article, after all other content, provide \"SEO Keywords:\" and \"Meta Description:\".")
-
-    return "\n".join(prompt_lines)
-
-def construct_social_post_prompt(topic, goal, platform, settings=None):
+def construct_social_post_prompt(topic, goal, platform):
     """Constructs a prompt for generating social media posts."""
-    if settings is None:
-        settings = {}
+    return f"""
+    You are a social media marketing expert. Your task is to generate 3 distinct social media posts for the {platform} platform.
 
-    variations = settings.get('variations', 3)
-    tone = settings.get('tone', 'professional')
-    emojis = "Include relevant emojis." if settings.get('emojis', True) else "Do not use any emojis."
-    cta = settings.get('cta')
+    **Topic:** {topic}
+    **Goal of the posts:** {goal}
 
-    prompt = f"""
-You are a social media marketing expert. Your task is to generate {variations} distinct social media posts for the {platform} platform.
+    **Requirements:**
+    1.  **Platform:** Tailor the tone and length for {platform}.
+    2.  **Variety:** Provide three distinct options with different angles or hooks.
+    3.  **Hashtags:** Include relevant and trending hashtags for each post.
+    4.  **Formatting:** Present each post clearly separated. Use "---" between each post option.
 
-**Topic:** {topic}
-**Goal of the posts:** {goal}
-**Tone:** {tone}
+    Generate the social media posts now.
+    """
 
-**Requirements:**
-1.  **Platform:** Tailor the tone and length for {platform}. For Twitter, keep it concise. For LinkedIn, be more professional.
-2.  **Variety:** Provide {variations} distinct options with different angles or hooks.
-3.  **Hashtags:** Include relevant and trending hashtags for each post.
-4.  **Emojis:** {emojis}
-"""
-    if cta:
-        prompt += f"5.  **Call to Action/Link:** Include the following call to action or link: {cta}\n"
-
-    prompt += "6.  **Formatting:** Present each post clearly separated. Use \"---\" on a new line between each post option.\n\nGenerate the social media posts now."
-    return prompt
-
-def construct_email_prompt(topic, audience, tone, settings=None):
+def construct_email_prompt(topic, audience, tone):
     """Constructs a prompt for generating an email."""
-    if settings is None:
-        settings = {}
+    return f"""
+    You are an expert copywriter specializing in email marketing. Your task is to write a compelling marketing email.
 
-    email_type = settings.get('emailType', 'Promotional')
-    brand_name = settings.get('brandName')
-    cta_button = settings.get('ctaButton')
+    **Topic/Product:** {topic}
+    **Target Audience:** {audience}
+    **Desired Tone:** {tone}
 
-    prompt = f"""
-You are an expert copywriter specializing in email marketing. Your task is to write a compelling {email_type} email.
+    **Requirements:**
+    1.  **Subject Line:** Generate 3-5 engaging subject line options.
+    2.  **Email Body:** Write a complete email body based on the topic. It should have a clear hook, body, and call-to-action (CTA).
+    3.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by "---", then the email body.
 
-**Topic/Product:** {topic}
-**Target Audience:** {audience}
-**Desired Tone:** {tone}
-"""
-    if brand_name:
-        prompt += f"**Brand Name:** {brand_name}\n"
+    Generate the email content now.
+    """
 
-    prompt += """
-**Requirements:**
-1.  **Subject Line:** Generate 3-5 engaging subject line options.
-2.  **Email Body:** Write a complete email body based on the topic. It should have a clear hook, body, and a strong call-to-action (CTA).
-"""
-    if cta_button:
-        prompt += f"3.  **CTA Button:** The final call to action should ideally lead to a button with the text: \"{cta_button}\".\n"
-
-    prompt += "4.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by \"---\", then the email body.\n\nGenerate the email content now."
-    return prompt
-
-def construct_refine_text_prompt(text_to_refine, settings=None):
+def construct_refine_text_prompt(text_to_refine, target_tone):
     """Constructs a prompt for refining text to a specific tone."""
-    if settings is None:
-        settings = {}
-
-    goal = settings.get('goal', 'Improve Clarity')
-    formality = settings.get('formality', 'Neutral')
-    audience = settings.get('audience')
-
-    prompt = f"""
-You are an expert editor. Your task is to revise the following text.
-
-**Original Text:**
----
-{text_to_refine}
----
-
-**Instructions:**
-1.  **Primary Goal:** Your main goal is to "{goal}".
-2.  **Formality:** The revised text should have a "{formality}" formality level.
-"""
-    if audience:
-        prompt += f"3.  **Target Audience:** Adapt the text to be easily understood by an audience of {audience}.\n"
-
-    prompt += "4.  **Core Meaning:** Do not add any new information or change the core meaning of the text.\n"
-    prompt += "5.  **Output:** Return only the revised text, without any commentary or preamble.\n\nRevise the text now."
-    return prompt
-
-def construct_repurpose_prompt(repurpose_type, original_content, settings=None):
-    """Constructs a dynamic prompt for various content repurposing tasks."""
-    if settings is None:
-        settings = {}
-
-    # Universal settings
-    audience = settings.get('audience', 'a general audience')
-    goal = settings.get('goal', 'to inform and engage')
-    message = settings.get('message')
-
-    # Base prompt
-    prompt = f"""
-You are a strategic content repurposing expert. Your task is to transform the following original content into a new format.
-
-**Original Content:**
----
-{original_content}
----
-
-**Repurposing Goal:**
--   **New Format:** {repurpose_type.replace('_', ' ').title()}
--   **Target Audience:** {audience}
--   **Primary Goal:** {goal}
-"""
-    if message:
-        prompt += f"-   **Key Message to Emphasize:** {message}\n"
-
-    prompt += "\n**Format-Specific Instructions:**\n"
-
-    # Dynamic instructions based on type
-    if repurpose_type == 'twitter_thread':
-        tweet_count = settings.get('tweetCount', 5)
-        hook = "**Include a strong, engaging hook** in the first tweet." if settings.get('includeHook', True) else ""
-        hashtags = "**Include relevant hashtags** in the final tweet." if settings.get('includeHashtags', True) else ""
-        prompt += f"""
--   **Structure:** Create a numbered Twitter thread with {tweet_count} tweets.
--   **Content:** Summarize the key points of the original content. {hook} {hashtags}
--   **Constraints:** Each tweet must be under 280 characters.
--   **Separator:** Use "---" on a new line to separate each tweet.
-"""
-    elif repurpose_type == 'linkedin_post':
-        professional_tone = "Maintain a professional and business-oriented tone." if settings.get('useProfessionalTone', True) else ""
-        prompt += f"""
--   **Structure:** A single, well-formatted LinkedIn post.
--   **Content:** Summarize the key takeaways for a professional audience. {professional_tone}
--   **Formatting:** Use bullet points or numbered lists for readability. Include 3-5 relevant hashtags.
-"""
-    elif repurpose_type == 'video_script':
-        target_length = settings.get('targetLength', '3-5 minutes')
-        spoken_by = settings.get('spokenBy', 'a single narrator')
-        visual_cues = "**Include suggested visual cues** or B-roll shots in parentheses where appropriate (e.g., `(Show a chart of Q3 growth)`)." if settings.get('includeVisualCues', True) else ""
-        prompt += f"""
--   **Structure:** A video script with clear sections (Hook, Intro, Main Points, Outro).
--   **Target Length:** The script should be paced for a video of approximately {target_length}.
--   **Dialogue:** The script should be written for {spoken_by}.
--   **Content:** {visual_cues}
-"""
-
-    prompt += "\n**Final Output:**\nReturn only the repurposed content as requested, without any of your own commentary or preamble."
-    return prompt
-
-def construct_keyword_strategy_prompt(settings=None):
-    """Constructs a prompt for a comprehensive keyword strategy."""
-    if settings is None:
-        settings = {}
-
-    description = settings.get('description')
-    audience = settings.get('audience')
-    intents = ", ".join(settings.get('intents', ['Informational']))
-    competitors = settings.get('competitors')
-
-    prompt = f"""
-You are a world-class SEO strategist. Your task is to develop a comprehensive keyword strategy based on the following business context.
-
-**Business Context:**
--   **Description:** {description}
--   **Target Audience:** {audience}
--   **Desired Search Intent Focus:** {intents}
-
-**Instructions:**
-1.  **Core Keyword Clusters:** Identify 3-5 primary keyword clusters (themes) central to the business.
-2.  **Keyword Generation:** For each cluster, generate a list of relevant keywords, including:
-    *   `primary_keywords`: (2-3 words) High-volume, core terms.
-    *   `long_tail_keywords`: (4+ words) More specific, lower-volume phrases.
-    *   `question_keywords`: Common questions the target audience asks.
-"""
-    if competitors:
-        prompt += f"""
-3.  **Competitive Gap Analysis:**
-    *   **Analyze Competitors:** Briefly analyze the keyword strategy of the following competitors: {competitors}
-    *   **Identify Opportunities:** Suggest 5-10 "gap" keywords that the competitors are ranking for but are also attainable and relevant for our business.
-"""
-    prompt += """
-4.  **Format as JSON:** Return the entire strategy as a single, valid JSON object. The main keys should be "keyword_clusters" and, if applicable, "competitive_gap_analysis".
-5.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting.
-
-Generate the keyword strategy now.
-"""
-    return prompt
-
-def construct_seo_audit_prompt(settings=None):
-    """Constructs a prompt for an on-page SEO audit."""
-    if settings is None:
-        settings = {}
-
-    url = settings.get('url')
-    primary_keyword = settings.get('primaryKeyword')
-    secondary_keywords = settings.get('secondaryKeywords')
-    page_goal = settings.get('pageGoal')
-    competitor_url = settings.get('competitorUrl')
-
-    prompt = f"""
-You are a senior technical SEO analyst. Your task is to perform a detailed on-page SEO audit for the given URL, focusing on outranking competitors.
-
-**Audit Target:**
--   **URL:** {url}
--   **Primary Target Keyword:** "{primary_keyword}"
-"""
-    if secondary_keywords:
-        prompt += f"-   **Secondary Keywords:** {secondary_keywords}\n"
-    if page_goal:
-        prompt += f"-   **Desired Page Goal/CTA:** {page_goal}\n"
-    if competitor_url:
-        prompt += f"-   **Primary Competitor to Outrank:** {competitor_url}\n"
-
-    prompt += """
-**Instructions:**
-Provide a step-by-step audit in Markdown format. For each point, provide a "Current State" (if you can infer it), an "Assessment" (Good, Needs Improvement, Poor), and a specific, actionable "Recommendation".
-
-**Audit Checklist:**
-1.  **Title Tag:**
-2.  **Meta Description:**
-3.  **H1 Tag:**
-4.  **Subheadings (H2, H3):**
-5.  **Keyword Usage:** (Primary and secondary keywords)
-6.  **Content Quality & Depth:**
-7.  **URL Structure:**
-8.  **Internal Linking:**
-"""
-    if competitor_url:
-        prompt += """
-9.  **Competitive Analysis & Recommendations:**
-    *   Analyze the on-page SEO of the competitor's URL.
-    *   Provide 3-5 specific, actionable recommendations on how our page can be improved to outperform them for the target keywords.
-"""
-    prompt += "\nReturn only the audit in Markdown format, without any preamble."
-    return prompt
-
-def construct_brainstorm_prompt(settings=None):
-    """Constructs a prompt for general brainstorming."""
-    if settings is None:
-        settings = {}
-
-    goal = settings.get('goal')
-    framework = settings.get('framework', 'Simple List')
-    constraints = settings.get('constraints')
-
-    prompt = f"""
-You are a strategic facilitator. Your task is to lead a brainstorming session based on the following objective and framework.
-
-**Objective:** {goal}
-**Framework:** {framework}
-"""
-    if constraints:
-        prompt += f"**Constraints:** {constraints}\n"
-
-    prompt += """
-**Instructions:**
--   Generate a list of creative, relevant, and actionable ideas.
--   If using SWOT, structure the output with 'Strengths', 'Weaknesses', 'Opportunities', and 'Threats' headings.
--   If using a Simple List, provide a direct list of ideas.
--   Return only the generated ideas, without any preamble.
-"""
-    return prompt
-
-def construct_naming_prompt(settings=None):
-    """Constructs a prompt for generating names."""
-    if settings is None:
-        settings = {}
-
-    description = settings.get('description')
-    style = settings.get('style', 'Descriptive')
-    tone = settings.get('tone', 'Modern')
-    keyword = settings.get('keyword')
-    length = settings.get('length', 'Any')
-
-    prompt = f"""
-You are an expert branding and naming consultant. Your task is to generate a list of 10-15 potential names for a product or company.
-
-**Product/Company Description:** {description}
-
-**Naming Guidelines:**
--   **Style:** {style}
--   **Tone:** {tone}
--   **Length/Syllables:** {length}
-"""
-    if keyword:
-        prompt += f"-   **Required Keyword:** Must include the word or concept '{keyword}'.\n"
-
-    prompt += """
-**Instructions:**
--   Provide a diverse list of names that fit the guidelines.
--   The names should be memorable, easy to spell, and ideally have domain name potential.
--   Return only the list of names, each on a new line, without any commentary.
-"""
-    return prompt
-
-def construct_script_prompt(topic, settings=None):
-    """Constructs a dynamic prompt for generating a script based on detailed user settings."""
-    if settings is None:
-        settings = {}
-
-    # Extract settings with defaults
-    format_map = {
-        "youtube_video": "YouTube Video",
-        "tiktok_shorts": "TikTok/Shorts Video",
-        "podcast_episode": "Podcast Episode"
-    }
-    script_format = format_map.get(settings.get('format'), "YouTube Video")
-    audience = settings.get('audience')
-    tone = settings.get('tone')
-    characters = settings.get('characters')
-    elements = settings.get('structural_elements', [])
-
-    # Start building the prompt
-    prompt = f"""
-You are a professional scriptwriter. Your task is to create a detailed, engaging script for a "{script_format}" based on the user's specifications.
-
-**Core Topic/Premise:** {topic}
-"""
-    # Add optional context
-    if audience:
-        prompt += f"**Target Audience:** {audience}\n"
-    if tone:
-        prompt += f"**Desired Tone/Style:** {tone}\n"
-    if characters:
-        # Sanitize the input to remove potentially problematic newline characters
-        sane_characters = characters.replace('\n', ', ')
-        prompt += f"**Characters/Hosts:**\n- {sane_characters}\n"
-
-    # Add structural requirements
-    prompt += "\n**Script Requirements:**\n"
-    prompt += f"1.  **Format:** The script must be written specifically for a **{script_format}**. This means short, punchy segments for TikTok, a classic structure for YouTube, or a conversational flow for a podcast.\n"
-    prompt += "2.  **Structure:** The script must be well-organized. Use Markdown for headings (e.g., `## Scene 1`, `### Alex's Monologue`).\n"
-
-    # Add character dialogue instructions
-    if characters:
-        prompt += "3.  **Dialogue:** Clearly denote which character is speaking (e.g., `ALEX: [dialogue]`).\n"
-
-    # Add instructions for each selected structural element
-    element_instructions = {
-        "hook": "Include a powerful, attention-grabbing hook at the very beginning.",
-        "cta": "Include a clear Call to Action at the end of the script (e.g., asking to subscribe, comment, or visit a website).",
-        "ad_break": "Include a placeholder for an ad break, like `[AD BREAK - 60 seconds]`.",
-        "visual_cues": "If this is a visual format (YouTube/TikTok), include suggested visual cues, camera angles, or on-screen text in parentheses, like `(Close up on the product)`.",
-        "sfx": "Include suggestions for sound effects where they would enhance the script, like `(Sound of a dramatic whoosh)`."
-    }
-
-    for i, element_key in enumerate(elements, start=4):
-        if element_key in element_instructions:
-            prompt += f"{i}.  **{element_key.replace('_', ' ').title()}:** {element_instructions[element_key]}\n"
-
-    prompt += "\nGenerate the script now, adhering to all the requirements above. Return only the script content."
-    return prompt
-
-def construct_product_description_prompt(settings=None):
-    """Constructs a prompt for generating a product description."""
-    if settings is None: settings = {}
-
-    prompt = f"""
-You are an expert e-commerce copywriter with a knack for persuasive, benefit-driven language.
-Your task is to write a compelling product description for the following product.
-
-**Product Name:** {settings.get('productName', '')}
-**Target Audience:** {settings.get('audience', '')}
-**Tone of Voice:** {settings.get('tone', '')}
-**Primary Benefit to Emphasize:** {settings.get('benefit', '')}
-
-**Key Features:**
----
-{settings.get('features', '')}
----
-
-**Instructions:**
-1.  **Analyze the Features:** Do not just list the features. For each one, explain the *benefit* it provides to the target audience.
-2.  **Focus on the Primary Benefit:** Ensure the primary benefit, "{settings.get('benefit', '')}", is the central theme of the description.
-3.  **Adopt the Tone:** The entire description must be written in a {settings.get('tone', '')} tone.
-4.  **Structure:** Format the output as a "{settings.get('format', 'paragraph')}". If using bullets, make them benefit-oriented.
-5.  **Output:** Return only the final product description, without any of your own commentary.
-
-Generate the product description now.
-"""
-    return prompt
-
-def construct_campaign_prompt(settings=None):
-    """Constructs a prompt for generating a promotional campaign."""
-    if settings is None: settings = {}
-
-    assets_text = ", ".join(settings.get('assets', ['email', 'social']))
-
-    prompt = f"""
-You are a senior marketing manager tasked with creating a new promotional campaign.
-
-**Campaign Details:**
-- **Product/Service:** {settings.get('product', '')}
-- **Occasion:** {settings.get('occasion', '')}
-- **The Offer:** {settings.get('offer', '')}
-- **Urgency Element:** {settings.get('urgency', '')}
-
-**Task:**
-Generate a cohesive set of marketing assets for this campaign. The required assets are: **{assets_text}**.
-
-**Instructions:**
-1.  **Create a Section for Each Asset:** Use a clear Markdown heading (e.g., `### Email Copy`) for each requested asset.
-2.  **Maintain Cohesion:** Ensure the messaging, tone, and offer are consistent across all assets.
-3.  **Incorporate Urgency:** Weave the urgency element ("{settings.get('urgency', '')}") into the copy where appropriate to drive action.
-4.  **Action-Oriented:** All copy should be persuasive and guide the customer towards making a purchase with the offer.
-5.  **Output:** Return only the generated marketing assets, without any of your own commentary.
-
-Generate the campaign assets now.
-"""
-    return prompt
-
-def construct_review_response_prompt(settings=None):
-    """Constructs a prompt for responding to a customer review."""
-    if settings is None: settings = {}
-
-    prompt = f"""
-You are a senior customer support manager. Your goal is to respond to a customer review in a way that is helpful, on-brand, and resolves any issues.
-
-**Customer Review Details:**
-- **Star Rating Given:** {settings.get('rating', '3')}/5
-- **Review Content:** "{settings.get('review', '')}"
-
-**Response Requirements:**
-- **Tone:** Your response must be **{settings.get('tone', 'Empathetic & Helpful')}**.
-- **Action/Offer:** {settings.get('offer') if settings.get('offer') else 'No special offer is required.'}
-
-**Instructions:**
-1.  **Analyze Sentiment:** Based on the star rating and the review content, correctly identify the customer's sentiment (e.g., happy, frustrated, confused).
-2.  **Address Key Points:** Directly address the specific points, positive or negative, mentioned in the review.
-3.  **Incorporate the Tone:** Maintain the required tone throughout the entire response.
-4.  **Integrate the Offer:** If an action or offer is specified (e.g., "Offer a 15% discount"), seamlessly weave it into the response as a gesture of goodwill or a solution. Do not make it sound like a bribe.
-5.  **Output:** Return only the customer-facing response, without any of your own commentary or analysis.
-
-Generate the customer review response now.
-"""
-    return prompt
+    return f"""
+    You are an expert editor. Your task is to revise the following text to match a "{target_tone}" tone.
+
+    **Original Text:**
+    ---
+    {text_to_refine}
+    ---
+
+    **Instructions:**
+    1.  Rewrite the text to embody a "{target_tone}" tone and style.
+    2.  Do not add any new information or change the core meaning.
+    3.  Return only the revised text, without any commentary or preamble.
+
+    Revise the text now.
+    """
+
+def construct_article_to_tweet_prompt(article_text):
+    """Constructs a prompt for converting an article into a Twitter thread."""
+    return f"""
+    You are a social media expert specializing in content repurposing. Your task is to convert the following article into a compelling, numbered Twitter thread.
+
+    **Article Text:**
+    ---
+    {article_text}
+    ---
+
+    **Instructions:**
+    1.  **Create a Thread:** Generate a series of tweets that summarize the key points of the article.
+    2.  **Numbered Tweets:** Start each tweet with a number (e.g., "1/n", "2/n").
+    3.  **Engaging Hook:** The first tweet should be a strong hook to grab the reader's attention.
+    4.  **Concise and Clear:** Each tweet must be under 280 characters.
+    5.  **Add Hashtags:** Include relevant hashtags in the final tweet.
+    6.  **Separator:** Use "---" on a new line to separate each tweet in the output.
+    7.  **Return Only the Thread:** Do not include any preamble, commentary, or extra text. Only return the tweets separated by "---".
+
+    Generate the Twitter thread now.
+    """
+
+def construct_keyword_prompt(topic):
+    """Constructs a prompt for generating categorized SEO keywords."""
+    return f"""
+    You are an SEO strategist. Your task is to generate a comprehensive, categorized list of keywords for the given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate Keywords:** Create a list of relevant keywords for the topic.
+    2.  **Categorize:** Group the keywords into the following categories:
+        *   `long_tail_keywords`: More specific phrases, typically longer.
+        *   `lsi_keywords`: (Latent Semantic Indexing) Thematically related keywords.
+        *   `question_keywords`: Common questions people ask about the topic.
+    3.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the category names from step 2, and the values should be an array of strings (the keywords).
+    4.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting like ```json. Only return the raw JSON object.
+
+    **Example Output for topic "organic coffee":**
+    {{
+        "long_tail_keywords": ["best organic coffee beans for espresso", "where to buy fair trade organic coffee"],
+        "lsi_keywords": ["shade-grown coffee", "arabica beans", "single-origin", "coffee acidity"],
+        "question_keywords": ["what is the best organic coffee?", "is organic coffee better for you?"]
+    }}
+
+    Generate the keyword JSON for the topic "{topic}" now.
+    """
+
+def construct_idea_prompt(topic):
+    """Constructs a prompt for generating blog post ideas."""
+    return f"""
+    You are a content strategist and expert copywriter. Your task is to brainstorm a list of engaging blog post titles and ideas based on a given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate 10 Ideas:** Create a list of 10 distinct and compelling blog post titles.
+    2.  **Focus on Engagement:** The titles should be click-worthy, interesting, and promise value to the reader.
+    3.  **Vary the Angles:** Cover different facets of the topic (e.g., how-to guides, listicles, thought leadership, common mistakes).
+    4.  **Format as a List:** Return the output as a simple list, with each title on a new line.
+    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+
+    Generate the list of ideas for the topic "{topic}" now.
+    """
+
+def construct_headline_prompt(topic):
+    """Constructs a prompt for generating SEO-friendly headlines."""
+    return f"""
+    You are an expert copywriter and SEO specialist. Your task is to generate a list of 10 click-worthy headlines for a blog post about the given topic.
+
+    **Topic:** "{topic}"
+
+    **Instructions:**
+    1.  **Generate 10 Headlines:** Create a diverse list of 10 headline options.
+    2.  **Use Proven Formulas:** Incorporate a mix of proven copywriting formulas (e.g., How-To, Listicle, Question, Negative Angle, Benefit-Driven).
+    3.  **Optimize for Clicks:** The headlines should be engaging, create curiosity, and promise a clear benefit to the reader.
+    4.  **Format as a List:** Return the output as a simple list, with each headline on a new line.
+    5.  **Return Only the List:** Do not include any preamble, commentary, or numbering.
+
+    Generate the list of headlines for the topic "{topic}" now.
+    """
+
+def construct_script_prompt(topic, duration):
+    """Constructs a prompt for generating a YouTube script."""
+    return f"""
+    You are a professional scriptwriter for YouTube creators. Your task is to create a structured script for a video on a given topic and duration.
+
+    **Topic:** "{topic}"
+    **Target Duration:** {duration} minutes
+
+    **Instructions:**
+    1.  **Structure:** Organize the script into the following sections, using Markdown headings (e.g., `## Hook`):
+        *   **Hook:** An engaging opening (1-2 sentences) to grab the viewer's attention immediately.
+        *   **Intro:** A brief introduction (2-3 sentences) that explains what the video is about and what the viewer will learn.
+        *   **Main Points:** Break down the core content into 3-5 main points. For each point, provide a heading and a paragraph of talking points, examples, or explanations.
+        *   **Outro:** A concluding summary and a call to action (e.g., "like and subscribe," "check out this other video").
+    2.  **Pacing:** Pace the content to fit the target duration. A general rule is about 150 words per minute.
+    3.  **Visual Cues:** Include suggested visual cues or B-roll shots in parentheses where appropriate (e.g., `(Show a close-up of the sourdough starter)`).
+    4.  **Clarity and Tone:** Write in a clear, conversational, and engaging tone suitable for YouTube.
+
+    Generate the YouTube script now.
+    """
 
 def construct_ecommerce_prompt(name, features, tone):
     """Constructs a prompt for generating a product description."""
@@ -667,337 +352,156 @@ def construct_ecommerce_prompt(name, features, tone):
     Generate the product description now.
     """
 
-def construct_landing_page_prompt(settings=None):
-    """Constructs a prompt for generating a full landing page."""
-    if settings is None: settings = {}
+def construct_webcopy_prompt(product, audience):
+    """Constructs a prompt for generating landing page copy using the AIDA framework."""
+    return f"""
+    You are a master copywriter who specializes in high-converting landing pages. Your task is to write copy for a product/service based on the AIDA (Attention, Interest, Desire, Action) framework.
 
-    prompt = f"""
-You are an expert direct-response copywriter. Your task is to write a complete set of copy for a landing page with a single, clear goal.
+    **Product/Service:** {product}
+    **Target Audience:** {audience}
 
-**Landing Page Details:**
-- **Product Name:** {settings.get('productName', '')}
-- **Target Audience:** {settings.get('audience', '')}
-- **Page Goal:** {settings.get('goal', '')}
-- **Primary Pain Point to Solve:** {settings.get('painPoint', '')}
-- **Tone:** {settings.get('tone', '')}
+    **Instructions:**
+    1.  **Write for Each AIDA Stage:** Create distinct copy for each of the four stages:
+        *   `attention`: A powerful headline and sub-headline to grab the attention of the {audience}.
+        *   `interest`: Build interest by highlighting the core problems of the audience and hinting at a better way. Use bullet points or a short paragraph.
+        *   `desire`: Create desire by explaining the product's features and, more importantly, its benefits. Show the audience how their life or work will improve.
+        *   `action`: A clear and compelling call to action (CTA) that tells the user exactly what to do next (e.g., "Sign Up Now," "Get Your Free Demo").
+    2.  **Format as JSON:** Return the output as a single, valid JSON object. The keys should be the AIDA stages (`attention`, `interest`, `desire`, `action`), and the values should be the corresponding copy as a string.
+    3.  **Return Only JSON:** Do not include any preamble, commentary, or markdown formatting. Only return the raw JSON object.
 
-**Key Features:**
----
-{settings.get('features', '')}
----
+    Generate the AIDA landing page copy now.
+    """
 
-**Instructions:**
-1.  **Solve the Pain Point:** All copy must focus on how the product's features solve the primary pain point for the target audience.
-2.  **Benefit-Oriented:** Do not just list features; explain the tangible benefits and outcomes for the user.
-3.  **Clear Structure:** Structure the output using the following Markdown headings: `### Headline`, `### Sub-headline`, `### Body`, and `### Call-to-Action`.
-4.  **Persuasive Body:** The Body copy should be compelling, persuasive, and directly encourage the user to achieve the page goal.
-5.  **Actionable CTA:** The Call-to-Action should be a short, punchy phrase that tells the user exactly what to do (e.g., "Get Started Free," "Claim Your Discount").
-6.  **Output:** Return only the structured copy, without any of your own commentary.
+def construct_press_release_prompt(announcement, company):
+    """Constructs a prompt for generating a press release."""
+    return f"""
+    You are a public relations (PR) expert. Your task is to write a professional press release based on the provided information.
 
-Generate the landing page copy now.
-"""
-    return prompt
+    **Announcement Details:** {announcement}
+    **Company Name:** {company}
 
-def construct_homepage_section_prompt(settings=None):
-    """Constructs a dynamic prompt for generating a specific homepage section."""
-    if settings is None: settings = {}
+    **Instructions:**
+    1.  **Use Standard Format:** Structure the document as a professional press release, including:
+        *   `FOR IMMEDIATE RELEASE` at the top.
+        *   A compelling headline.
+        *   A dateline (City, State – Date).
+        *   An introduction (the "lede") summarizing the key announcement.
+        *   A body with more details, quotes from a company spokesperson (e.g., CEO, Founder), and context.
+        *   An "About [Company Name]" section.
+        *   A media contact section (use placeholders like `[Name]`, `[Email]`).
+        *   `###` at the end to signify the conclusion.
+    2.  **Professional Tone:** Maintain a formal and objective tone throughout.
+    3.  **Return Only the Text:** Do not include any preamble or commentary.
 
-    section_type = settings.get('sectionType', 'hero')
-    section_map = {
-        "hero": "Hero Section",
-        "features": "Features/Benefits Section",
-        "how_it_works": "How It Works Section",
-        "faq": "FAQ Section"
-    }
-    section_name = section_map.get(section_type, "Hero Section")
+    Generate the press release now.
+    """
 
-    prompt = f"""
-You are a specialist web copywriter. Your task is to write the copy for a specific section of a company's homepage.
+def construct_job_description_prompt(role, responsibilities):
+    """Constructs a prompt for generating a job description."""
+    return f"""
+    You are a senior hiring manager. Your task is to write a clear, compelling, and professional job description.
 
-**Company Name:** {settings.get('companyName', '')}
-**Company One-Liner:** {settings.get('oneLiner', '')}
-**Section to Generate:** {section_name}
+    **Job Role/Title:** {role}
 
-**Key Information Provided by User:**
----
-{settings.get('keyInfo', '')}
----
+    **Key Responsibilities:**
+    {responsibilities}
 
-**Instructions:**
-Your output must be structured correctly for the requested section.
-"""
+    **Instructions:**
+    1.  **Standard Format:** Structure the job description with the following sections:
+        *   **Introduction:** A brief, engaging overview of the company and the role.
+        *   **Responsibilities:** Elaborate on the key responsibilities provided.
+        *   **Qualifications:** List essential skills, experience, and qualifications needed for the role.
+        *   **Benefits:** Mention common benefits like competitive salary, health insurance, and remote work options.
+    2.  **Inclusive Language:** Use inclusive and welcoming language.
+    3.  **Clarity:** Be clear and concise. Avoid jargon where possible.
+    4.  **Return Only the Text:** Do not include any preamble or commentary.
 
-    if section_type == 'hero':
-        prompt += """
-- **Task:** Write a powerful, attention-grabbing headline, a clear and concise sub-headline that expands on the headline, and two distinct, compelling CTA button texts.
-- **Structure:** Use the following Markdown headings for each part: `#### Headline`, `#### Sub-headline`, `#### Primary CTA`, `#### Secondary CTA`.
-"""
-    elif section_type == 'features':
-        prompt += """
-- **Task:** Write a main headline for the features section. Then, for 3-5 key features, write a short, benefit-focused title and a 1-2 sentence description for each.
-- **Structure:** Use a main `### Features Section Headline`. For each feature, use a `#### Feature Title` and a paragraph for the description.
-"""
-    elif section_type == 'how_it_works':
-        prompt += """
-- **Task:** Write a main headline for this section. Then, write copy for 3-4 simple steps that explain how the service works.
-- **Structure:** Use a main `### How It Works Headline`. For each step, use a `#### Step X: [Step Title]` heading followed by a short descriptive paragraph.
-"""
-    elif section_type == 'faq':
-        prompt += """
-- **Task:** Write a main headline for the FAQ section. Then, based on the user's key information, write 4-5 questions and their corresponding clear, concise answers.
-- **Structure:** Use a main `### FAQ Section Headline`. For each question, use a `#### Question:` heading and a paragraph for the answer.
-"""
+    Generate the job description now.
+    """
 
-    prompt += "\nReturn only the generated copy in the requested structure, without any of your own commentary."
-    return prompt
-
-def construct_usp_prompt(settings=None):
-    """Constructs a prompt for generating a Value Proposition and USP."""
-    if settings is None: settings = {}
-
-    prompt = f"""
-You are a senior brand strategist. Your task is to analyze the following product information and generate a powerful Value Proposition and a list of Unique Selling Propositions (USPs).
-
-**Product Information:**
-- **Product Description:** {settings.get('productDesc', '')}
-- **Target Customer:** {settings.get('customer', '')}
-- **Key Differentiators:** {settings.get('differentiators', '')}
-- **Competitors:** {settings.get('competitors', 'Not specified')}
-
-**Instructions:**
-1.  **Analyze the Data:** Carefully consider how the product's features and differentiators appeal to the target customer, especially in contrast to the competitors.
-2.  **Generate Value Proposition:** Create a single, clear, and compelling sentence that explains the core benefit the product provides to the customer. This should be customer-centric and outcome-focused.
-3.  **Generate USPs:** Create a list of 3-5 concise, memorable, and powerful statements that highlight the key differentiators. These are the specific, unique reasons a customer should choose this product over others.
-4.  **Structure the Output:** Use the following Markdown headings: `### Value Proposition` and `### Unique Selling Propositions (USPs)`. List the USPs as a bulleted list.
-5.  **Output:** Return only the generated propositions, without any of your own commentary.
-
-Generate the Value Proposition and USPs now.
-"""
-    return prompt
-
-def construct_proposal_prompt(settings=None):
-    """Constructs a prompt for generating a business proposal."""
-    if settings is None: settings = {}
-    prompt = f"""
-You are a professional business consultant and proposal writer. Your task is to generate a formal and persuasive business proposal based on the provided details.
-
-**Proposal Details:**
-- **Your Company:** {settings.get('company', '')}
-- **Client Name:** {settings.get('client', '')}
-- **Client's Problem:** {settings.get('problem', '')}
-- **Proposed Solution:** {settings.get('solution', '')}
-- **Key Deliverables:**
-{settings.get('deliverables', '')}
-- **Desired Tone:** {settings.get('tone', 'Formal and confident')}
-
-**Instructions:**
-1.  **Structure the Proposal:** Generate a complete proposal with the following sections, using clear Markdown headings:
-    - `## Introduction`: Briefly introduce your company and the purpose of the proposal.
-    - `## Understanding the Problem`: Show you understand the client's needs by summarizing their problem.
-    - `## Proposed Solution`: Detail your proposed solution, explaining how it addresses the client's problem.
-    - `## Deliverables & Timeline`: List the key deliverables and provide a high-level timeline.
-    - `## Conclusion`: End with a confident closing statement and a call to action (e.g., "We look forward to discussing this proposal with you further.").
-2.  **Adopt the Tone:** The entire proposal must be written in a **{settings.get('tone', 'Formal and confident')}** tone.
-3.  **Output:** Return only the complete proposal text. Do not include any of your own commentary.
-
-Generate the business proposal now.
-"""
-    return prompt
-
-def construct_report_prompt(settings=None):
-    """Constructs a dynamic prompt for generating a formal report."""
-    if settings is None: settings = {}
-
-    report_type = settings.get('reportType', 'status_update')
-    report_name = report_type.replace('_', ' ').title()
-
-    prompt = f"""
-You are a senior business analyst. Your task is to write a clear, structured, and formal **{report_name}**.
-
-**Report Details:**
-- **Subject:** {settings.get('subject', '')}
-- **Time Period:** {settings.get('period', '')}
-- **Target Audience:** {settings.get('audience', '')}
-
-**Key Data Points / Information to Include:**
----
-{settings.get('dataPoints', '')}
----
-
-**Instructions:**
-1.  **Adopt the Persona:** Write from the perspective of a professional analyst reporting to the specified audience.
-2.  **Convert Data to Narrative:** Do not just list the data points. Weave them into a professional, easy-to-understand narrative.
-3.  **Use a Logical Structure:** The report must be well-structured. Use the following structure based on the report type:
-"""
-
-    if report_type == 'status_update':
-        prompt += """
-    - `## 1. Executive Summary`: A brief overview of the project status.
-    - `## 2. Accomplishments`: Detail what has been achieved during this period, referencing the data points.
-    - `## 3. Challenges & Roadblocks`: Outline any issues encountered.
-    - `## 4. Next Steps`: Describe the planned activities for the next period.
-"""
-    elif report_type == 'financial_summary':
-        prompt += """
-    - `## 1. Overview`: A high-level summary of the financial performance for the period.
-    - `## 2. Key Metrics`: Present the key data points with brief explanations.
-    - `## 3. Analysis & Insights`: Provide analysis on what the data means (e.g., trends, anomalies).
-    - `## 4. Outlook`: Provide a brief forecast or outlook based on the summary.
-"""
-    elif report_type == 'incident_report':
-        prompt += """
-    - `## 1. Summary of Incident`: What happened, when, and where.
-    - `## 2. Impact Assessment`: Detail the impact of the incident, using the provided data.
-    - `## 3. Root Cause Analysis`: Explain what caused the incident.
-    - `## 4. Resolution and Next Steps`: Describe the actions taken to resolve the issue and prevent recurrence.
-"""
-
-    prompt += "\n4. **Output:** Return only the complete, structured report. Do not include any of your own commentary."
-    return prompt
-
-def construct_press_release_prompt(settings=None):
-    """Constructs a prompt for generating a professional press release."""
-    if settings is None: settings = {}
-
-    prompt = f"""
-You are a public relations (PR) professional. Your task is to write a professional press release in strict AP style based on the provided information.
-
-**Press Release Details:**
-- **Headline:** {settings.get('headline', '')}
-- **Company Info (for dateline):** {settings.get('companyInfo', '')}
-- **Key Information (5 Ws):** {settings.get('keyInfo', '')}
-- **Quote (with speaker and title):** {settings.get('quote', '')}
-- **Company Boilerplate:** {settings.get('boilerplate', '')}
-
-**Instructions:**
-1.  **Strict AP Format:** The output MUST follow the standard Associated Press (AP) style for a press release.
-2.  **Structure:** The document must include the following elements in this exact order:
-    - `FOR IMMEDIATE RELEASE` (all caps).
-    - The **Headline** you are given.
-    - A **Dateline** in the format `CITY, State – (Date) –`.
-    - An **Introduction (Lede):** The first paragraph must summarize the most critical information from the 5 Ws.
-    - A **Body:** Subsequent paragraphs that elaborate on the key information and seamlessly integrate the provided **Quote**.
-    - An **About/Boilerplate Section:** A paragraph starting with "About [Company Name]" using the provided boilerplate text.
-    - **Media Contact:** A placeholder for media contact information (e.g., `Media Contact: [Name] [Email]`).
-    - A **Sign-off:** The document must end with three hash symbols (`###`) on a new line.
-3.  **Output:** Return only the complete, formatted press release. Do not include any of your own commentary.
-
-Generate the press release now.
-"""
-    return prompt
-
-def construct_ad_copy_prompt(product, audience, settings=None):
+def construct_ad_copy_prompt(product, audience):
     """Constructs a prompt for generating ad copy."""
-    if settings is None:
-        settings = {}
+    return f"""
+    You are a senior copywriter at a top advertising agency. Your task is to generate 3 distinct pieces of ad copy for a given product and audience.
 
-    platform = settings.get('platform', 'Google Ads')
-    key_benefit = settings.get('keyBenefit')
-    tone = settings.get('tone', 'Urgent')
+    **Product/Service:** {product}
+    **Target Audience:** {audience}
 
-    platform_constraints = {
-        'Google Ads': 'Headline max 30 chars, Description max 90 chars.',
-        'Facebook/Instagram': 'Keep copy visual-focused and engaging. Use emojis.',
-        'LinkedIn Ads': 'Maintain a professional and business-oriented tone.'
-    }
-    constraint = platform_constraints.get(platform, '')
+    **Instructions:**
+    1.  **Generate 3 Variations:** Create three distinct ad copy options. Each should have a different angle or hook (e.g., one focused on a pain point, one on a benefit, one with a strong call to action).
+    2.  **Structure:** For each variation, provide a "Headline" and a "Body".
+    3.  **Clarity and Persuasion:** The copy must be clear, concise, and persuasive.
+    4.  **Separator:** Use "---" on a new line to separate each ad copy variation.
+    5.  **Return Only the Ad Copy:** Do not include any preamble or commentary.
 
-    prompt = f"""
-You are a senior copywriter at a top advertising agency. Your task is to generate 3 distinct pieces of ad copy for a given product and audience, optimized for the {platform} platform.
+    Generate the ad copy now.
+    """
 
-**Product/Service:** {product}
-**Target Audience:** {audience}
-**Desired Tone:** {tone}
-"""
-    if key_benefit:
-        prompt += f"**Key Benefit/Pain Point to Address:** {key_benefit}\n"
-
-    prompt += f"""
-**Instructions:**
-1.  **Generate 3 Variations:** Create three distinct ad copy options. Each should have a different angle or hook.
-2.  **Structure:** For each variation, provide a "Headline:" and a "Body:".
-3.  **Platform Constraints:** Adhere to the following constraints for {platform}: {constraint}
-4.  **Clarity and Persuasion:** The copy must be clear, concise, and persuasive.
-5.  **Separator:** Use "---" on a new line to separate each ad copy variation.
-6.  **Return Only the Ad Copy:** Do not include any preamble or commentary.
-
-Generate the ad copy now.
-"""
-    return prompt
-
-def construct_summarizer_prompt(text, settings=None):
+def construct_summarizer_prompt(text, length):
     """Constructs a prompt for summarizing text."""
-    if settings is None:
-        settings = {}
+    length_map = {
+        'short': 'a single, concise paragraph',
+        'medium': 'a series of key bullet points',
+        'long': 'a detailed summary of several paragraphs'
+    }
+    target_length = length_map.get(length, 'a single paragraph')
 
-    summary_format = settings.get('format', 'Paragraph')
-    extraction_type = settings.get('extractionType', 'Summarize')
-    focus_area = settings.get('focus')
+    return f"""
+    You are an expert at summarizing text. Your task is to read the following text and create a summary in the specified format.
 
-    prompt = f"""
-You are an expert at analyzing and summarizing text. Your task is to process the following text according to the user's specific instructions.
+    **Original Text:**
+    ---
+    {text}
+    ---
 
-**Original Text:**
----
-{text}
----
+    **Instructions:**
+    1.  **Summarize:** Distill the core ideas and most important information from the text.
+    2.  **Format:** The summary should be in the format of {target_length}.
+    3.  **Clarity:** The summary must be clear, accurate, and easy to understand.
+    4.  **Return Only the Summary:** Do not include any preamble or commentary.
 
-**Task Details:**
-1.  **Extraction Type:** Your primary task is to "{extraction_type}".
-2.  **Output Format:** Present the result as a "{summary_format}".
-"""
-    if focus_area:
-        prompt += f"3.  **Focus Area:** Pay special attention to and prioritize information related to: \"{focus_area}\".\n"
+    Generate the summary now.
+    """
 
-    prompt += """
-**Instructions:**
--   If summarizing, distill the core ideas and most important information.
--   If extracting action items, list clear, actionable tasks.
--   If extracting statistics, list all key data points and numbers.
--   The output must be clear, accurate, and easy to understand.
--   Return only the requested output, without any preamble or commentary.
+def construct_translator_prompt(text, language):
+    """Constructs a prompt for translating text."""
+    return f"""
+    You are a professional translator. Your task is to translate the following text into the specified language.
 
-Generate the result now.
-"""
-    return prompt
+    **Text to Translate:**
+    ---
+    {text}
+    ---
 
-def construct_translator_prompt(text, settings=None):
-    """Constructs a prompt for translating and localizing text."""
-    if settings is None:
-        settings = {}
+    **Target Language:** {language}
 
-    locale = settings.get('locale', 'Spanish (Mexico)')
-    formality = settings.get('formality', 'Formal')
-    adapt_idioms = settings.get('adaptIdioms', True)
+    **Instructions:**
+    1.  **Translate Accurately:** Provide a high-quality, accurate translation of the text.
+    2.  **Maintain Tone:** Preserve the original tone and nuance as much as possible.
+    3.  **Return Only the Translation:** Do not include any preamble, commentary, or the original text.
 
-    idiom_instruction = (
-        "It is crucial that you adapt idioms, cultural references, and colloquialisms to be natural-sounding and culturally appropriate for the target locale. Do not translate them literally."
-        if adapt_idioms
-        else "Translate the text as literally as possible, preserving original idioms and phrasing, even if they don't sound natural in the target language."
-    )
+    Generate the translation now.
+    """
 
-    prompt = f"""
-You are an expert localization specialist, not just a literal translator. Your task is to translate and localize the following text with cultural and contextual accuracy.
+def construct_presentation_prompt(text):
+    """Constructs a prompt for converting a blog post to a presentation outline."""
+    return f"""
+    You are an expert presentation designer. Your task is to convert the following blog post into a concise and compelling presentation outline with talking points.
 
-**Text to Localize:**
----
-{text}
----
+    **Blog Post Text:**
+    ---
+    {text}
+    ---
 
-**Localization Task:**
-1.  **Target Locale:** {locale}
-2.  **Formality Level:** {formality}
-3.  **Cultural Adaptation:** {idiom_instruction}
+    **Instructions:**
+    1.  **Create a Slide Structure:** Outline a presentation with a clear structure (e.g., Title Slide, Introduction, 3-5 Key Point Slides, Summary/Conclusion, Q&A).
+    2.  **Write Slide Titles:** For each slide, create a short, impactful title.
+    3.  **Generate Talking Points:** Under each slide title, provide 3-5 bullet points summarizing the key talking points for that slide.
+    4.  **Format with Markdown:** Use Markdown headings for slide titles (e.g., `## Slide 1: Title`) and bullet points for talking points.
+    5.  **Return Only the Outline:** Do not include any preamble or commentary.
 
-**Instructions:**
--   Ensure the final text is grammatically correct and fluent for a native speaker of the {locale} locale.
--   Maintain the core meaning and intent of the original text.
--   Return only the final, localized text, without any of your own commentary, preambles, or the original text.
-
-Localize the text now.
-"""
-    return prompt
-
+    Generate the presentation outline now.
+    """
 
 def get_image_url(query):
     if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
@@ -1732,7 +1236,6 @@ def generate_social_content():
 
     data = request.get_json()
     tool = data.get("tool")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not tool:
@@ -1748,7 +1251,7 @@ def generate_social_content():
         if not all([topic, goal, platform]):
             return jsonify({"error": "Missing required fields for social post."}), 400
 
-        full_prompt = construct_social_post_prompt(topic, goal, platform, settings)
+        full_prompt = construct_social_post_prompt(topic, goal, platform)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
@@ -1756,7 +1259,7 @@ def generate_social_content():
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "social_post", "topic": topic, "goal": goal, "platform": platform, "settings": settings})
+            user_message = f"Topic: {topic}, Goal: {goal}, Platform: {platform}"
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Social Posts for '{topic}'"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
@@ -1773,14 +1276,14 @@ def generate_social_content():
         if not all([topic, audience, tone]):
             return jsonify({"error": "Missing required fields for email."}), 400
 
-        full_prompt = construct_email_prompt(topic, audience, tone, settings)
+        full_prompt = construct_email_prompt(topic, audience, tone)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "email", "topic": topic, "audience": audience, "tone": tone, "settings": settings})
+            user_message = f"Topic: {topic}, Audience: {audience}, Tone: {tone}"
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Email for '{topic}'"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
@@ -1796,7 +1299,7 @@ def generate_social_content():
         if not all([product, audience]):
             return jsonify({"error": "Missing required fields for ad copy."}), 400
 
-        full_prompt = construct_ad_copy_prompt(product, audience, settings)
+        full_prompt = construct_ad_copy_prompt(product, audience)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
@@ -1804,7 +1307,7 @@ def generate_social_content():
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "ad_copy", "product": product, "audience": audience, "settings": settings})
+            user_message = f"Generate ad copy for '{product}' targeting {audience}."
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Ad Copy for {product}"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='AD_COPY')
@@ -1817,81 +1320,15 @@ def generate_social_content():
     else:
         return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
-@app.route('/api/v1/generate/brainstorm', methods=['POST'])
+@app.route('/api/v1/generate/ideas', methods=['POST'])
 @login_required
-def generate_brainstorm_content():
-    """Handles various brainstorming and naming requests."""
-    if not CLIENT:
-        return jsonify({"error": "AI service is not available."}), 503
-
-    data = request.get_json()
-    tool = data.get("tool")
-    settings = data.get("settings", {})
-    chat_session_id = data.get("chat_session_id")
-
-    if not tool:
-        return jsonify({"error": "Missing required field: tool."}), 400
-
-    if not check_monthly_word_quota(current_user):
-        return jsonify({"error": f"You've reached your monthly word limit."}), 403
-
-    if tool == 'general':
-        if not settings.get('goal'):
-            return jsonify({"error": "Missing required field: goal."}), 400
-
-        full_prompt = construct_brainstorm_prompt(settings)
-        try:
-            response = CLIENT.generate_content(contents=full_prompt)
-            raw_text = response.candidates[0].content.parts[0].text
-            ideas = [idea.strip() for idea in raw_text.split('\n') if idea.strip()]
-
-            if not chat_session_id:
-                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "general", "settings": settings})
-            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Brainstorm: {settings.get('goal', 'General')}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
-
-            return jsonify({"ideas": ideas, "chat_session_id": chat_session_id})
-        except Exception as e:
-            logger.error(f"Brainstorming error: {e}")
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-
-    elif tool == 'naming':
-        if not settings.get('description'):
-            return jsonify({"error": "Missing required field: description."}), 400
-
-        full_prompt = construct_naming_prompt(settings)
-        try:
-            response = CLIENT.generate_content(contents=full_prompt)
-            raw_text = response.candidates[0].content.parts[0].text
-            names = [name.strip() for name in raw_text.split('\n') if name.strip()]
-
-            if not chat_session_id:
-                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "naming", "settings": settings})
-            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Names for: {settings.get('description', 'New Project')[:30]}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='NAMING')
-
-            return jsonify({"names": names, "chat_session_id": chat_session_id})
-        except Exception as e:
-            logger.error(f"Naming error: {e}")
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-
-    else:
-        return jsonify({"error": f"Unknown tool: {tool}"}), 400
-
-@app.route('/api/v1/generate/script', methods=['POST'])
-@login_required
-def generate_script():
-    """Generates a script based on detailed user settings."""
+def generate_ideas():
+    """Generates blog post ideas and titles."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
     topic = data.get("topic")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not topic:
@@ -1900,7 +1337,54 @@ def generate_script():
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_script_prompt(topic, settings)
+    full_prompt = construct_idea_prompt(topic)
+    try:
+        response = CLIENT.generate_content(contents=full_prompt)
+        raw_text = response.candidates[0].content.parts[0].text
+
+        # Split the response into a list of ideas
+        ideas = [idea.strip() for idea in raw_text.split('\n') if idea.strip()]
+
+        # Save to chat history
+        if not chat_session_id:
+            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+        user_message = f"Generate blog post ideas for the topic: '{topic}'"
+        messages = [
+            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+        ]
+
+        session_title = f"Ideas for '{topic}'"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
+
+        return jsonify({
+            "ideas": ideas,
+            "chat_session_id": chat_session_id
+        })
+    except Exception as e:
+        logger.error(f"Idea generation error: {e}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/v1/generate/script', methods=['POST'])
+@login_required
+def generate_script():
+    """Generates a YouTube script."""
+    if not CLIENT:
+        return jsonify({"error": "AI service is not available."}), 503
+
+    data = request.get_json()
+    topic = data.get("topic")
+    duration = data.get("duration")
+    chat_session_id = data.get("chat_session_id")
+
+    if not topic or not duration:
+        return jsonify({"error": "Missing required fields: topic or duration."}), 400
+
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+    full_prompt = construct_script_prompt(topic, duration)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
         script_text = response.candidates[0].content.parts[0].text
@@ -1909,14 +1393,13 @@ def generate_script():
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-        # Store the original user request (topic and all settings) for session restoration
-        user_message = json.dumps({"topic": topic, "settings": settings})
+        user_message = f"Generate a {duration}-minute YouTube script about: '{topic}'"
         messages = [
             {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
             {"content": script_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        session_title = f"Script: {topic[:40]}{'...' if len(topic) > 40 else ''}"
+        session_title = f"YouTube Script: {topic}"
         save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, script_text, studio_type='SCRIPT')
 
         return jsonify({
@@ -1930,115 +1413,101 @@ def generate_script():
 @app.route('/api/v1/generate/ecommerce', methods=['POST'])
 @login_required
 def generate_ecommerce():
-    """Handles various e-commerce content generation requests."""
+    """Generates an e-commerce product description."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    tool = data.get("tool")
-    settings = data.get("settings", {})
+    name = data.get("name")
+    features = data.get("features")
+    tone = data.get("tone")
     chat_session_id = data.get("chat_session_id")
 
-    if not tool:
-        return jsonify({"error": "Missing required field: tool."}), 400
+    if not all([name, features, tone]):
+        return jsonify({"error": "Missing required fields."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    # Route to the correct prompt constructor based on the tool
-    if tool == 'description':
-        full_prompt = construct_product_description_prompt(settings)
-        session_title = f"Desc: {settings.get('productName', 'New Product')[:30]}"
-    elif tool == 'campaign':
-        full_prompt = construct_campaign_prompt(settings)
-        session_title = f"Campaign: {settings.get('occasion', 'New Event')[:30]}"
-    elif tool == 'review':
-        full_prompt = construct_review_response_prompt(settings)
-        session_title = f"Review Resp: {settings.get('review', 'New Review')[:30]}"
-    else:
-        return jsonify({"error": f"Unknown tool: {tool}"}), 400
-
+    full_prompt = construct_ecommerce_prompt(name, features, tone)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
-        result_text = response.candidates[0].content.parts[0].text
+        description_text = response.candidates[0].content.parts[0].text
 
         # Save to chat history
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-        user_message = json.dumps({"tool": tool, "settings": settings})
+        user_message = f"Generate a product description for '{name}' with a {tone} tone."
         messages = [
             {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            {"content": description_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='ECOMMERCE')
+        session_title = f"Product Description: {name}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, description_text, studio_type='ECOMMERCE')
 
         return jsonify({
-            "result": result_text,
+            "description": description_text,
             "chat_session_id": chat_session_id
         })
     except Exception as e:
-        logger.error(f"E-commerce generation error for tool {tool}: {e}")
+        logger.error(f"E-commerce generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/api/v1/generate/webcopy', methods=['POST'])
 @login_required
 def generate_webcopy():
-    """Handles various web copy generation requests."""
+    """Generates landing page copy using the AIDA framework."""
     if not CLIENT:
         return jsonify({"error": "AI service is not available."}), 503
 
     data = request.get_json()
-    tool = data.get("tool")
-    settings = data.get("settings", {})
+    product = data.get("product")
+    audience = data.get("audience")
     chat_session_id = data.get("chat_session_id")
 
-    if not tool:
-        return jsonify({"error": "Missing required field: tool."}), 400
+    if not all([product, audience]):
+        return jsonify({"error": "Missing required fields."}), 400
 
-    if current_user.is_authenticated:
-        if not check_monthly_word_quota(current_user):
-            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+    if not check_monthly_word_quota(current_user):
+        return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    # Route to the correct prompt constructor
-    if tool == 'landing_page':
-        full_prompt = construct_landing_page_prompt(settings)
-        session_title = f"LP: {settings.get('productName', 'New Page')[:30]}"
-    elif tool == 'homepage_section':
-        full_prompt = construct_homepage_section_prompt(settings)
-        session_title = f"Homepage: {settings.get('sectionType', 'New Section')[:30]}"
-    elif tool == 'usp':
-        full_prompt = construct_usp_prompt(settings)
-        session_title = f"USP for: {settings.get('productDesc', 'New Product')[:30]}"
-    else:
-        return jsonify({"error": f"Unknown tool: {tool}"}), 400
-
+    full_prompt = construct_webcopy_prompt(product, audience)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
-        result_text = response.candidates[0].content.parts[0].text
+        raw_text = response.candidates[0].content.parts[0].text
 
+        # Clean and parse the JSON response
+        clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
+        webcopy_json = json.loads(clean_text)
+
+        # Save to chat history
         if not chat_session_id:
             chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
 
-        user_message = json.dumps({"tool": tool, "settings": settings})
+        user_message = f"Generate AIDA landing page copy for '{product}' targeting {audience}."
         messages = [
             {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='WEBCOPY')
+        session_title = f"Web Copy for {product}"
+        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='WEBCOPY')
 
         return jsonify({
-            "result": result_text,
+            "webcopy": webcopy_json,
             "chat_session_id": chat_session_id
         })
+    except json.JSONDecodeError:
+        logger.error(f"Web copy JSON parsing error. Raw text: {raw_text}")
+        return jsonify({"error": "Failed to parse the web copy data from the AI. Please try again."}), 500
     except Exception as e:
-        logger.error(f"Web copy generation error for tool {tool}: {e}")
+        logger.error(f"Web copy generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/api/v1/generate/business', methods=['POST'])
-# @login_required
+@login_required
 def generate_business_doc():
     """Handles various business document generation requests."""
     if not CLIENT:
@@ -2046,52 +1515,85 @@ def generate_business_doc():
 
     data = request.get_json()
     tool = data.get("tool")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not tool:
         return jsonify({"error": "Missing required field: tool."}), 400
 
-    if not check_monthly_word_quota(current_user):
-        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+    if tool == 'press_release':
+        announcement = data.get("announcement")
+        company = data.get("company")
 
-    # Route to the correct prompt constructor
-    if tool == 'proposal':
-        full_prompt = construct_proposal_prompt(settings)
-        session_title = f"Proposal for {settings.get('client', 'New Client')}"
-    elif tool == 'report':
-        full_prompt = construct_report_prompt(settings)
-        session_title = f"Report: {settings.get('subject', 'New Report')[:30]}"
-    elif tool == 'press_release':
-        full_prompt = construct_press_release_prompt(settings)
-        session_title = f"PR: {settings.get('headline', 'New Release')[:30]}"
+        if not all([announcement, company]):
+            return jsonify({"error": "Missing required fields for press release."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_press_release_prompt(announcement, company)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            pr_text = response.candidates[0].content.parts[0].text
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate a press release for {company} about: {announcement}"
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": pr_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Press Release: {announcement[:30]}..."
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, pr_text, studio_type='PRESS_RELEASE')
+
+            return jsonify({
+                "press_release": pr_text,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"Press release generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    elif tool == 'job_description':
+        role = data.get("role")
+        responsibilities = data.get("responsibilities")
+
+        if not all([role, responsibilities]):
+            return jsonify({"error": "Missing required fields for job description."}), 400
+
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_job_description_prompt(role, responsibilities)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            jd_text = response.candidates[0].content.parts[0].text
+
+            # Save to chat history
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+
+            user_message = f"Generate a job description for a {role}."
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": jd_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Job Description: {role}"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, jd_text, studio_type='JOB_DESCRIPTION')
+
+            return jsonify({
+                "job_description": jd_text,
+                "chat_session_id": chat_session_id
+            })
+        except Exception as e:
+            logger.error(f"Job description generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
     else:
         return jsonify({"error": f"Unknown tool: {tool}"}), 400
-
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        result_text = response.candidates[0].content.parts[0].text
-
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-
-        user_message = json.dumps({"tool": tool, "settings": settings})
-        messages = [
-            {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
-            {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
-        ]
-
-        # Note: The studio_type is generic 'BUSINESS' now, but could be made more specific
-        if current_user.is_authenticated:
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='BUSINESS')
-
-        return jsonify({
-            "result": result_text,
-            "chat_session_id": chat_session_id
-        })
-    except Exception as e:
-        logger.error(f"Business doc generation error for tool {tool}: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/api/v1/generate/article", methods=["POST"])
 @login_required
@@ -2101,7 +1603,6 @@ def generate_article():
 
     data = request.get_json()
     user_topic = data.get("topic")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not user_topic:
@@ -2111,7 +1612,7 @@ def generate_article():
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
 
-    full_prompt = construct_initial_prompt(user_topic, settings)
+    full_prompt = construct_initial_prompt(user_topic)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
 
@@ -2278,27 +1779,30 @@ def refine_and_edit_text():
 
     data = request.get_json()
     tool = data.get("tool")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
-    text = data.get("text")
 
-    if not tool or not text:
-        return jsonify({"error": "Missing required fields: tool, text."}), 400
+    if not tool:
+        return jsonify({"error": "Missing required field: tool."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
     if tool == 'tone_style':
-        full_prompt = construct_refine_text_prompt(text, settings)
+        text = data.get("text")
+        tone = data.get("tone")
+        if not all([text, tone]):
+            return jsonify({"error": "Missing required fields for tone refinement."}), 400
+
+        full_prompt = construct_refine_text_prompt(text, tone)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             refined_text = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "tone_style", "text": text, "settings": settings})
+            user_message = f"Refine the following text to be more '{tone}':\n\n{text[:200]}..."
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Refinement: {settings.get('goal', 'General')}"
+            session_title = f"Refinement: {tone}"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
 
             return jsonify({"refined_text": refined_text, "chat_session_id": chat_session_id})
@@ -2307,16 +1811,21 @@ def refine_and_edit_text():
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
     elif tool == 'summarize':
-        full_prompt = construct_summarizer_prompt(text, settings)
+        text = data.get("text")
+        length = data.get("length")
+        if not all([text, length]):
+            return jsonify({"error": "Missing required fields for summarization."}), 400
+
+        full_prompt = construct_summarizer_prompt(text, length)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             summary = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "summarize", "text": text, "settings": settings})
+            user_message = f"Summarize the following text ({length}):\n\n{text[:200]}..."
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": summary, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Summary ({settings.get('format', 'paragraph')})"
+            session_title = f"Summary ({length})"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, summary, studio_type='SUMMARY')
 
             return jsonify({"summary": summary, "chat_session_id": chat_session_id})
@@ -2325,16 +1834,21 @@ def refine_and_edit_text():
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
     elif tool == 'translate':
-        full_prompt = construct_translator_prompt(text, settings)
+        text = data.get("text")
+        language = data.get("language")
+        if not all([text, language]):
+            return jsonify({"error": "Missing required fields for translation."}), 400
+
+        full_prompt = construct_translator_prompt(text, language)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             translated_text = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "translate", "text": text, "settings": settings})
+            user_message = f"Translate the following text to {language}:\n\n{text[:200]}..."
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": translated_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Translation to {settings.get('locale', 'Unknown')}"
+            session_title = f"Translation to {language}"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, translated_text, studio_type='TRANSLATION')
 
             return jsonify({"translated_text": translated_text, "chat_session_id": chat_session_id})
@@ -2355,7 +1869,6 @@ def repurpose_content():
     data = request.get_json()
     tool = data.get("tool")
     text = data.get("text")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not all([tool, text]):
@@ -2364,31 +1877,44 @@ def repurpose_content():
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-    full_prompt = construct_repurpose_prompt(tool, text, settings)
-    try:
-        response = CLIENT.generate_content(contents=full_prompt)
-        result_text = response.candidates[0].content.parts[0].text
+    if tool == 'tweet_thread':
+        full_prompt = construct_article_to_tweet_prompt(text)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            result_text = response.candidates[0].content.parts[0].text
 
-        if not chat_session_id:
-            chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Convert the following article to a Twitter thread:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Article to Tweet Thread"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_TWEET')
 
-        # Determine the studio type for saving the session
-        studio_type_map = {
-            "twitter_thread": "REPURPOSE_TWEET",
-            "linkedin_post": "REPURPOSE_LINKEDIN", # Assuming a new type
-            "video_script": "REPURPOSE_SLIDES" # As per user clarification
-        }
-        studio_type = studio_type_map.get(tool, "REPURPOSE")
+            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Article to tweet error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-        user_message = json.dumps({"tool": tool, "text": text, "settings": settings})
-        messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-        session_title = f"Repurposed into: {tool.replace('_', ' ').title()}"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type=studio_type)
+    elif tool == 'presentation':
+        full_prompt = construct_presentation_prompt(text)
+        try:
+            response = CLIENT.generate_content(contents=full_prompt)
+            result_text = response.candidates[0].content.parts[0].text
 
-        return jsonify({"result": result_text, "chat_session_id": chat_session_id})
-    except Exception as e:
-        logger.error(f"Content repurposing error for tool {tool}: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+            if not chat_session_id:
+                chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
+            user_message = f"Convert the following blog post to a presentation:\n\n{text[:200]}..."
+            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
+            session_title = "Blog to Presentation Outline"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='REPURPOSE_SLIDES')
+
+            return jsonify({"result": result_text, "chat_session_id": chat_session_id})
+        except Exception as e:
+            logger.error(f"Presentation generation error: {e}")
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+    else:
+        return jsonify({"error": f"Unknown tool: {tool}"}), 400
 
 @app.route('/api/v1/seo/tools', methods=['POST'])
 @login_required
@@ -2399,59 +1925,89 @@ def seo_tools():
 
     data = request.get_json()
     tool = data.get("tool")
-    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
     if not tool:
         return jsonify({"error": "Missing required field: tool."}), 400
 
-    if not check_monthly_word_quota(current_user):
-        return jsonify({"error": f"You've reached your monthly word limit."}), 403
+    if tool == 'keywords':
+        topic = data.get("topic")
+        if not topic:
+            return jsonify({"error": "Missing required field: topic."}), 400
 
-    if tool == 'keyword_strategy':
-        if not settings.get('description') or not settings.get('audience'):
-            return jsonify({"error": "Missing required fields for keyword strategy."}), 400
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
-        full_prompt = construct_keyword_strategy_prompt(settings)
+        full_prompt = construct_keyword_prompt(topic)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             raw_text = response.candidates[0].content.parts[0].text
-            keywords_json = json.loads(raw_text)
 
+            # Clean and parse the JSON response
+            # The model sometimes returns the JSON wrapped in ```json ... ```
+            clean_text = re.sub(r'^```json\s*|\s*```$', '', raw_text.strip())
+            keywords_json = json.loads(clean_text)
+
+            # Save to chat history
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "keyword_strategy", "settings": settings})
-            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = "Keyword Strategy"
+
+            user_message = f"Generate SEO keywords for the topic: '{topic}'"
+            # We save the raw text to the history, not the parsed JSON object
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Keywords for '{topic}'"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_KEYWORDS')
 
-            return jsonify({"keywords": keywords_json, "chat_session_id": chat_session_id})
+            return jsonify({
+                "keywords": keywords_json,
+                "chat_session_id": chat_session_id
+            })
         except json.JSONDecodeError:
             logger.error(f"SEO keywords JSON parsing error. Raw text: {raw_text}")
             return jsonify({"error": "Failed to parse the keyword data from the AI. Please try again."}), 500
         except Exception as e:
-            logger.error(f"Keyword strategy error: {e}")
+            logger.error(f"SEO keywords error: {e}")
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-    elif tool == 'on_page_audit':
-        if not settings.get('url') or not settings.get('primaryKeyword'):
-            return jsonify({"error": "Missing required fields for on-page audit."}), 400
+    elif tool == 'headlines':
+        topic = data.get("topic")
+        if not topic:
+            return jsonify({"error": "Missing required field: topic."}), 400
 
-        full_prompt = construct_seo_audit_prompt(settings)
+        if not check_monthly_word_quota(current_user):
+            return jsonify({"error": f"You've reached your monthly word limit."}), 403
+
+        full_prompt = construct_headline_prompt(topic)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
-            audit_results = response.candidates[0].content.parts[0].text
+            raw_text = response.candidates[0].content.parts[0].text
 
+            # Split the response into a list of headlines
+            headlines = [h.strip() for h in raw_text.split('\n') if h.strip()]
+
+            # Save to chat history
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = json.dumps({"tool": "on_page_audit", "settings": settings})
-            messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": audit_results, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"On-Page Audit for {settings.get('primaryKeyword')}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, audit_results, studio_type='SEO_AUDIT')
 
-            return jsonify({"audit_results": audit_results, "chat_session_id": chat_session_id})
+            user_message = f"Generate headlines for the topic: '{topic}'"
+            messages = [
+                {"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"},
+                {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
+            ]
+
+            session_title = f"Headlines for '{topic}'"
+            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_HEADLINES')
+
+            return jsonify({
+                "headlines": headlines,
+                "chat_session_id": chat_session_id
+            })
         except Exception as e:
-            logger.error(f"On-page audit error: {e}")
+            logger.error(f"SEO headlines error: {e}")
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
     else:
@@ -2819,10 +2375,8 @@ def database_error(error):
 
 def init_db():
     """Initialize database tables"""
-    logger.info("--- ENTERING INIT_DB ---")
     try:
         with app.app_context():
-            logger.info(f"--- INSTANCE PATH: {app.instance_path} ---")
             # Ensure the instance folder exists before creating tables
             os.makedirs(app.instance_path, exist_ok=True)
             db.create_all()
@@ -2838,7 +2392,7 @@ def init_db():
                 logger.warning(f"Migration error (non-fatal): {e}")
 
     except Exception as e:
-        logger.error(f"--- DATABASE INIT EXCEPTION: {e} ---")
+        logger.error(f"Database initialization error: {e}")
 
 # Initialize the database unconditionally to handle non-standard execution environments
 init_db()
