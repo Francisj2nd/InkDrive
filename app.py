@@ -268,23 +268,33 @@ You are an expert copywriter specializing in email marketing. Your task is to wr
     prompt += "4.  **Formatting:** Use Markdown for formatting (e.g., bolding, bullet points). Start with the subject lines, followed by \"---\", then the email body.\n\nGenerate the email content now."
     return prompt
 
-def construct_refine_text_prompt(text_to_refine, target_tone):
+def construct_refine_text_prompt(text_to_refine, settings=None):
     """Constructs a prompt for refining text to a specific tone."""
-    return f"""
-    You are an expert editor. Your task is to revise the following text to match a "{target_tone}" tone.
+    if settings is None:
+        settings = {}
 
-    **Original Text:**
-    ---
-    {text_to_refine}
-    ---
+    goal = settings.get('goal', 'Improve Clarity')
+    formality = settings.get('formality', 'Neutral')
+    audience = settings.get('audience')
 
-    **Instructions:**
-    1.  Rewrite the text to embody a "{target_tone}" tone and style.
-    2.  Do not add any new information or change the core meaning.
-    3.  Return only the revised text, without any commentary or preamble.
+    prompt = f"""
+You are an expert editor. Your task is to revise the following text.
 
-    Revise the text now.
-    """
+**Original Text:**
+---
+{text_to_refine}
+---
+
+**Instructions:**
+1.  **Primary Goal:** Your main goal is to "{goal}".
+2.  **Formality:** The revised text should have a "{formality}" formality level.
+"""
+    if audience:
+        prompt += f"3.  **Target Audience:** Adapt the text to be easily understood by an audience of {audience}.\n"
+
+    prompt += "4.  **Core Meaning:** Do not add any new information or change the core meaning of the text.\n"
+    prompt += "5.  **Output:** Return only the revised text, without any commentary or preamble.\n\nRevise the text now."
+    return prompt
 
 def construct_article_to_tweet_prompt(article_text):
     """Constructs a prompt for converting an article into a Twitter thread."""
@@ -517,51 +527,78 @@ Generate the ad copy now.
 """
     return prompt
 
-def construct_summarizer_prompt(text, length):
+def construct_summarizer_prompt(text, settings=None):
     """Constructs a prompt for summarizing text."""
-    length_map = {
-        'short': 'a single, concise paragraph',
-        'medium': 'a series of key bullet points',
-        'long': 'a detailed summary of several paragraphs'
-    }
-    target_length = length_map.get(length, 'a single paragraph')
+    if settings is None:
+        settings = {}
 
-    return f"""
-    You are an expert at summarizing text. Your task is to read the following text and create a summary in the specified format.
+    summary_format = settings.get('format', 'Paragraph')
+    extraction_type = settings.get('extractionType', 'Summarize')
+    focus_area = settings.get('focus')
 
-    **Original Text:**
-    ---
-    {text}
-    ---
+    prompt = f"""
+You are an expert at analyzing and summarizing text. Your task is to process the following text according to the user's specific instructions.
 
-    **Instructions:**
-    1.  **Summarize:** Distill the core ideas and most important information from the text.
-    2.  **Format:** The summary should be in the format of {target_length}.
-    3.  **Clarity:** The summary must be clear, accurate, and easy to understand.
-    4.  **Return Only the Summary:** Do not include any preamble or commentary.
+**Original Text:**
+---
+{text}
+---
 
-    Generate the summary now.
-    """
+**Task Details:**
+1.  **Extraction Type:** Your primary task is to "{extraction_type}".
+2.  **Output Format:** Present the result as a "{summary_format}".
+"""
+    if focus_area:
+        prompt += f"3.  **Focus Area:** Pay special attention to and prioritize information related to: \"{focus_area}\".\n"
 
-def construct_translator_prompt(text, language):
-    """Constructs a prompt for translating text."""
-    return f"""
-    You are a professional translator. Your task is to translate the following text into the specified language.
+    prompt += """
+**Instructions:**
+-   If summarizing, distill the core ideas and most important information.
+-   If extracting action items, list clear, actionable tasks.
+-   If extracting statistics, list all key data points and numbers.
+-   The output must be clear, accurate, and easy to understand.
+-   Return only the requested output, without any preamble or commentary.
 
-    **Text to Translate:**
-    ---
-    {text}
-    ---
+Generate the result now.
+"""
+    return prompt
 
-    **Target Language:** {language}
+def construct_translator_prompt(text, settings=None):
+    """Constructs a prompt for translating and localizing text."""
+    if settings is None:
+        settings = {}
 
-    **Instructions:**
-    1.  **Translate Accurately:** Provide a high-quality, accurate translation of the text.
-    2.  **Maintain Tone:** Preserve the original tone and nuance as much as possible.
-    3.  **Return Only the Translation:** Do not include any preamble, commentary, or the original text.
+    locale = settings.get('locale', 'Spanish (Mexico)')
+    formality = settings.get('formality', 'Formal')
+    adapt_idioms = settings.get('adaptIdioms', True)
 
-    Generate the translation now.
-    """
+    idiom_instruction = (
+        "It is crucial that you adapt idioms, cultural references, and colloquialisms to be natural-sounding and culturally appropriate for the target locale. Do not translate them literally."
+        if adapt_idioms
+        else "Translate the text as literally as possible, preserving original idioms and phrasing, even if they don't sound natural in the target language."
+    )
+
+    prompt = f"""
+You are an expert localization specialist, not just a literal translator. Your task is to translate and localize the following text with cultural and contextual accuracy.
+
+**Text to Localize:**
+---
+{text}
+---
+
+**Localization Task:**
+1.  **Target Locale:** {locale}
+2.  **Formality Level:** {formality}
+3.  **Cultural Adaptation:** {idiom_instruction}
+
+**Instructions:**
+-   Ensure the final text is grammatically correct and fluent for a native speaker of the {locale} locale.
+-   Maintain the core meaning and intent of the original text.
+-   Return only the final, localized text, without any of your own commentary, preambles, or the original text.
+
+Localize the text now.
+"""
+    return prompt
 
 def construct_presentation_prompt(text):
     """Constructs a prompt for converting a blog post to a presentation outline."""
@@ -1861,30 +1898,27 @@ def refine_and_edit_text():
 
     data = request.get_json()
     tool = data.get("tool")
+    settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
+    text = data.get("text")
 
-    if not tool:
-        return jsonify({"error": "Missing required field: tool."}), 400
+    if not tool or not text:
+        return jsonify({"error": "Missing required fields: tool, text."}), 400
 
     if not check_monthly_word_quota(current_user):
         return jsonify({"error": f"You've reached your monthly word limit."}), 403
 
     if tool == 'tone_style':
-        text = data.get("text")
-        tone = data.get("tone")
-        if not all([text, tone]):
-            return jsonify({"error": "Missing required fields for tone refinement."}), 400
-
-        full_prompt = construct_refine_text_prompt(text, tone)
+        full_prompt = construct_refine_text_prompt(text, settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             refined_text = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Refine the following text to be more '{tone}':\n\n{text[:200]}..."
+            user_message = json.dumps({"tool": "tone_style", "text": text, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Refinement: {tone}"
+            session_title = f"Refinement: {settings.get('goal', 'General')}"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
 
             return jsonify({"refined_text": refined_text, "chat_session_id": chat_session_id})
@@ -1893,21 +1927,16 @@ def refine_and_edit_text():
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
     elif tool == 'summarize':
-        text = data.get("text")
-        length = data.get("length")
-        if not all([text, length]):
-            return jsonify({"error": "Missing required fields for summarization."}), 400
-
-        full_prompt = construct_summarizer_prompt(text, length)
+        full_prompt = construct_summarizer_prompt(text, settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             summary = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Summarize the following text ({length}):\n\n{text[:200]}..."
+            user_message = json.dumps({"tool": "summarize", "text": text, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": summary, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Summary ({length})"
+            session_title = f"Summary ({settings.get('format', 'paragraph')})"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, summary, studio_type='SUMMARY')
 
             return jsonify({"summary": summary, "chat_session_id": chat_session_id})
@@ -1916,21 +1945,16 @@ def refine_and_edit_text():
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
     elif tool == 'translate':
-        text = data.get("text")
-        language = data.get("language")
-        if not all([text, language]):
-            return jsonify({"error": "Missing required fields for translation."}), 400
-
-        full_prompt = construct_translator_prompt(text, language)
+        full_prompt = construct_translator_prompt(text, settings)
         try:
             response = CLIENT.generate_content(contents=full_prompt)
             translated_text = response.candidates[0].content.parts[0].text
 
             if not chat_session_id:
                 chat_session_id = f"chat_{int(datetime.utcnow().timestamp())}_{current_user.id}"
-            user_message = f"Translate the following text to {language}:\n\n{text[:200]}..."
+            user_message = json.dumps({"tool": "translate", "text": text, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": translated_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
-            session_title = f"Translation to {language}"
+            session_title = f"Translation to {settings.get('locale', 'Unknown')}"
             save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, translated_text, studio_type='TRANSLATION')
 
             return jsonify({"translated_text": translated_text, "chat_session_id": chat_session_id})

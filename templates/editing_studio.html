@@ -70,24 +70,40 @@
 <div class="tabs">
     <button class="tab-button active" data-tab="tone-style">Tone & Style</button>
     <button class="tab-button" data-tab="summarizer">Summarizer</button>
-    <button class="tab-button" data-tab="translator">Translator</button>
+    <button class="tab-button" data-tab="translator">Translator & Localizer</button>
 </div>
 
 <div id="tone-style" class="tab-content active">
     <div class="form-group">
         <label for="refine-text-input">Your Text</label>
-        <textarea id="refine-text-input" class="form-control" rows="10" placeholder="Paste your article, blog post, or any other text here..."></textarea>
+        <textarea id="refine-text-input" class="form-control" rows="8" placeholder="Paste your article, blog post, or any other text here..."></textarea>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="refine-goal">Refinement Goal</label>
+                <select id="refine-goal" class="form-control">
+                    <option>Improve Clarity</option>
+                    <option>Make More Concise</option>
+                    <option>Fix Grammar & Spelling</option>
+                    <option>Change Tone</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="refine-formality">Formality Level</label>
+                <select id="refine-formality" class="form-control">
+                    <option>Casual</option>
+                    <option selected>Neutral</option>
+                    <option>Formal</option>
+                </select>
+            </div>
+        </div>
     </div>
     <div class="form-group">
-        <label for="refine-tone">Target Tone</label>
-        <select id="refine-tone" class="form-control">
-            <option value="Professional">Professional</option>
-            <option value="Casual & Friendly">Casual & Friendly</option>
-            <option value="Confident & Assertive">Confident & Assertive</option>
-            <option value="Empathetic & Understanding">Empathetic & Understanding</option>
-            <option value="Formal & Academic">Formal & Academic</option>
-            <option value="Witty & Humorous">Witty & Humorous</option>
-        </select>
+        <label for="refine-audience">Target Audience (Optional)</label>
+        <input type="text" id="refine-audience" class="form-control" placeholder="e.g., Industry experts, general consumers, beginners">
     </div>
     <button id="refineTextBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">auto_fix_high</span>
@@ -98,15 +114,33 @@
 <div id="summarizer" class="tab-content">
     <div class="form-group">
         <label for="summarize-text-input">Text to Summarize</label>
-        <textarea id="summarize-text-input" class="form-control" rows="10" placeholder="Paste a long piece of text here..."></textarea>
+        <textarea id="summarize-text-input" class="form-control" rows="8" placeholder="Paste a long piece of text here..."></textarea>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="summary-format">Summary Format</label>
+                <select id="summary-format" class="form-control">
+                    <option>Paragraph</option>
+                    <option>Bullet Points</option>
+                    <option>Executive Summary</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="summary-extraction">Extraction Type</label>
+                <select id="summary-extraction" class="form-control">
+                    <option>Summarize</option>
+                    <option>Extract Action Items</option>
+                    <option>List Key Statistics</option>
+                </select>
+            </div>
+        </div>
     </div>
     <div class="form-group">
-        <label for="summary-length">Summary Length</label>
-        <select id="summary-length" class="form-control">
-            <option value="short">Short (one paragraph)</option>
-            <option value="medium">Medium (bullet points)</option>
-            <option value="long">Long (multiple paragraphs)</option>
-        </select>
+        <label for="summary-focus">Focus Area (Optional)</label>
+        <input type="text" id="summary-focus" class="form-control" placeholder="e.g., focus on financial results, technical challenges">
     </div>
     <button id="summarizeBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">compress</span>
@@ -117,17 +151,38 @@
 <div id="translator" class="tab-content">
     <div class="form-group">
         <label for="translate-text-input">Text to Translate</label>
-        <textarea id="translate-text-input" class="form-control" rows="10" placeholder="Enter text in any language..."></textarea>
+        <textarea id="translate-text-input" class="form-control" rows="8" placeholder="Enter text in any language..."></textarea>
     </div>
     <div class="form-group">
-        <label for="translate-language">Translate to</label>
-        <select id="translate-language" class="form-control">
-            <option value="Spanish">Spanish</option>
-            <option value="French">French</option>
-            <option value="German">German</option>
-            <option value="Japanese">Japanese</option>
-            <option value="Mandarin Chinese">Mandarin Chinese</option>
+        <label for="translate-locale">Target Locale</label>
+        <select id="translate-locale" class="form-control">
+            <option>English (USA)</option>
+            <option>English (UK)</option>
+            <option>Spanish (Spain)</option>
+            <option>Spanish (Mexico)</option>
+            <option>French (France)</option>
+            <option>German (Germany)</option>
+            <option>Japanese (Japan)</option>
         </select>
+    </div>
+    <div class="form-group">
+        <label>Formality Level</label>
+        <div>
+            <div class="custom-control custom-radio custom-control-inline">
+                <input type="radio" id="formality-informal" name="formality" class="custom-control-input" value="Informal">
+                <label class="custom-control-label" for="formality-informal">Informal</label>
+            </div>
+            <div class="custom-control custom-radio custom-control-inline">
+                <input type="radio" id="formality-formal" name="formality" class="custom-control-input" value="Formal" checked>
+                <label class="custom-control-label" for="formality-formal">Formal</label>
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="translate-idioms" checked>
+            <label class="custom-control-label" for="translate-idioms">Adapt Idioms & Cultural References</label>
+        </div>
     </div>
     <button id="translateBtn" class="btn btn-primary" style="width: 100%;">
         <span class="material-symbols-outlined">translate</span>
@@ -176,15 +231,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- API FUNCTIONS ---
     async function refineText() {
         const text = document.getElementById('refine-text-input').value;
-        const tone = document.getElementById('refine-tone').value;
         if (!text.trim()) { alert('Please paste some text to refine.'); return; }
+
+        const settings = {
+            goal: document.getElementById('refine-goal').value,
+            formality: document.getElementById('refine-formality').value,
+            audience: document.getElementById('refine-audience').value,
+        };
 
         showLoading(this, "Applying tone & style...");
         try {
             const response = await fetch('/api/v1/refine/text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool: 'tone_style', text: text, tone: tone, chat_session_id: editingChatSessionId })
+                body: JSON.stringify({ tool: 'tone_style', text: text, settings: settings, chat_session_id: editingChatSessionId })
             });
             const data = await response.json();
             if (response.ok) {
@@ -201,15 +261,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function summarizeText() {
         const text = document.getElementById('summarize-text-input').value;
-        const length = document.getElementById('summary-length').value;
         if (!text.trim()) { alert('Please paste some text to summarize.'); return; }
+
+        const settings = {
+            format: document.getElementById('summary-format').value,
+            extractionType: document.getElementById('summary-extraction').value,
+            focus: document.getElementById('summary-focus').value
+        };
 
         showLoading(this, "Summarizing text...");
         try {
             const response = await fetch('/api/v1/refine/text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool: 'summarize', text: text, length: length, chat_session_id: editingChatSessionId })
+                body: JSON.stringify({ tool: 'summarize', text: text, settings: settings, chat_session_id: editingChatSessionId })
             });
             const data = await response.json();
             if (response.ok) {
@@ -226,20 +291,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function translateText() {
         const text = document.getElementById('translate-text-input').value;
-        const language = document.getElementById('translate-language').value;
         if (!text.trim()) { alert('Please enter text to translate.'); return; }
 
-        showLoading(this, `Translating to ${language}...`);
+        const settings = {
+            locale: document.getElementById('translate-locale').value,
+            formality: document.querySelector('input[name="formality"]:checked').value,
+            adaptIdioms: document.getElementById('translate-idioms').checked
+        };
+
+        showLoading(this, `Translating to ${settings.locale}...`);
         try {
             const response = await fetch('/api/v1/refine/text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool: 'translate', text: text, language: language, chat_session_id: editingChatSessionId })
+                body: JSON.stringify({ tool: 'translate', text: text, settings: settings, chat_session_id: editingChatSessionId })
             });
             const data = await response.json();
             if (response.ok) {
                 editingChatSessionId = data.chat_session_id;
-                displayOutput(data.translated_text, `Translated Text (${language})`);
+                displayOutput(data.translated_text, `Translated Text (${settings.locale})`);
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
             } else { throw new Error(data.error); }
         } catch (error) {
