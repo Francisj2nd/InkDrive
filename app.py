@@ -2819,8 +2819,12 @@ def database_error(error):
 
 def init_db():
     """Initialize database tables"""
+    logger.info("--- ENTERING INIT_DB ---")
     try:
         with app.app_context():
+            logger.info(f"--- INSTANCE PATH: {app.instance_path} ---")
+            # Ensure the instance folder exists before creating tables
+            os.makedirs(app.instance_path, exist_ok=True)
             db.create_all()
             logger.info("Database tables created successfully")
 
@@ -2834,12 +2838,11 @@ def init_db():
                 logger.warning(f"Migration error (non-fatal): {e}")
 
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+        logger.error(f"--- DATABASE INIT EXCEPTION: {e} ---")
+
+# Initialize the database unconditionally to handle non-standard execution environments
+init_db()
 
 if __name__ == "__main__":
-    init_db()
     port = int(os.environ.get('PORT', 5001))
     app.run(host='0.0.0.0', port=port, debug=False)
-else:
-    # For production deployment
-    init_db()
