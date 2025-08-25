@@ -43,6 +43,8 @@ def run_migrations():
             migrations_needed.append('add_is_active_field')
         if 'total_words_generated' not in users_columns:
             migrations_needed.append('add_total_words_generated_field')
+        if 'is_superadmin' not in users_columns:
+            migrations_needed.append('add_is_superadmin_field')
         
         # Run migrations
         for migration in migrations_needed:
@@ -67,6 +69,8 @@ def run_migrations():
                 add_is_active_field()
             elif migration == 'add_total_words_generated_field':
                 add_total_words_generated_field()
+            elif migration == 'add_is_superadmin_field':
+                add_is_superadmin_field()
         
         if migrations_needed:
             logger.info(f"Completed {len(migrations_needed)} migrations")
@@ -189,4 +193,15 @@ def add_total_words_generated_field():
         logger.info("Added total_words_generated field to users table")
     except Exception as e:
         logger.error(f"Error adding total_words_generated field: {e}")
+        raise
+
+def add_is_superadmin_field():
+    """Add is_superadmin field to users table"""
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE users ADD COLUMN is_superadmin BOOLEAN DEFAULT FALSE'))
+            conn.commit()
+        logger.info("Added is_superadmin field to users table")
+    except Exception as e:
+        logger.error(f"Error adding is_superadmin field: {e}")
         raise
