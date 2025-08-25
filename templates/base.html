@@ -53,9 +53,6 @@
                 {% if page_type == 'studio' %}
                 <li class="nav-item"><a href="#" class="nav-link" id="studioDashboardLink"><span class="material-symbols-outlined">monitoring</span>Dashboard</a></li>
                 {% endif %}
-                {% if studio_type == 'article' %}
-                <li class="nav-item"><a href="{{ url_for('profile_articles') }}" class="nav-link"><span class="material-symbols-outlined">article</span>My Articles</a></li>
-                {% endif %}
                 <li class="nav-item"><a href="{{ url_for('profile_edit') }}" class="nav-link"><span class="material-symbols-outlined">settings</span>Settings</a></li>
                 <li class="nav-item"><a href="{{ url_for('auth_logout') }}" class="nav-link"><span class="material-symbols-outlined">logout</span>Logout</a></li>
             </ul>
@@ -152,7 +149,7 @@
                 return;
             }
 
-            chatList.innerHTML = chatHistory.slice(0, 15).map(chat => {
+            chatList.innerHTML = chatHistory.map(chat => {
                 const studioIcon = getStudioIcon(chat.studio_type);
                 const chatDate = new Date(chat.updated_at).toLocaleDateString();
                 return `

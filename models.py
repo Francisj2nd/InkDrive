@@ -28,6 +28,7 @@ class User(UserMixin, db.Model):
     # Account status
     is_verified = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
+    is_superadmin = db.Column(db.Boolean, default=False)
     
     # Usage tracking - Fixed: Total words should never decrease
     articles_generated = db.Column(db.Integer, default=0)
@@ -103,17 +104,11 @@ class Article(db.Model):
     word_count = db.Column(db.Integer, default=0)
     is_refined = db.Column(db.Boolean, default=False)
     
-    # Publishing
-    is_public = db.Column(db.Boolean, default=False)
-    public_id = db.Column(db.String(50), unique=True, nullable=True, index=True)
-    published_at = db.Column(db.DateTime)
-    
     # SEO fields
     meta_description = db.Column(db.Text)
     seo_keywords = db.Column(db.Text)
     
     # Analytics
-    view_count = db.Column(db.Integer, default=0)
     download_count = db.Column(db.Integer, default=0)
     
     # Timestamps
@@ -122,26 +117,6 @@ class Article(db.Model):
     
     # Link to chat session
     chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_sessions.id'), nullable=True)
-    
-    def publish(self):
-        """Publish the article"""
-        self.is_public = True
-        self.published_at = datetime.now(timezone.utc)
-        db.session.commit()
-    
-    def unpublish(self):
-        """Unpublish the article"""
-        self.is_public = False
-        self.published_at = None
-        db.session.commit()
-    
-    def increment_view(self):
-        """Increment view count"""
-        try:
-            self.view_count = (self.view_count or 0) + 1
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
     
     def increment_download(self):
         """Increment download count"""
@@ -212,13 +187,9 @@ class Article(db.Model):
             'topic': self.topic,
             'word_count': self.word_count or 0,
             'is_refined': self.is_refined,
-            'is_public': self.is_public,
-            'public_id': self.public_id,
-            'view_count': self.view_count or 0,
             'download_count': self.download_count or 0,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'published_at': self.published_at.isoformat() if self.published_at else None,
             'excerpt': self.get_excerpt(),
             'first_image_url': self.get_first_image_url()
         }
