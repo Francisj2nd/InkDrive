@@ -181,11 +181,12 @@ def construct_initial_prompt(topic, settings=None):
     if audience:
         prompt_lines.append(f"3. **Target Audience:** Write for an audience of {audience}.")
 
-    prompt_lines.extend([
-        "4. **Structure:** Use clear sections with H2 and H3 subheadings using Markdown.",
-        "5. **Placeholders:** Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`",
-        "6. **Quality:** The content must be original, human-readable, and valuable."
-    ])
+    prompt_lines.append("4. **Structure:** Use clear sections with H2 and H3 subheadings using Markdown.")
+    if settings.get('enable_images'):
+        prompt_lines.append("5. **Placeholders:** Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`")
+        prompt_lines.append("6. **Quality:** The content must be original, human-readable, and valuable.")
+    else:
+        prompt_lines.append("5. **Quality:** The content must be original, human-readable, and valuable.")
 
     key_points = settings.get('keyPoints')
     if key_points:
@@ -2119,7 +2120,13 @@ def generate_article():
             return jsonify({"error": "Model response was empty or blocked."}), 500
 
         raw_text = response.candidates[0].content.parts[0].text
-        final_html = format_article_content(raw_text, user_topic)
+
+        # Conditionally process images based on user setting
+        if settings.get('enable_images'):
+            final_html = format_article_content(raw_text, user_topic)
+        else:
+            # If images are disabled, just convert markdown to HTML
+            final_html = markdown.markdown(raw_text, extensions=['fenced_code', 'tables'])
 
         # Save chat session to database
         if not chat_session_id:

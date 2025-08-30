@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dashboardLink) {
         dashboardLink.addEventListener('click', async (e) => {
             e.preventDefault();
+            console.log("Dashboard link clicked!");
 
             // Hide tool view and show dashboard view
             toolView.style.display = 'none';
