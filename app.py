@@ -31,6 +31,7 @@ from forms import LoginForm, RegisterForm, ProfileForm, ChangePasswordForm
 
 # Import admin blueprint
 from admin import admin_bp
+from studio import studio_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,10 +42,12 @@ app = Flask(__name__)
 
 # Register admin blueprint
 app.register_blueprint(admin_bp)
+app.register_blueprint(studio_bp)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
+app.config['SERVER_NAME'] = 'inkdrive.ink'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Engine options - conditionally add connect_args for PostgreSQL
 engine_options = {
@@ -1664,65 +1667,6 @@ def index():
 
         return render_template("landing.html", featured_articles=featured_articles)
 
-@app.route('/studio/article')
-@login_required
-def article_studio():
-    """The new Article Studio page"""
-    return render_template('article_studio.html', user=current_user, page_type='studio', studio_type='article')
-
-@app.route('/studio/social')
-@login_required
-def social_studio():
-    """The new Social & Comms Studio page"""
-    return render_template('social_studio.html', user=current_user, page_type='studio', studio_type='social')
-
-@app.route('/studio/editing')
-@login_required
-def editing_studio():
-    """The new Editing & Refinement Studio page"""
-    return render_template('editing_studio.html', user=current_user, page_type='studio', studio_type='editing')
-
-@app.route('/studio/repurpose')
-@login_required
-def repurpose_studio():
-    """The new Content Repurposing Studio page"""
-    return render_template('repurposing_studio.html', user=current_user, page_type='studio', studio_type='repurpose')
-
-@app.route('/studio/seo')
-@login_required
-def seo_studio():
-    """The new SEO Strategy Studio page"""
-    return render_template('seo_studio.html', user=current_user, page_type='studio', studio_type='seo')
-
-@app.route('/studio/brainstorming')
-@login_required
-def brainstorming_studio():
-    """The new Brainstorming Studio page"""
-    return render_template('brainstorming_studio.html', user=current_user, page_type='studio', studio_type='brainstorming')
-
-@app.route('/studio/scriptwriting')
-@login_required
-def scriptwriting_studio():
-    """The new Scriptwriting Studio page"""
-    return render_template('scriptwriting_studio.html', user=current_user, page_type='studio', studio_type='scriptwriting')
-
-@app.route('/studio/ecommerce')
-@login_required
-def ecommerce_studio():
-    """The new E-commerce Studio page"""
-    return render_template('ecommerce_studio.html', user=current_user, page_type='studio', studio_type='ecommerce')
-
-@app.route('/studio/webcopy')
-@login_required
-def webcopy_studio():
-    """The new Web Copy Studio page"""
-    return render_template('webcopy_studio.html', user=current_user, page_type='studio', studio_type='webcopy')
-
-@app.route('/studio/business')
-@login_required
-def business_studio():
-    """The new Business Docs Studio page"""
-    return render_template('business_studio.html', user=current_user, page_type='studio', studio_type='business')
 
 @app.route('/api/v1/generate/social', methods=['POST'])
 @login_required
