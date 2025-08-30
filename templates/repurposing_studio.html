@@ -165,10 +165,16 @@
     </div>
 </div>
 
-<button id="repurposeBtn" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
-    <span class="material-symbols-outlined">repeat</span>
-    Repurpose Content
-</button>
+<div style="display: flex; gap: 12px; margin-top: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+    <button id="repurposeBtn" class="btn btn-primary" style="flex-grow: 1;">
+        <span class="material-symbols-outlined">repeat</span>
+        Repurpose Content
+    </button>
+</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -209,6 +215,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- EVENT LISTENER ---
     repurposeBtn?.addEventListener('click', repurposeContent);
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
+
+    // --- HELPER FUNCTIONS ---
+    function setInputsDisabled(disabled) {
+        document.getElementById('repurpose-text-input').disabled = disabled;
+        document.getElementById('repurpose-into').disabled = disabled;
+        document.getElementById('repurpose-audience').disabled = disabled;
+        document.getElementById('repurpose-goal').disabled = disabled;
+        document.getElementById('repurpose-message').disabled = disabled;
+        document.getElementById('twitter-tweets-count').disabled = disabled;
+        document.getElementById('twitter-hook').disabled = disabled;
+        document.getElementById('twitter-hashtags').disabled = disabled;
+        document.getElementById('linkedin-professional-tone').disabled = disabled;
+        document.getElementById('video-length').disabled = disabled;
+        document.getElementById('video-speaker').disabled = disabled;
+        document.getElementById('video-cues').disabled = disabled;
+        repurposeBtn.disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        document.getElementById('repurpose-text-input').value = '';
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">transform</span><p>Your repurposed content will appear here.</p></div>`;
+        repurposeChatSessionId = null;
+        showNotification('New session started.', 'success');
+    }
 
     // --- API FUNCTION ---
     async function repurposeContent() {
@@ -258,6 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // A generic display function can handle different outputs
                 displayOutput(data.result, `Repurposed into: ${repurposeIntoSelect.options[repurposeIntoSelect.selectedIndex].text}`);
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                setInputsDisabled(true);
             } else {
                 throw new Error(data.error);
             }

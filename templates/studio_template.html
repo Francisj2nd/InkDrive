@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dashboardLink) {
         dashboardLink.addEventListener('click', async (e) => {
             e.preventDefault();
+            console.log("Dashboard link clicked!");
 
             // Hide tool view and show dashboard view
             toolView.style.display = 'none';
@@ -91,8 +92,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h3>Avg. Words / Article</h3>
                     <div class="stat-value">${stats.avg_word_count_this_month || 0}</div>
                 </div>
+                <div class="stat-card">
+                    <h3>Total Articles (All Time)</h3>
+                    <div class="stat-value">${(stats.total_articles_ever || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Words (All Time)</h3>
+                    <div class="stat-value">${(stats.total_words_ever || 0).toLocaleString()}</div>
+                </div>
             `;
-        } else {
+        } else if (studioName === 'social') {
+            statsHtml = `
+                <div class="stat-card"><h3>Social Posts</h3><div class="stat-value">${stats.social_post_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>Emails</h3><div class="stat-value">${stats.email_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>Ad Copies</h3><div class="stat-value">${stats.ad_copy_usage_this_month || 0}</div></div>
+            `;
+        } else if (studioName === 'editing') {
+            statsHtml = `
+                <div class="stat-card"><h3>Text Refinements</h3><div class="stat-value">${stats.text_refinement_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>Summaries</h3><div class="stat-value">${stats.summary_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>Translations</h3><div class="stat-value">${stats.translation_usage_this_month || 0}</div></div>
+            `;
+        } else if (studioName === 'repurpose') {
+            statsHtml = `
+                <div class="stat-card"><h3>Twitter Threads</h3><div class="stat-value">${stats.repurpose_tweet_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>Video Scripts</h3><div class="stat-value">${stats.repurpose_slides_usage_this_month || 0}</div></div>
+            `;
+        } else if (studioName === 'seo') {
+            statsHtml = `
+                <div class="stat-card"><h3>Keyword Strategies</h3><div class="stat-value">${stats.seo_keywords_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>On-Page Audits</h3><div class="stat-value">${stats.seo_headlines_usage_this_month || 0}</div></div>
+            `;
+        } else if (studioName === 'business') {
+            statsHtml = `
+                <div class="stat-card"><h3>Press Releases</h3><div class="stat-value">${stats.press_release_usage_this_month || 0}</div></div>
+                <div class="stat-card"><h3>Job Descriptions</h3><div class="stat-value">${stats.job_description_usage_this_month || 0}</div></div>
+            `;
+        }
+        else {
             const usageThisMonth = stats[`${studioName}_usage_this_month`] || 0;
             statsHtml = `
                 <div class="stat-card">

@@ -64,6 +64,12 @@
 {% block studio_description %}Generate new ideas, titles, and outlines for your content.{% endblock %}
 
 {% block studio_inputs %}
+<div style="display: flex; gap: 12px; margin-bottom: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary" style="width: 100%;">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+</div>
 <div class="tabs">
     <button class="tab-button active" data-tab="general-brainstorming">General Brainstorming</button>
     <button class="tab-button" data-tab="naming">Naming</button>
@@ -174,6 +180,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event Listeners
     generateIdeasBtn?.addEventListener('click', generateIdeas);
     generateNamesBtn?.addEventListener('click', generateNames);
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
+
+    // --- HELPER FUNCTIONS ---
+    function setInputsDisabled(disabled) {
+        // General Brainstorming
+        document.getElementById('brainstorm-goal').disabled = disabled;
+        document.getElementById('brainstorm-framework').disabled = disabled;
+        document.getElementById('brainstorm-constraints').disabled = disabled;
+        generateIdeasBtn.disabled = disabled;
+
+        // Naming
+        document.getElementById('naming-description').disabled = disabled;
+        document.getElementById('naming-style').disabled = disabled;
+        document.getElementById('naming-tone').disabled = disabled;
+        document.getElementById('naming-keyword').disabled = disabled;
+        document.getElementById('naming-length').disabled = disabled;
+        generateNamesBtn.disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        // Clear inputs
+        document.getElementById('brainstorm-goal').value = '';
+        document.getElementById('brainstorm-constraints').value = '';
+        document.getElementById('naming-description').value = '';
+        document.getElementById('naming-keyword').value = '';
+
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">lightbulb</span><p>Your generated ideas will appear here.</p></div>`;
+        brainstormSessionId = null;
+        if (typeof showNotification === 'function') {
+            showNotification('New session started.', 'success');
+        }
+    }
 
     async function generateIdeas() {
         const settings = {
@@ -198,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 brainstormSessionId = data.chat_session_id;
                 displayIdeas(data.ideas);
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                setInputsDisabled(true);
             } else { throw new Error(data.error); }
         } catch (error) {
             showError(error.message);
@@ -231,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 brainstormSessionId = data.chat_session_id;
                 displayIdeas(data.names);
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                setInputsDisabled(true);
             } else { throw new Error(data.error); }
         } catch (error) {
             showError(error.message);

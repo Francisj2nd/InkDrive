@@ -157,10 +157,16 @@
     <div class="form-group"><label for="rev-offer">Action / Offer (Optional)</label><input type="text" id="rev-offer" class="form-control" placeholder="e.g., Offer a 15% discount"></div>
 </div>
 
-<button id="generateBtn" class="btn btn-primary mt-3" style="width: 100%;">
-    <span class="material-symbols-outlined">storefront</span>
-    Generate
-</button>
+<div style="display: flex; gap: 12px; margin-top: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+    <button id="generateBtn" class="btn btn-primary mt-3" style="flex-grow: 1;">
+        <span class="material-symbols-outlined">storefront</span>
+        Generate
+    </button>
+</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -230,6 +236,58 @@ document.addEventListener('DOMContentLoaded', function() {
         return isValid ? settings : null;
     }
 
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
+
+    function setInputsDisabled(disabled) {
+        // Description
+        document.getElementById('desc-product-name').disabled = disabled;
+        document.getElementById('desc-features').disabled = disabled;
+        document.getElementById('desc-audience').disabled = disabled;
+        document.getElementById('desc-tone').disabled = disabled;
+        document.getElementById('desc-benefit').disabled = disabled;
+        document.getElementById('desc-format').disabled = disabled;
+
+        // Campaign
+        document.getElementById('camp-product').disabled = disabled;
+        document.getElementById('camp-occasion').disabled = disabled;
+        document.getElementById('camp-offer').disabled = disabled;
+        document.getElementById('camp-urgency').disabled = disabled;
+        document.querySelectorAll('#campaign .checkbox-grid input').forEach(el => el.disabled = disabled);
+
+        // Review
+        document.getElementById('rev-review').disabled = disabled;
+        document.querySelectorAll('#review .star-rating input').forEach(el => el.disabled = disabled);
+        document.getElementById('rev-tone').disabled = disabled;
+        document.getElementById('rev-offer').disabled = disabled;
+
+        generateBtn.disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        // Clear inputs and reset to defaults
+        document.getElementById('desc-product-name').value = '';
+        document.getElementById('desc-features').value = '';
+        document.getElementById('desc-audience').value = '';
+        document.getElementById('desc-tone').value = '';
+        document.getElementById('desc-benefit').value = '';
+        document.getElementById('desc-format').value = 'paragraph';
+
+        document.getElementById('camp-product').value = '';
+        document.getElementById('camp-occasion').value = '';
+        document.getElementById('camp-offer').value = '';
+        document.getElementById('camp-urgency').value = '';
+
+        document.getElementById('rev-review').value = '';
+        document.getElementById('rev-offer').value = '';
+
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">storefront</span><p>Your generated e-commerce copy will appear here.</p></div>`;
+        ecommerceChatSessionId = null;
+        if (typeof showNotification === 'function') {
+            showNotification('New session started.', 'success');
+        }
+    }
+
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
             const tool = getActiveTool();
@@ -266,6 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (typeof loadChatHistory === 'function') {
                         loadChatHistory(STUDIO_TYPE);
                     }
+                    setInputsDisabled(true);
                 } else {
                     throw new Error(data.error || 'Failed to generate content');
                 }

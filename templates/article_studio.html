@@ -47,12 +47,6 @@
 <div class="row">
     <div class="col-md-6">
         <div class="form-group">
-            <label for="audienceInput">Target Audience</label>
-            <input type="text" id="audienceInput" class="form-control" placeholder="e.g., Beginners, experts, marketing managers">
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="form-group">
             <label>Premium Features</label>
             <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" role="switch" id="imageToggle" {% if not user.is_superadmin %}disabled{% endif %}>
@@ -133,11 +127,9 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block studio_scripts %}
 <script>
     const STUDIO_TYPE = 'article';
-</script>
-<script>
     // This script is now self-contained within the Article Studio page.
     let currentArticleData = null;
     let currentChatSessionId = null;
@@ -170,6 +162,22 @@
     });
 
     function startNewArticle() {
+        // Re-enable form inputs
+        topicInput.disabled = false;
+        wordCountSelect.disabled = false;
+        audienceInput.disabled = false;
+        toneSelect.disabled = false;
+        keyPointsInput.disabled = false;
+        keywordInput.disabled = false;
+        ctaInput.disabled = false;
+        generateBtn.disabled = false;
+
+        // Only re-enable the image toggle if the user is a superadmin (i.e., no 'Premium' badge)
+        const isPremiumFeature = imageToggle && imageToggle.nextElementSibling.querySelector('.badge');
+        if (imageToggle && !isPremiumFeature) {
+            imageToggle.disabled = false;
+        }
+
         // Clear inputs
         topicInput.value = '';
         wordCountSelect.value = '1000';
@@ -276,6 +284,17 @@
                 showNotification('Article generated successfully!');
                 generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Generated`;
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+
+                // Lock the form inputs after generation
+                topicInput.disabled = true;
+                wordCountSelect.disabled = true;
+                audienceInput.disabled = true;
+                toneSelect.disabled = true;
+                keyPointsInput.disabled = true;
+                keywordInput.disabled = true;
+                ctaInput.disabled = true;
+                if (imageToggle) imageToggle.disabled = true;
+                generateBtn.disabled = true;
             } else {
                 throw new Error(data.error || 'Failed to generate article');
             }
@@ -395,6 +414,15 @@
             generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Loaded`;
             generateBtn.disabled = true;
 
+            // Lock the form inputs when loading from history
+            topicInput.disabled = true;
+            wordCountSelect.disabled = true;
+            audienceInput.disabled = true;
+            toneSelect.disabled = true;
+            keyPointsInput.disabled = true;
+            keywordInput.disabled = true;
+            ctaInput.disabled = true;
+            if (imageToggle) imageToggle.disabled = true;
 
         } catch (error) {
             showNotification(error.message, 'error');

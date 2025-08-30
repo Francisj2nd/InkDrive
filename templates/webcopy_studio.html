@@ -105,10 +105,16 @@
     <div class="form-group"><label for="usp-competitors">Competitors (Optional)</label><input type="text" id="usp-competitors" class="form-control" placeholder="e.g., FreshBooks, Wave"></div>
 </div>
 
-<button id="generateBtn" class="btn btn-primary mt-3" style="width: 100%;">
-    <span class="material-symbols-outlined">web</span>
-    Generate Web Copy
-</button>
+<div style="display: flex; gap: 12px; margin-top: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+    <button id="generateBtn" class="btn btn-primary mt-3" style="flex-grow: 1;">
+        <span class="material-symbols-outlined">web</span>
+        Generate Web Copy
+    </button>
+</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -159,6 +165,58 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- Main Generate Function ---
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
+
+    function setInputsDisabled(disabled) {
+        // Landing Page
+        document.getElementById('lp-product-name').disabled = disabled;
+        document.getElementById('lp-audience').disabled = disabled;
+        document.getElementById('lp-goal').disabled = disabled;
+        document.getElementById('lp-features').disabled = disabled;
+        document.getElementById('lp-pain-point').disabled = disabled;
+        document.getElementById('lp-tone').disabled = disabled;
+
+        // Homepage Section
+        document.getElementById('hs-company-name').disabled = disabled;
+        document.getElementById('hs-one-liner').disabled = disabled;
+        document.getElementById('hs-section-type').disabled = disabled;
+        document.getElementById('hs-key-info').disabled = disabled;
+
+        // USP
+        document.getElementById('usp-product-desc').disabled = disabled;
+        document.getElementById('usp-customer').disabled = disabled;
+        document.getElementById('usp-differentiators').disabled = disabled;
+        document.getElementById('usp-competitors').disabled = disabled;
+
+        generateBtn.disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        // Clear inputs
+        document.getElementById('lp-product-name').value = '';
+        document.getElementById('lp-audience').value = '';
+        document.getElementById('lp-goal').value = '';
+        document.getElementById('lp-features').value = '';
+        document.getElementById('lp-pain-point').value = '';
+        document.getElementById('lp-tone').value = '';
+
+        document.getElementById('hs-company-name').value = '';
+        document.getElementById('hs-one-liner').value = '';
+        document.getElementById('hs-key-info').value = '';
+
+        document.getElementById('usp-product-desc').value = '';
+        document.getElementById('usp-customer').value = '';
+        document.getElementById('usp-differentiators').value = '';
+        document.getElementById('usp-competitors').value = '';
+
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">web</span><p>Your generated web copy will appear here.</p></div>`;
+        webcopyChatSessionId = null;
+        if (typeof showNotification === 'function') {
+            showNotification('New session started.', 'success');
+        }
+    }
+
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
             const tool = document.querySelector('.tab-button.active')?.dataset.tab;
@@ -179,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     webcopyChatSessionId = data.chat_session_id;
                     displayOutput(data.result);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else {
                     throw new Error(data.error || 'Failed to generate content');
                 }

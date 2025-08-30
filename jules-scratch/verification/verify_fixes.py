@@ -10,24 +10,20 @@ def run(playwright):
         # Wait for the app to start
         time.sleep(5)
 
-        # Use the temporary login route
-        page.goto("http://localhost:5001/auth/temp_login")
+        # Go to login page and log in
+        page.goto("http://localhost:5001/auth/login")
+        page.get_by_label("Email").fill("testuser@example.com")
+        page.get_by_label("Password").fill("password")
+        page.get_by_role("button", name="Sign In").click()
         page.wait_for_load_state("networkidle")
 
         # Go to the Article Studio
         page.goto("http://localhost:5001/studio/article")
+        page.wait_for_load_state("networkidle")
 
-        # Take a screenshot to verify the toggle button's alignment
-        page.screenshot(path="jules-scratch/verification/article_studio_ui_fixed.png")
-
-        # Click the 'Dashboard' link
+        # Click the 'Dashboard' link and wait for the stats grid to appear
         page.get_by_role("link", name="Dashboard").click()
-
-        # Wait for the dashboard content to appear
         expect(page.locator(".stats-grid")).to_be_visible(timeout=10000)
-
-        # Take a second screenshot of the dashboard view
-        page.screenshot(path="jules-scratch/verification/article_studio_dashboard.png")
 
     finally:
         context.close()

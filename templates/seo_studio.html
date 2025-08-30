@@ -69,6 +69,12 @@
 {% block studio_description %}Generate keywords, analyze headlines, and build a content strategy.{% endblock %}
 
 {% block studio_inputs %}
+<div style="display: flex; gap: 12px; margin-bottom: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary" style="width: 100%;">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+</div>
 <div class="tabs">
     <button class="tab-button active" data-tab="keyword-strategy">Keyword Strategy</button>
     <button class="tab-button" data-tab="on-page-audit">On-Page SEO Audit</button>
@@ -175,6 +181,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // --- HELPER FUNCTIONS ---
+    function setInputsDisabled(disabled) {
+        // Keyword Strategy
+        document.getElementById('business-description').disabled = disabled;
+        document.getElementById('target-audience').disabled = disabled;
+        document.querySelectorAll('input[name="intent"]').forEach(i => i.disabled = disabled);
+        document.getElementById('competitor-domains').disabled = disabled;
+        document.getElementById('generateKeywordsBtn').disabled = disabled;
+
+        // On-Page Audit
+        document.getElementById('audit-url').disabled = disabled;
+        document.getElementById('primary-keyword').disabled = disabled;
+        document.getElementById('secondary-keywords').disabled = disabled;
+        document.getElementById('page-goal').disabled = disabled;
+        document.getElementById('competitor-url').disabled = disabled;
+        document.getElementById('runAuditBtn').disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        // Clear inputs
+        document.getElementById('business-description').value = '';
+        document.getElementById('target-audience').value = '';
+        document.getElementById('competitor-domains').value = '';
+        document.getElementById('audit-url').value = '';
+        document.getElementById('primary-keyword').value = '';
+        document.getElementById('secondary-keywords').value = '';
+        document.getElementById('page-goal').value = '';
+        document.getElementById('competitor-url').value = '';
+
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">trending_up</span><p>Your SEO insights will appear here.</p></div>`;
+        seoChatSessionId = null;
+        if (typeof showNotification === 'function') {
+            showNotification('New session started.', 'success');
+        }
+    }
+
     // --- KEYWORD STRATEGY LOGIC ---
     const generateKeywordsBtn = document.getElementById('generateKeywordsBtn');
     if (generateKeywordsBtn) {
@@ -211,6 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     seoChatSessionId = data.chat_session_id;
                     displayKeywords(data.keywords);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else {
                     throw new Error(data.error || 'Failed to generate keyword strategy');
                 }
@@ -260,6 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     seoChatSessionId = data.chat_session_id;
                     displayAudit(data.audit_results);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else {
                     throw new Error(data.error || 'Failed to run audit');
                 }
@@ -271,6 +316,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
 
     // --- DISPLAY FUNCTIONS ---
     function showLoadingState(message) {

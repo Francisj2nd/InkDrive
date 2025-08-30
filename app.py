@@ -82,7 +82,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
 # Usage limits for free plan
-MONTHLY_WORD_LIMIT = 30000
+MONTHLY_WORD_LIMIT = 15000
 MONTHLY_DOWNLOAD_LIMIT = 10
 
 # Initialize extensions
@@ -181,11 +181,12 @@ def construct_initial_prompt(topic, settings=None):
     if audience:
         prompt_lines.append(f"3. **Target Audience:** Write for an audience of {audience}.")
 
-    prompt_lines.extend([
-        "4. **Structure:** Use clear sections with H2 and H3 subheadings using Markdown.",
-        "5. **Placeholders:** Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`",
-        "6. **Quality:** The content must be original, human-readable, and valuable."
-    ])
+    prompt_lines.append("4. **Structure:** Use clear sections with H2 and H3 subheadings using Markdown.")
+    if settings.get('enable_images'):
+        prompt_lines.append("5. **Placeholders:** Include 3 relevant image placeholders. For each, provide a suggested title and a full, SEO-optimized alt text. Format them exactly like this: `[Image Placeholder: Title, Alt Text]`")
+        prompt_lines.append("6. **Quality:** The content must be original, human-readable, and valuable.")
+    else:
+        prompt_lines.append("5. **Quality:** The content must be original, human-readable, and valuable.")
 
     key_points = settings.get('keyPoints')
     if key_points:
@@ -2119,7 +2120,13 @@ def generate_article():
             return jsonify({"error": "Model response was empty or blocked."}), 500
 
         raw_text = response.candidates[0].content.parts[0].text
-        final_html = format_article_content(raw_text, user_topic)
+
+        # Conditionally process images based on user setting
+        if settings.get('enable_images'):
+            final_html = format_article_content(raw_text, user_topic)
+        else:
+            # If images are disabled, just convert markdown to HTML
+            final_html = markdown.markdown(raw_text, extensions=['fenced_code', 'tables'])
 
         # Save chat session to database
         if not chat_session_id:
@@ -2699,6 +2706,9 @@ def api_download_article(article_id):
         logger.error(f"API download error: {e}")
         return jsonify({"error": "Failed to download article"}), 500
 
+def get_count_for_studio_type(user_id, studio_type, start_of_month):
+    return db.session.query(func.count(ChatSession.id)).filter(ChatSession.user_id == user_id, ChatSession.studio_type == studio_type, ChatSession.created_at >= start_of_month).scalar()
+
 @app.route('/api/v1/studio/stats/<studio_name>')
 @login_required
 def get_studio_stats(studio_name):
@@ -2706,42 +2716,68 @@ def get_studio_stats(studio_name):
     if studio_name not in STUDIO_TYPE_MAPPING:
         return jsonify({"error": "Invalid studio name"}), 404
 
-    studio_types = STUDIO_TYPE_MAPPING[studio_name]
-
-    # Get count for the current month
     start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    stats = {
+        "monthly_word_limit": MONTHLY_WORD_LIMIT,
+        "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
+    }
 
-    count = db.session.query(func.count(ChatSession.id))\
-                      .filter(ChatSession.user_id == current_user.id,
-                              ChatSession.studio_type.in_(studio_types),
-                              ChatSession.created_at >= start_of_month)\
-                      .scalar()
-
-    stats = {}
     if studio_name == 'article':
         articles_this_month = Article.query.filter(
             Article.user_id == current_user.id,
             Article.created_at >= start_of_month
         ).all()
-
         total_articles = len(articles_this_month)
         total_words = sum(article.word_count for article in articles_this_month)
         avg_word_count = total_words / total_articles if total_articles > 0 else 0
-
-        stats = {
+        total_articles_ever = Article.query.filter_by(user_id=current_user.id).count()
+        total_words_ever = db.session.query(db.func.sum(Article.word_count)).filter_by(user_id=current_user.id).scalar() or 0
+        stats.update({
             "total_articles_this_month": total_articles,
             "total_words_this_month": total_words,
             "avg_word_count_this_month": int(avg_word_count),
-            "monthly_word_limit": MONTHLY_WORD_LIMIT,
-            "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
-        }
+            "total_articles_ever": total_articles_ever,
+            "total_words_ever": total_words_ever
+        })
+    elif studio_name == 'social':
+        stats.update({
+            "social_post_usage_this_month": get_count_for_studio_type(current_user.id, 'SOCIAL_POST', start_of_month),
+            "email_usage_this_month": get_count_for_studio_type(current_user.id, 'EMAIL', start_of_month),
+            "ad_copy_usage_this_month": get_count_for_studio_type(current_user.id, 'AD_COPY', start_of_month)
+        })
+    elif studio_name == 'editing':
+        stats.update({
+            "text_refinement_usage_this_month": get_count_for_studio_type(current_user.id, 'TEXT_REFINEMENT', start_of_month),
+            "summary_usage_this_month": get_count_for_studio_type(current_user.id, 'SUMMARY', start_of_month),
+            "translation_usage_this_month": get_count_for_studio_type(current_user.id, 'TRANSLATION', start_of_month)
+        })
+    elif studio_name == 'repurpose':
+        stats.update({
+            "repurpose_tweet_usage_this_month": get_count_for_studio_type(current_user.id, 'REPURPOSE_TWEET', start_of_month),
+            "repurpose_slides_usage_this_month": get_count_for_studio_type(current_user.id, 'REPURPOSE_SLIDES', start_of_month)
+        })
+    elif studio_name == 'seo':
+        stats.update({
+            "seo_keywords_usage_this_month": get_count_for_studio_type(current_user.id, 'SEO_KEYWORDS', start_of_month),
+            "seo_headlines_usage_this_month": get_count_for_studio_type(current_user.id, 'SEO_HEADLINES', start_of_month)
+        })
+    elif studio_name == 'brainstorming':
+        stats['ideas_usage_this_month'] = get_count_for_studio_type(current_user.id, 'IDEAS', start_of_month)
+    elif studio_name == 'scriptwriting':
+        stats['script_usage_this_month'] = get_count_for_studio_type(current_user.id, 'SCRIPT', start_of_month)
+    elif studio_name == 'ecommerce':
+        stats['ecommerce_usage_this_month'] = get_count_for_studio_type(current_user.id, 'ECOMMERCE', start_of_month)
+    elif studio_name == 'webcopy':
+        stats['webcopy_usage_this_month'] = get_count_for_studio_type(current_user.id, 'WEBCOPY', start_of_month)
+    elif studio_name == 'business':
+        stats.update({
+            "press_release_usage_this_month": get_count_for_studio_type(current_user.id, 'PRESS_RELEASE', start_of_month),
+            "job_description_usage_this_month": get_count_for_studio_type(current_user.id, 'JOB_DESCRIPTION', start_of_month)
+        })
     else:
-        # For other studios, just return the generation count.
-        stats = {
-            f"{studio_name}_usage_this_month": count,
-            "monthly_word_limit": MONTHLY_WORD_LIMIT,
-            "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
-        }
+        studio_types = STUDIO_TYPE_MAPPING[studio_name]
+        count = db.session.query(func.count(ChatSession.id)).filter(ChatSession.user_id == current_user.id, ChatSession.studio_type.in_(studio_types), ChatSession.created_at >= start_of_month).scalar()
+        stats[f"{studio_name}_usage_this_month"] = count
 
     return jsonify(stats)
 
