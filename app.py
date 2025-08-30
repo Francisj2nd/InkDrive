@@ -1250,7 +1250,7 @@ def auth_login():
                     flash('Welcome back!', 'success')
 
                     next_page = request.args.get('next')
-                    return redirect(next_page) if next_page else redirect(url_for('studio.dashboard'))
+                    return redirect(next_page) if next_page else redirect(url_for('studio.dashboard', _scheme='https', _external=True))
                 else:
                     flash('Invalid email or password.', 'error')
             else:
@@ -1303,7 +1303,7 @@ def auth_register():
 
             login_user(user)
             flash('Registration successful! Welcome to InkDrive!', 'success')
-            return redirect(url_for('studio.dashboard'))
+            return redirect(url_for('studio.dashboard', _scheme='https', _external=True))
 
         except (OperationalError, DatabaseError) as e:
             db.session.rollback()
@@ -1386,7 +1386,7 @@ def auth_google_callback():
         except Exception as e:
             logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
 
-        return jsonify({'success': True, 'redirect': url_for('studio.dashboard')})
+        return jsonify({'success': True, 'redirect': url_for('studio.dashboard', _scheme='https', _external=True)})
 
     except ValueError as e:
         logger.error(f"Google auth token error: {e}")
@@ -1549,7 +1549,7 @@ def publish_article(article_id):
 
         article.publish()
 
-        public_url = url_for('share_article', public_id=article.public_id, _external=True)
+        public_url = url_for('share_article', public_id=article.public_id, _scheme='https', _external=True)
 
         return jsonify({
             "success": True,
@@ -1655,7 +1655,7 @@ def share_article(public_id):
 def index():
     """Main application route"""
     if current_user.is_authenticated:
-        return redirect(url_for('studio.dashboard'))
+        return redirect(url_for('studio.dashboard', _scheme='https', _external=True))
     else:
         # Get random published articles for social proof
         try:
