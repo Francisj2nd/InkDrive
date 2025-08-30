@@ -2593,10 +2593,13 @@ def api_download_article(article_id):
 @login_required
 def get_studio_stats(studio_name):
     """Get usage statistics for a specific studio."""
+    logger.info(f"Fetching stats for studio: {studio_name}")
     if studio_name not in STUDIO_TYPE_MAPPING:
+        logger.error(f"Invalid studio name requested: {studio_name}")
         return jsonify({"error": "Invalid studio name"}), 404
 
     studio_types = STUDIO_TYPE_MAPPING[studio_name]
+    logger.info(f"Studio types for query: {studio_types}")
 
     # Get count for the current month
     start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -2607,12 +2610,31 @@ def get_studio_stats(studio_name):
                               ChatSession.created_at >= start_of_month)\
                       .scalar()
 
-    # For now, we'll just return the count. We can expand this later.
-    stats = {
-        f"{studio_name}_usage_this_month": count,
-        "monthly_word_limit": MONTHLY_WORD_LIMIT, # This is a global limit for now
-        "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
-    }
+    stats = {}
+    if studio_name == 'article':
+        articles_this_month = Article.query.filter(
+            Article.user_id == current_user.id,
+            Article.created_at >= start_of_month
+        ).all()
+
+        total_articles = len(articles_this_month)
+        total_words = sum(article.word_count for article in articles_this_month)
+        avg_word_count = total_words / total_articles if total_articles > 0 else 0
+
+        stats = {
+            "total_articles_this_month": total_articles,
+            "total_words_this_month": total_words,
+            "avg_word_count_this_month": int(avg_word_count),
+            "monthly_word_limit": MONTHLY_WORD_LIMIT,
+            "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
+        }
+    else:
+        # For other studios, just return the generation count.
+        stats = {
+            f"{studio_name}_usage_this_month": count,
+            "monthly_word_limit": MONTHLY_WORD_LIMIT,
+            "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
+        }
 
     return jsonify(stats)
 

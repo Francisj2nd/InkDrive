@@ -17,6 +17,10 @@ def create_users():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
+        # Delete existing test users
+        print("Deleting existing test users...")
+        cursor.execute("DELETE FROM users WHERE email IN (?, ?)", ('testuser@example.com', 'superadmin@example.com'))
+
         # Create regular user
         print("Creating regular user...")
         cursor.execute("INSERT INTO users (email, name, password_hash, is_superadmin) VALUES (?, ?, ?, ?)",
