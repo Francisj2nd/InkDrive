@@ -3,6 +3,12 @@ from flask_login import login_required, current_user
 
 studio_bp = Blueprint('studio', __name__, subdomain='studio')
 
+@studio_bp.route('/')
+@login_required
+def dashboard():
+    """The main studio dashboard."""
+    return render_template('dashboard.html', user=current_user, page_type='dashboard')
+
 @studio_bp.route('/article')
 @login_required
 def article_studio():
