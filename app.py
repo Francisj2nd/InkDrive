@@ -46,6 +46,17 @@ app.register_blueprint(admin_bp)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///inkdrive.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# --- Domain/Subdomain Configuration for Render ---
+# SERVER_NAME is crucial for subdomain routing.
+# In production on Render, set the SERVER_NAME env var to 'inkdrive.ink'
+app.config['SERVER_NAME'] = os.getenv('SERVER_NAME')
+
+# SESSION_COOKIE_DOMAIN allows authentication cookies to be shared across subdomains.
+# The leading dot is essential. In production, set to '.inkdrive.ink'
+app.config['SESSION_COOKIE_DOMAIN'] = os.getenv('SESSION_COOKIE_DOMAIN')
+app.config['SESSION_COOKIE_PATH'] = '/'
+
 # Engine options - conditionally add connect_args for PostgreSQL
 engine_options = {
     'pool_pre_ping': True,
@@ -100,6 +111,41 @@ def load_user(user_id):
     except Exception as e:
         logger.error(f"Error loading user {user_id}: {e}")
         return None
+
+@app.before_request
+def handle_subdomain_routing():
+    """
+    This function runs before each request and handles the redirection logic
+    for the main domain and the 'studio' subdomain.
+    """
+    # If SERVER_NAME is not configured, this logic cannot run.
+    if not app.config.get('SERVER_NAME'):
+        return
+
+    main_domain = app.config['SERVER_NAME']
+    studio_domain = f"studio.{main_domain}"
+    host = request.host
+    path = request.path
+
+    # Allow static files to be served on any domain without redirection.
+    if request.endpoint == 'static':
+        return
+
+    # Rule 1: Redirect logged-in users to the studio subdomain for /studio/ paths.
+    if current_user.is_authenticated and host == main_domain and path.startswith('/studio/'):
+        new_url = f"{request.scheme}://{studio_domain}{request.full_path}"
+        return redirect(new_url)
+
+    # Rule 2: Protect the studio subdomain from unauthenticated users.
+    if not current_user.is_authenticated and host == studio_domain:
+        # Redirect to the login page on the main domain.
+        login_url_path = url_for('auth_login')
+        main_domain_login_url = f"{request.scheme}://{main_domain}{login_url_path}"
+
+        # Pass the original URL as 'next' so the user is redirected back after login.
+        return redirect(f"{main_domain_login_url}?next={request.url}")
+
+    return None
 
 # Database connection retry decorator
 def retry_db_operation(max_retries=3, delay=1):
