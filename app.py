@@ -39,6 +39,18 @@ logger = logging.getLogger(__name__)
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
 
+# --- Subdomain and Cookie Configuration ---
+# Use Render's external hostname if available, otherwise default for local dev
+server_name = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if server_name:
+    app.config['SERVER_NAME'] = server_name
+    # Set the session cookie domain to be valid for all subdomains
+    app.config['SESSION_COOKIE_DOMAIN'] = f".{server_name}"
+
+# Ensure cookies are secure and work across sites for OAuth and subdomains
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
+
 # Register admin blueprint
 app.register_blueprint(admin_bp)
 
@@ -1216,7 +1228,51 @@ This message was sent from the InkDrive contact form.
         logger.error(f"Error sending contact email: {e}")
         return False
 
-# --- 2. AUTHENTICATION ROUTES ---
+# --- 2. SUBDOMAIN ROUTING & PRE-REQUEST LOGIC ---
+
+@app.before_request
+def subdomain_routing():
+    """Handle routing rules based on subdomain and authentication status."""
+    # Skip all logic if running on localhost for development
+    if 'localhost' in request.host or '127.0.0.1' in request.host:
+        return
+
+    # Skip for static files to avoid unnecessary processing and potential redirect loops
+    if request.path.startswith('/static/'):
+        return
+
+    is_studio_domain = request.host.startswith('studio.')
+    is_authenticated = current_user.is_authenticated
+
+    # Get the root domain from the SERVER_NAME config, which should be set in production
+    root_domain = app.config.get('SERVER_NAME')
+    if not root_domain:
+        # If SERVER_NAME is not configured, we cannot enforce subdomain rules, so we exit.
+        logger.warning("SERVER_NAME is not configured. Subdomain routing rules will not be applied.")
+        return
+
+    logger.info(f"Routing request: host={request.host}, path={request.path}, endpoint={request.endpoint}, authenticated={is_authenticated}")
+
+    # Rule 4: Unauthenticated user on the studio domain -> redirect to the main domain's login page
+    if is_studio_domain and not is_authenticated:
+        login_url = f"https://{root_domain}{url_for('auth_login')}?next={request.url}"
+        logger.info(f"Redirecting unauthenticated user from studio to login: {login_url}")
+        return redirect(login_url)
+
+    # Rule: Authenticated user on the main domain -> redirect to the studio domain
+    if not is_studio_domain and is_authenticated:
+        # Exceptions: Allow authenticated users to access these endpoints on the main domain
+        allowed_endpoints = ['auth_logout', 'share_article', 'contact', 'privacy_policy', 'terms_of_service', 'support', 'download_docx', 'api_download_article']
+        if request.endpoint in allowed_endpoints:
+            return # Do not redirect
+
+        # For all other endpoints, redirect to the same path on the studio domain
+        # Note: request.full_path includes the query string
+        studio_url = f"https://studio.{root_domain}{request.full_path}"
+        logger.info(f"Redirecting authenticated user from main domain to studio: {studio_url}")
+        return redirect(studio_url)
+
+# --- 3. AUTHENTICATION ROUTES ---
 
 @app.route('/auth/login', methods=['GET', 'POST'])
 def auth_login():
@@ -1247,7 +1303,19 @@ def auth_login():
                     flash('Welcome back!', 'success')
 
                     next_page = request.args.get('next')
-                    return redirect(next_page) if next_page else redirect(url_for('index'))
+                    # If there's a next page, go there. It should be a studio URL already.
+                    if next_page:
+                        return redirect(next_page)
+
+                    # If no next page, determine where to go.
+                    root_domain = app.config.get('SERVER_NAME')
+                    # If in production (SERVER_NAME is set), redirect to the studio domain.
+                    if root_domain and 'localhost' not in root_domain:
+                        studio_url = f"https://studio.{root_domain}{url_for('index')}"
+                        return redirect(studio_url)
+                    else:
+                        # Otherwise (local dev), just go to the local index.
+                        return redirect(url_for('index'))
                 else:
                     flash('Invalid email or password.', 'error')
             else:
@@ -1300,7 +1368,16 @@ def auth_register():
 
             login_user(user)
             flash('Registration successful! Welcome to InkDrive!', 'success')
-            return redirect(url_for('index'))
+
+            # After successful registration, determine where to redirect.
+            root_domain = app.config.get('SERVER_NAME')
+            # If in production (SERVER_NAME is set), redirect to the studio domain.
+            if root_domain and 'localhost' not in root_domain:
+                studio_url = f"https://studio.{root_domain}{url_for('index')}"
+                return redirect(studio_url)
+            else:
+                # Otherwise (local dev), just go to the local index.
+                return redirect(url_for('index'))
 
         except (OperationalError, DatabaseError) as e:
             db.session.rollback()
@@ -1383,7 +1460,13 @@ def auth_google_callback():
         except Exception as e:
             logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
 
-        return jsonify({'success': True, 'redirect': url_for('index')})
+        # Determine the redirect URL based on environment.
+        root_domain = app.config.get('SERVER_NAME')
+        if root_domain and 'localhost' not in root_domain:
+            redirect_url = f"https://studio.{root_domain}{url_for('index')}"
+        else:
+            redirect_url = url_for('index')
+        return jsonify({'success': True, 'redirect': redirect_url})
 
     except ValueError as e:
         logger.error(f"Google auth token error: {e}")
@@ -1664,61 +1747,61 @@ def index():
 
         return render_template("landing.html", featured_articles=featured_articles)
 
-@app.route('/studio/article')
+@app.route('/article')
 @login_required
 def article_studio():
     """The new Article Studio page"""
     return render_template('article_studio.html', user=current_user, page_type='studio', studio_type='article')
 
-@app.route('/studio/social')
+@app.route('/social')
 @login_required
 def social_studio():
     """The new Social & Comms Studio page"""
     return render_template('social_studio.html', user=current_user, page_type='studio', studio_type='social')
 
-@app.route('/studio/editing')
+@app.route('/editing')
 @login_required
 def editing_studio():
     """The new Editing & Refinement Studio page"""
     return render_template('editing_studio.html', user=current_user, page_type='studio', studio_type='editing')
 
-@app.route('/studio/repurpose')
+@app.route('/repurpose')
 @login_required
 def repurpose_studio():
     """The new Content Repurposing Studio page"""
     return render_template('repurposing_studio.html', user=current_user, page_type='studio', studio_type='repurpose')
 
-@app.route('/studio/seo')
+@app.route('/seo')
 @login_required
 def seo_studio():
     """The new SEO Strategy Studio page"""
     return render_template('seo_studio.html', user=current_user, page_type='studio', studio_type='seo')
 
-@app.route('/studio/brainstorming')
+@app.route('/brainstorming')
 @login_required
 def brainstorming_studio():
     """The new Brainstorming Studio page"""
     return render_template('brainstorming_studio.html', user=current_user, page_type='studio', studio_type='brainstorming')
 
-@app.route('/studio/scriptwriting')
+@app.route('/scriptwriting')
 @login_required
 def scriptwriting_studio():
     """The new Scriptwriting Studio page"""
     return render_template('scriptwriting_studio.html', user=current_user, page_type='studio', studio_type='scriptwriting')
 
-@app.route('/studio/ecommerce')
+@app.route('/ecommerce')
 @login_required
 def ecommerce_studio():
     """The new E-commerce Studio page"""
     return render_template('ecommerce_studio.html', user=current_user, page_type='studio', studio_type='ecommerce')
 
-@app.route('/studio/webcopy')
+@app.route('/webcopy')
 @login_required
 def webcopy_studio():
     """The new Web Copy Studio page"""
     return render_template('webcopy_studio.html', user=current_user, page_type='studio', studio_type='webcopy')
 
-@app.route('/studio/business')
+@app.route('/business')
 @login_required
 def business_studio():
     """The new Business Docs Studio page"""
