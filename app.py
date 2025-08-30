@@ -40,12 +40,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # --- Subdomain and Cookie Configuration ---
-# Use Render's external hostname if available, otherwise default for local dev
-server_name = os.getenv('RENDER_EXTERNAL_HOSTNAME')
-if server_name:
-    app.config['SERVER_NAME'] = server_name
-    # Set the session cookie domain to be valid for all subdomains
-    app.config['SESSION_COOKIE_DOMAIN'] = f".{server_name}"
+root_domain = os.getenv('APP_ROOT_DOMAIN')
+if root_domain:
+    app.config['SESSION_COOKIE_DOMAIN'] = f".{root_domain}"
 
 # Ensure cookies are secure and work across sites for OAuth and subdomains
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -1244,11 +1241,11 @@ def subdomain_routing():
     is_studio_domain = request.host.startswith('studio.')
     is_authenticated = current_user.is_authenticated
 
-    # Get the root domain from the SERVER_NAME config, which should be set in production
-    root_domain = app.config.get('SERVER_NAME')
+    # Get the root domain from the environment variable, which should be set in production
+    root_domain = os.getenv('APP_ROOT_DOMAIN')
     if not root_domain:
-        # If SERVER_NAME is not configured, we cannot enforce subdomain rules, so we exit.
-        logger.warning("SERVER_NAME is not configured. Subdomain routing rules will not be applied.")
+        # If APP_ROOT_DOMAIN is not configured, we cannot enforce subdomain rules, so we exit.
+        logger.warning("APP_ROOT_DOMAIN is not configured. Subdomain routing rules will not be applied.")
         return
 
     logger.info(f"Routing request: host={request.host}, path={request.path}, endpoint={request.endpoint}, authenticated={is_authenticated}")
@@ -1308,9 +1305,9 @@ def auth_login():
                         return redirect(next_page)
 
                     # If no next page, determine where to go.
-                    root_domain = app.config.get('SERVER_NAME')
-                    # If in production (SERVER_NAME is set), redirect to the studio domain.
-                    if root_domain and 'localhost' not in root_domain:
+                    root_domain = os.getenv('APP_ROOT_DOMAIN')
+                    # If in production (APP_ROOT_DOMAIN is set), redirect to the studio domain.
+                    if root_domain:
                         studio_url = f"https://studio.{root_domain}{url_for('index')}"
                         return redirect(studio_url)
                     else:
@@ -1370,9 +1367,9 @@ def auth_register():
             flash('Registration successful! Welcome to InkDrive!', 'success')
 
             # After successful registration, determine where to redirect.
-            root_domain = app.config.get('SERVER_NAME')
-            # If in production (SERVER_NAME is set), redirect to the studio domain.
-            if root_domain and 'localhost' not in root_domain:
+            root_domain = os.getenv('APP_ROOT_DOMAIN')
+            # If in production (APP_ROOT_DOMAIN is set), redirect to the studio domain.
+            if root_domain:
                 studio_url = f"https://studio.{root_domain}{url_for('index')}"
                 return redirect(studio_url)
             else:
@@ -1461,8 +1458,8 @@ def auth_google_callback():
             logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
 
         # Determine the redirect URL based on environment.
-        root_domain = app.config.get('SERVER_NAME')
-        if root_domain and 'localhost' not in root_domain:
+        root_domain = os.getenv('APP_ROOT_DOMAIN')
+        if root_domain:
             redirect_url = f"https://studio.{root_domain}{url_for('index')}"
         else:
             redirect_url = url_for('index')
