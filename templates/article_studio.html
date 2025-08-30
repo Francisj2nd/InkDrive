@@ -44,15 +44,17 @@
     <input type="text" id="audienceInput" class="form-control" placeholder="e.g., Beginners, experts, marketing managers">
 </div>
 
-{% if user.is_superadmin %}
 <div class="form-group">
-    <label>Super Admin Settings</label>
-    <div class="custom-control custom-switch" style="padding: 10px; background: var(--surface-variant); border-radius: 8px;">
-        <input type="checkbox" class="custom-control-input" id="imageToggle">
-        <label class="custom-control-label" for="imageToggle" style="margin-left: 10px;">Enable Article Images (Default: Off)</label>
+    <div class="form-check form-switch" style="padding: 10px; background: var(--surface-variant); border-radius: 8px;">
+        <input class="form-check-input" type="checkbox" role="switch" id="imageToggle" {% if not user.is_superadmin %}disabled{% endif %}>
+        <label class="form-check-label" for="imageToggle" style="margin-left: 10px;">
+            Enable Article Images
+            {% if not user.is_superadmin %}
+            <span class="badge bg-primary" style="font-size: 0.7em; vertical-align: middle; margin-left: 5px;">Premium</span>
+            {% endif %}
+        </label>
     </div>
 </div>
-{% endif %}
 
 <div class="form-group">
     <label for="keyPointsInput">Key Points to Include (Optional)</label>
