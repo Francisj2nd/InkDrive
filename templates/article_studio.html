@@ -414,6 +414,15 @@
             generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Loaded`;
             generateBtn.disabled = true;
 
+            // Lock the form inputs when loading from history
+            topicInput.disabled = true;
+            wordCountSelect.disabled = true;
+            audienceInput.disabled = true;
+            toneSelect.disabled = true;
+            keyPointsInput.disabled = true;
+            keywordInput.disabled = true;
+            ctaInput.disabled = true;
+            if (imageToggle) imageToggle.disabled = true;
 
         } catch (error) {
             showNotification(error.message, 'error');

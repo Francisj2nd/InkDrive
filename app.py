@@ -82,7 +82,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
 # Usage limits for free plan
-MONTHLY_WORD_LIMIT = 30000
+MONTHLY_WORD_LIMIT = 15000
 MONTHLY_DOWNLOAD_LIMIT = 10
 
 # Initialize extensions
@@ -2735,12 +2735,17 @@ def get_studio_stats(studio_name):
         total_words = sum(article.word_count for article in articles_this_month)
         avg_word_count = total_words / total_articles if total_articles > 0 else 0
 
+        total_articles_ever = Article.query.filter_by(user_id=current_user.id).count()
+        total_words_ever = db.session.query(db.func.sum(Article.word_count)).filter_by(user_id=current_user.id).scalar() or 0
+
         stats = {
             "total_articles_this_month": total_articles,
             "total_words_this_month": total_words,
             "avg_word_count_this_month": int(avg_word_count),
             "monthly_word_limit": MONTHLY_WORD_LIMIT,
-            "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0
+            "words_this_month": getattr(current_user, 'words_generated_this_month', 0) or 0,
+            "total_articles_ever": total_articles_ever,
+            "total_words_ever": total_words_ever
         }
     else:
         # For other studios, just return the generation count.
