@@ -82,7 +82,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
 # Usage limits for free plan
-MONTHLY_WORD_LIMIT = 15000
+MONTHLY_WORD_LIMIT = 30000
 MONTHLY_DOWNLOAD_LIMIT = 10
 
 # Initialize extensions
@@ -1024,34 +1024,29 @@ def get_image_url(query):
         logger.error(f"Error fetching image from Google: {e}")
         return None
 
-def format_article_content(raw_markdown_text, topic="", enable_images=False):
+def format_article_content(raw_markdown_text, topic=""):
     """Format article content with images"""
     hybrid_content = raw_markdown_text
     placeholder_regex = re.compile(r"\[Image Placeholder: (.*?),\s*(.*?)\]")
 
-    if enable_images:
-        for match in placeholder_regex.finditer(raw_markdown_text):
-            original_placeholder = match.group(0)
-            title = match.group(1).strip()
-            alt_text = match.group(2).strip()
-            image_data = get_image_url(alt_text)
+    for match in placeholder_regex.finditer(raw_markdown_text):
+        original_placeholder = match.group(0)
+        title = match.group(1).strip()
+        alt_text = match.group(2).strip()
+        image_data = get_image_url(alt_text)
 
-            if image_data:
-                new_image_tag = (
-                    f'<div class="real-image-container">'
-                    f'<p class="image-title">{title}</p>'
-                    f'<img src="{image_data["url"]}" alt="{alt_text}">'
-                    f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'
-                    f'<p class="source-link"><a href="{image_data["source"]}" target="_blank">Source</a></p>'
-                    f'</div>'
-                )
-                hybrid_content = hybrid_content.replace(original_placeholder, new_image_tag, 1)
-            else:
-                hybrid_content = hybrid_content.replace(original_placeholder, f'<p>[Image Placeholder: {title} - Could not fetch image]</p>', 1)
-    else:
-        # If images are disabled, just remove the placeholder
-        hybrid_content = placeholder_regex.sub('', hybrid_content)
-
+        if image_data:
+            new_image_tag = (
+                f'<div class="real-image-container">'
+                f'<p class="image-title">{title}</p>'
+                f'<img src="{image_data["url"]}" alt="{alt_text}">'
+                f'<p class="alt-text-display"><strong>Alt Text:</strong> {alt_text}</p>'
+                f'<p class="source-link"><a href="{image_data["source"]}" target="_blank">Source</a></p>'
+                f'</div>'
+            )
+            hybrid_content = hybrid_content.replace(original_placeholder, new_image_tag, 1)
+        else:
+            hybrid_content = hybrid_content.replace(original_placeholder, f'<p>[Image Placeholder: {title} - Could not fetch image]</p>', 1)
 
     final_html = markdown.markdown(hybrid_content, extensions=['fenced_code', 'tables'])
     return final_html
@@ -1085,6 +1080,7 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                 topic=topic,
                 is_refined=is_refined,
                 word_count=word_count,
+                public_id=str(uuid.uuid4())[:8],  # Generate a short public ID for sharing
                 chat_session_id=chat_session_id  # Link to chat session
             )
 
@@ -1501,7 +1497,90 @@ def profile_delete_account():
         flash('Failed to delete account. Please try again.', 'error')
         return redirect(url_for('profile_edit'))
 
+@app.route('/profile/articles')
+@login_required
+def profile_articles():
+    """View all user articles"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        articles = Article.query.filter_by(user_id=current_user.id)\
+                               .order_by(Article.created_at.desc())\
+                               .paginate(page=page, per_page=20, error_out=False)
 
+        return render_template('profile/articles.html', articles=articles)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading articles: {e}")
+        flash('Database connection issue loading articles.', 'error')
+        return redirect(url_for('profile_dashboard'))
+    except Exception as e:
+        logger.error(f"Articles page error: {e}")
+        flash('Error loading articles.', 'error')
+        return redirect(url_for('profile_dashboard'))
+
+@app.route('/article/view/<int:article_id>')
+@login_required
+def article_view(article_id):
+    """View a specific article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        return render_template('article/view.html', article=article)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading article {article_id}: {e}")
+        flash('Database connection issue loading article.', 'error')
+        return redirect(url_for('profile_articles'))
+    except Exception as e:
+        logger.error(f"Article view error: {e}")
+        flash('Error loading article.', 'error')
+        return redirect(url_for('profile_articles'))
+
+@app.route('/article/<int:article_id>/publish', methods=['POST'])
+@login_required
+def publish_article(article_id):
+    """Publish an article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+
+        if article.is_public:
+            return jsonify({"error": "Article is already published"}), 400
+
+        article.publish()
+
+        public_url = url_for('share_article', public_id=article.public_id, _external=True)
+
+        return jsonify({
+            "success": True,
+            "message": "Article published successfully!",
+            "public_url": public_url
+        })
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error publishing article {article_id}: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        logger.error(f"Article publish error: {e}")
+        return jsonify({"error": "Failed to publish article"}), 500
+
+@app.route('/article/<int:article_id>/unpublish', methods=['POST'])
+@login_required
+def unpublish_article(article_id):
+    """Unpublish an article"""
+    try:
+        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+
+        if not article.is_public:
+            return jsonify({"error": "Article is not published"}), 400
+
+        article.unpublish()
+
+        return jsonify({
+            "success": True,
+            "message": "Article unpublished successfully!"
+        })
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error unpublishing article {article_id}: {e}")
+        return jsonify({"error": "Database connection issue"}), 500
+    except Exception as e:
+        logger.error(f"Article unpublish error: {e}")
+        return jsonify({"error": "Failed to unpublish article"}), 500
 
 @app.route('/article/<int:article_id>/delete', methods=['POST'])
 @login_required
@@ -1533,6 +1612,38 @@ def delete_article(article_id):
         logger.error(f"Article delete error: {e}")
         return jsonify({"error": "Failed to delete article"}), 500
 
+@app.route('/share/<string:public_id>')
+def share_article(public_id):
+    """Public-facing route to view a published article"""
+    try:
+        # Fixed query: Only get articles that are both matching public_id AND published
+        article = Article.query.filter_by(public_id=public_id, is_public=True).first()
+
+        if not article:
+            # Article doesn't exist or is not published
+            abort(404)
+
+        # Increment view count
+        article.increment_view()
+
+        # Get random published articles for social proof (excluding current article)
+        try:
+            # Use a simpler query that works with both SQLite and PostgreSQL
+            featured_articles = Article.query.filter(
+                Article.is_public == True,
+                Article.id != article.id
+            ).limit(6).all()
+        except Exception as e:
+            logger.warning(f"Error fetching featured articles: {e}")
+            featured_articles = []
+
+        return render_template('article/share.html', article=article, featured_articles=featured_articles)
+    except (OperationalError, DatabaseError) as e:
+        logger.error(f"Database error loading shared article {public_id}: {e}")
+        return render_template('errors/500.html'), 500
+    except Exception as e:
+        logger.error(f"Share article error: {e}")
+        return render_template('errors/404.html'), 404
 
 # --- 4. MAIN APP ROUTES ---
 
@@ -1542,7 +1653,15 @@ def index():
     if current_user.is_authenticated:
         return render_template("dashboard.html", user=current_user, page_type='dashboard')
     else:
-        return render_template("landing.html", featured_articles=[])
+        # Get random published articles for social proof
+        try:
+            # Use a simpler query that works with both SQLite and PostgreSQL
+            featured_articles = Article.query.filter_by(is_public=True).limit(6).all()
+        except Exception as e:
+            logger.warning(f"Error fetching featured articles for landing: {e}")
+            featured_articles = []
+
+        return render_template("landing.html", featured_articles=featured_articles)
 
 @app.route('/studio/article')
 @login_required
@@ -1985,31 +2104,22 @@ def generate_article():
     settings = data.get("settings", {})
     chat_session_id = data.get("chat_session_id")
 
-    logger.info(f"Generating article for topic: {user_topic}")
-    logger.info(f"Settings: {settings}")
     if not user_topic:
         return jsonify({"error": "Topic is missing."}), 400
 
     # Check monthly word quota
     if not check_monthly_word_quota(current_user):
-        logger.warning(f"User {current_user.id} has reached their word limit.")
         return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_WORD_LIMIT} words. Please try again next month."}), 403
-
-    enable_images = settings.get('enable_images', False) and current_user.is_superadmin
-    logger.info(f"Image generation enabled: {enable_images}")
 
     full_prompt = construct_initial_prompt(user_topic, settings)
     try:
         response = CLIENT.generate_content(contents=full_prompt)
-        logger.info("Successfully generated content from AI client.")
 
         if not response.candidates or not response.candidates[0].content.parts:
-            logger.error("Model response was empty or blocked.")
             return jsonify({"error": "Model response was empty or blocked."}), 500
 
         raw_text = response.candidates[0].content.parts[0].text
-        final_html = format_article_content(raw_text, user_topic, enable_images)
-        logger.info("Successfully formatted article content.")
+        final_html = format_article_content(raw_text, user_topic)
 
         # Save chat session to database
         if not chat_session_id:
@@ -2593,13 +2703,10 @@ def api_download_article(article_id):
 @login_required
 def get_studio_stats(studio_name):
     """Get usage statistics for a specific studio."""
-    logger.info(f"Fetching stats for studio: {studio_name}")
     if studio_name not in STUDIO_TYPE_MAPPING:
-        logger.error(f"Invalid studio name requested: {studio_name}")
         return jsonify({"error": "Invalid studio name"}), 404
 
     studio_types = STUDIO_TYPE_MAPPING[studio_name]
-    logger.info(f"Studio types for query: {studio_types}")
 
     # Get count for the current month
     start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
