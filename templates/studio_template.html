@@ -69,10 +69,39 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderDashboard(stats, studioName) {
-        const usageThisMonth = stats[`${studioName}_usage_this_month`] || 0;
+        console.log("Rendering dashboard for:", studioName);
+        console.log("Received stats:", stats);
+
         const wordsThisMonth = stats.words_this_month;
         const wordLimit = stats.monthly_word_limit;
         const wordPercentage = wordLimit > 0 ? (wordsThisMonth / wordLimit) * 100 : 0;
+
+        let statsHtml = '';
+        if (studioName === 'article') {
+            statsHtml = `
+                <div class="stat-card">
+                    <h3>Articles This Month</h3>
+                    <div class="stat-value">${stats.total_articles_this_month || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Words This Month (Article)</h3>
+                    <div class="stat-value">${(stats.total_words_this_month || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg. Words / Article</h3>
+                    <div class="stat-value">${stats.avg_word_count_this_month || 0}</div>
+                </div>
+            `;
+        } else {
+            const usageThisMonth = stats[`${studioName}_usage_this_month`] || 0;
+            statsHtml = `
+                <div class="stat-card">
+                    <h3>Generations This Month</h3>
+                    <div class="stat-value">${usageThisMonth}</div>
+                    <p>Number of times you've used this studio's tools.</p>
+                </div>
+            `;
+        }
 
         dashboardView.innerHTML = `
             <div class="studio-header">
@@ -80,11 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p>Your usage statistics for the current month.</p>
             </div>
             <div class="stats-grid">
-                <div class="stat-card">
-                    <h3>Generations This Month</h3>
-                    <div class="stat-value">${usageThisMonth}</div>
-                    <p>Number of times you've used this studio's tools.</p>
-                </div>
+                ${statsHtml}
                 <div class="stat-card">
                     <h3>Monthly Word Usage (Overall)</h3>
                     <div class="stat-value">${wordsThisMonth.toLocaleString()} / ${wordLimit.toLocaleString()}</div>

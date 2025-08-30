@@ -44,6 +44,29 @@
     <input type="text" id="audienceInput" class="form-control" placeholder="e.g., Beginners, experts, marketing managers">
 </div>
 
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="audienceInput">Target Audience</label>
+            <input type="text" id="audienceInput" class="form-control" placeholder="e.g., Beginners, experts, marketing managers">
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-group">
+            <label>Premium Features</label>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="imageToggle" {% if not user.is_superadmin %}disabled{% endif %}>
+                <label class="form-check-label" for="imageToggle">
+                    Enable Article Images
+                    {% if not user.is_superadmin %}
+                    <span class="badge bg-primary" style="font-size: 0.7em; vertical-align: middle; margin-left: 5px;">Premium</span>
+                    {% endif %}
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="form-group">
     <label for="keyPointsInput">Key Points to Include (Optional)</label>
     <textarea id="keyPointsInput" class="form-control" placeholder="Enter key topics or arguments you want the article to cover, one per line." rows="4"></textarea>
@@ -64,10 +87,16 @@
     </div>
 </div>
 
-<button id="generateBtn" class="btn btn-primary">
-    <span class="material-symbols-outlined">auto_awesome</span>
-    Generate Article
-</button>
+<div style="display: flex; gap: 12px;">
+    <button id="newArticleBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">add</span>
+        New Article
+    </button>
+    <button id="generateBtn" class="btn btn-primary" style="flex-grow: 1;">
+        <span class="material-symbols-outlined">auto_awesome</span>
+        Generate Article
+    </button>
+</div>
 
 <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--outline);">
 
@@ -91,12 +120,6 @@
         <span class="material-symbols-outlined">download</span>
         Download DOCX
     </button>
-    {% if user %}
-    <button id="publishBtn" class="btn btn-primary" style="display: none;">
-        <span class="material-symbols-outlined">public</span>
-        Publish
-    </button>
-    {% endif %}
 </div>
 {% endblock %}
 
@@ -130,6 +153,8 @@
     const keywordInput = document.getElementById('keywordInput');
     const ctaInput = document.getElementById('ctaInput');
     const generateBtn = document.getElementById('generateBtn');
+    const imageToggle = document.getElementById('imageToggle');
+    const newArticleBtn = document.getElementById('newArticleBtn');
     const articleDisplay = document.getElementById('articleDisplay');
     const refinementSection = document.getElementById('refinementSection');
     const refinementInput = document.getElementById('refinementInput');
@@ -137,16 +162,45 @@
     const refinementsLeft = document.getElementById('refinementsLeft');
     const articleActions = document.getElementById('articleActions');
     const downloadBtn = document.getElementById('downloadBtn');
-    const publishBtn = document.getElementById('publishBtn');
-
     document.addEventListener('DOMContentLoaded', function() {
         generateBtn.addEventListener('click', generateArticle);
         refineBtn.addEventListener('click', refineArticle);
         downloadBtn.addEventListener('click', downloadArticle);
-        if (publishBtn) {
-            publishBtn.addEventListener('click', publishArticle);
-        }
+        newArticleBtn.addEventListener('click', startNewArticle);
     });
+
+    function startNewArticle() {
+        // Clear inputs
+        topicInput.value = '';
+        wordCountSelect.value = '1000';
+        audienceInput.value = '';
+        toneSelect.value = 'Professional';
+        keyPointsInput.value = '';
+        keywordInput.value = '';
+        ctaInput.value = '';
+
+        // Reset output area
+        articleDisplay.innerHTML = `
+            <div class="empty-state">
+                <span class="material-symbols-outlined">article</span>
+                <h3>Ready to Create</h3>
+                <p>Enter a topic above and click "Generate Article" to get started.</p>
+            </div>
+        `;
+
+        // Hide refinement and action sections
+        refinementSection.style.display = 'none';
+        articleActions.style.display = 'none';
+
+        // Reset state
+        currentArticleData = null;
+        currentChatSessionId = null;
+        refinementsUsed = 0;
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span> Generate Article';
+
+        showNotification('New article started', 'success');
+    }
 
     function showNotification(message, type = 'success') {
         const existing = document.querySelector('.notification');
@@ -192,7 +246,8 @@
             tone: toneSelect.value,
             keyPoints: keyPointsInput.value.trim(),
             seoKeyword: keywordInput.value.trim(),
-            cta: ctaInput.value.trim()
+            cta: ctaInput.value.trim(),
+            enable_images: imageToggle ? imageToggle.checked : false
         };
 
         try {
@@ -217,7 +272,6 @@
                 articleDisplay.innerHTML = `<div class="article-content">${data.article_html}</div>`;
                 refinementSection.style.display = 'block';
                 articleActions.style.display = 'flex';
-                if(publishBtn) publishBtn.style.display = 'inline-flex';
                 updateRefinementsDisplay();
                 showNotification('Article generated successfully!');
                 generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Generated`;
@@ -337,7 +391,6 @@
 
             refinementSection.style.display = 'block';
             articleActions.style.display = 'flex';
-            if(publishBtn) publishBtn.style.display = 'inline-flex';
             showNotification('Session loaded successfully!');
             generateBtn.innerHTML = `<span class="material-symbols-outlined">check</span> Loaded`;
             generateBtn.disabled = true;
@@ -348,20 +401,5 @@
         }
     }
 
-    async function publishArticle() {
-        if (!currentArticleData || !currentArticleData.article_id) return;
-        try {
-            const response = await fetch(`/article/${currentArticleData.article_id}/publish`, { method: 'POST' });
-            const data = await response.json();
-            if (data.success) {
-                showNotification('Article published successfully!');
-                publishBtn.style.display = 'none';
-            } else {
-                throw new Error(data.error || 'Failed to publish article');
-            }
-        } catch (error) {
-            showNotification(error.message, 'error');
-        }
-    }
 </script>
 {% endblock %}
