@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof showNotification === 'function') {
                 showNotification('Session loaded successfully!');
             }
-
+            setInputsDisabled(true);
         } catch (error) {
             showErrorState(error.message);
         }

@@ -349,6 +349,52 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            ecommerceChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+            const tool = userInput.tool;
+            const settings = userInput.settings || {};
+
+            // Activate the correct tab
+            document.querySelector(`.tab-button[data-tab="${tool}"]`)?.click();
+
+            // Restore inputs
+            if (tool === 'description') {
+                document.getElementById('desc-product-name').value = settings.productName || '';
+                document.getElementById('desc-features').value = settings.features || '';
+                document.getElementById('desc-audience').value = settings.audience || '';
+                document.getElementById('desc-tone').value = settings.tone || '';
+                document.getElementById('desc-benefit').value = settings.benefit || '';
+                document.getElementById('desc-format').value = settings.format || 'paragraph';
+            } else if (tool === 'campaign') {
+                document.getElementById('camp-product').value = settings.product || '';
+                document.getElementById('camp-occasion').value = settings.occasion || '';
+                document.getElementById('camp-offer').value = settings.offer || '';
+                document.getElementById('camp-urgency').value = settings.urgency || '';
+            } else if (tool === 'review') {
+                document.getElementById('rev-review').value = settings.review || '';
+                document.getElementById('rev-tone').value = settings.tone || 'Empathetic & Helpful';
+                document.getElementById('rev-offer').value = settings.offer || '';
+            }
+
+            displayOutput(session.raw_text);
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+            setInputsDisabled(true);
+        } catch (error) {
+            showError(error.message);
+        }
+    }
 });
 </script>
 {% endblock %}

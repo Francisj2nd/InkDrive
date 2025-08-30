@@ -276,6 +276,43 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!text) return showError('The model did not return any content. Please try again.');
         outputDisplay.innerHTML = `<div class="output-card"><pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></div>`;
     }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            showLoading();
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            businessChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+            const tool = userInput.tool;
+            const settings = userInput.settings || {};
+
+            // Activate the correct tab
+            document.querySelector(`.tab-button[data-tab="${tool}"]`)?.click();
+
+            if (tool === 'proposal') {
+                document.getElementById('prop-company').value = settings.company || '';
+            } else if (tool === 'report') {
+                document.getElementById('rep-subject').value = settings.subject || '';
+            } else if (tool === 'press-release') {
+                document.getElementById('pr-headline').value = settings.headline || '';
+            }
+
+            displayOutput(session.raw_text);
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+            setInputsDisabled(true);
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButton();
+        }
+    }
 });
 </script>
 {% endblock %}

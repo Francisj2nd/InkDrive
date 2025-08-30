@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof showNotification === 'function') {
                 showNotification('Session loaded successfully!');
             }
+            setInputsDisabled(true);
 
         } catch (error) {
             outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;

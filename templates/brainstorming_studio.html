@@ -304,6 +304,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         outputDisplay.innerHTML = `<div class="idea-card"><ul class="idea-list">${ideas.map(idea => `<li>${idea.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join('')}</ul></div>`;
     }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            brainstormSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+
+            if (userInput.tool === 'general') {
+                document.getElementById('brainstorm-goal').value = userInput.settings.goal || '';
+            } else if (userInput.tool === 'naming') {
+                document.getElementById('naming-description').value = userInput.settings.description || '';
+            }
+
+            displayIdeas(session.raw_text.split('\\n'));
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+            setInputsDisabled(true);
+        } catch (error) {
+            showError(error.message);
+        }
+    }
 });
 </script>
 {% endblock %}

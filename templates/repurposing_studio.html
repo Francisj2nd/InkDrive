@@ -356,6 +356,32 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            outputDisplay.innerHTML = `<div class="loading" style="padding: 40px; display:flex; justify-content: center; align-items: center; gap: 8px;"><div class="spinner"></div><span>Loading session...</span></div>`;
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            repurposeChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+
+            document.getElementById('repurpose-text-input').value = userInput.text || '';
+            document.getElementById('repurpose-into').value = userInput.tool || 'twitter_thread';
+
+            repurposeBtn.disabled = true;
+            displayOutput(session.raw_text, `Repurposed into: ${userInput.tool.replace(/_/g, ' ')}`);
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+            setInputsDisabled(true);
+        } catch (error) {
+            showError(error.message);
+        }
+    }
 });
 </script>
 {% endblock %}

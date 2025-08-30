@@ -441,6 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayOutput(session.raw_text, `Translated Text (${userInput.language})`);
             }
             showNotification('Session loaded successfully!');
+            setInputsDisabled(true);
         } catch (error) {
             showError(error.message);
         }
