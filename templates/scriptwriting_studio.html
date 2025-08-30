@@ -103,10 +103,16 @@
 </div>
 
 
-<button id="generateScriptBtn" class="btn btn-primary" style="width: 100%;">
-    <span class="material-symbols-outlined">movie</span>
-    Generate Script
-</button>
+<div style="display: flex; gap: 12px; margin-top: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+    <button id="generateScriptBtn" class="btn btn-primary" style="flex-grow: 1;">
+        <span class="material-symbols-outlined">movie</span>
+        Generate Script
+    </button>
+</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -127,6 +133,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const generateBtn = document.getElementById('generateScriptBtn');
     const outputDisplay = document.getElementById('script-output-display');
     let scriptChatSessionId = null;
+
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
+
+    function setInputsDisabled(disabled) {
+        document.getElementById('script-topic').disabled = disabled;
+        document.getElementById('script-format').disabled = disabled;
+        document.getElementById('script-audience').disabled = disabled;
+        document.getElementById('script-tone').disabled = disabled;
+        document.getElementById('script-characters').disabled = disabled;
+        document.querySelectorAll('.checkbox-grid input').forEach(el => el.disabled = disabled);
+        generateBtn.disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        document.getElementById('script-topic').value = '';
+        document.getElementById('script-audience').value = '';
+        document.getElementById('script-tone').value = '';
+        document.getElementById('script-characters').value = '';
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">movie</span><p>Your generated script will appear here.</p></div>`;
+        scriptChatSessionId = null;
+        generateBtn.innerHTML = '<span class="material-symbols-outlined">movie</span> Generate Script';
+        if (typeof showNotification === 'function') {
+            showNotification('New session started.', 'success');
+        }
+    }
 
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
@@ -166,6 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (typeof loadChatHistory === 'function') {
                         loadChatHistory(STUDIO_TYPE);
                     }
+                    setInputsDisabled(true);
                 } else {
                     throw new Error(data.error || 'Failed to generate script');
                 }
@@ -230,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof showNotification === 'function') {
                 showNotification('Session loaded successfully!');
             }
+            setInputsDisabled(true);
 
         } catch (error) {
             outputDisplay.innerHTML = `<div class="output-card"><p style="color: red;">Error: ${error.message}</p></div>`;

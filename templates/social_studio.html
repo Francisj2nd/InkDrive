@@ -72,6 +72,12 @@
 {% block studio_description %}Craft engaging social media posts, email campaigns, and ad copy.{% endblock %}
 
 {% block studio_inputs %}
+<div style="display: flex; gap: 12px; margin-bottom: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary" style="width: 100%;">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+</div>
 <div class="tabs">
     <button class="tab-button active" data-tab="social-posts">Social Posts</button>
     <button class="tab-button" data-tab="emails">Emails</button>
@@ -247,9 +253,79 @@
         });
 
         // --- EVENT LISTENERS ---
+        document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
         document.getElementById('generateSocialBtn')?.addEventListener('click', generateSocial);
         document.getElementById('generateEmailBtn')?.addEventListener('click', generateEmail);
         document.getElementById('generateAdBtn')?.addEventListener('click', generateAdCopy);
+
+        // --- HELPER FUNCTIONS ---
+        function setInputsDisabled(disabled) {
+            // Social Post Inputs
+            document.getElementById('social-topic').disabled = disabled;
+            document.getElementById('social-goal').disabled = disabled;
+            document.getElementById('social-platform').disabled = disabled;
+            document.getElementById('social-tone').disabled = disabled;
+            document.getElementById('social-cta').disabled = disabled;
+            document.getElementById('social-variations').disabled = disabled;
+            document.getElementById('social-emojis').disabled = disabled;
+            document.getElementById('generateSocialBtn').disabled = disabled;
+
+            // Email Inputs
+            document.getElementById('email-topic').disabled = disabled;
+            document.getElementById('email-audience').disabled = disabled;
+            document.getElementById('email-tone').disabled = disabled;
+            document.getElementById('email-type').disabled = disabled;
+            document.getElementById('email-brand').disabled = disabled;
+            document.getElementById('email-cta').disabled = disabled;
+            document.getElementById('generateEmailBtn').disabled = disabled;
+
+            // Ad Copy Inputs
+            document.getElementById('ad-product').disabled = disabled;
+            document.getElementById('ad-audience').disabled = disabled;
+            document.getElementById('ad-platform').disabled = disabled;
+            document.getElementById('ad-benefit').disabled = disabled;
+            document.getElementById('ad-tone').disabled = disabled;
+            document.getElementById('generateAdBtn').disabled = disabled;
+        }
+
+        function startNewSession() {
+            // Re-enable all inputs
+            setInputsDisabled(false);
+
+            // Clear all inputs
+            // Social
+            document.getElementById('social-topic').value = '';
+            document.getElementById('social-goal').value = 'Promote a product/service';
+            document.getElementById('social-platform').value = 'Twitter';
+            document.getElementById('social-tone').value = 'Professional';
+            document.getElementById('social-cta').value = '';
+            document.getElementById('social-variations').value = 3;
+            document.getElementById('social-emojis').checked = true;
+            // Email
+            document.getElementById('email-topic').value = '';
+            document.getElementById('email-audience').value = '';
+            document.getElementById('email-tone').value = 'Professional';
+            document.getElementById('email-type').value = 'Promotional';
+            document.getElementById('email-brand').value = '';
+            document.getElementById('email-cta').value = '';
+            // Ad Copy
+            document.getElementById('ad-product').value = '';
+            document.getElementById('ad-audience').value = '';
+            document.getElementById('ad-platform').value = 'Google Ads';
+            document.getElementById('ad-benefit').value = '';
+            document.getElementById('ad-tone').value = 'Urgent';
+
+            // Reset buttons
+            resetButton(document.getElementById('generateSocialBtn'), 'auto_awesome', 'Generate Posts');
+            resetButton(document.getElementById('generateEmailBtn'), 'mark_email_unread', 'Generate Email');
+            resetButton(document.getElementById('generateAdBtn'), 'campaign', 'Generate Ad Copy');
+
+            // Reset output
+            outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">campaign</span><p>Your generated content will appear here.</p></div>`;
+            socialChatSessionId = null;
+            showNotification('New session started.', 'success');
+        }
+
 
         // --- API FUNCTIONS ---
         async function generateSocial() {
@@ -277,6 +353,7 @@
                     socialChatSessionId = data.chat_session_id;
                     displaySocialPosts(data.posts);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else { throw new Error(data.error); }
             } catch (error) {
                 showError(error.message);
@@ -309,6 +386,7 @@
                     socialChatSessionId = data.chat_session_id;
                     displayEmailContent(data.email_content);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else { throw new Error(data.error); }
             } catch (error) {
                 showError(error.message);
@@ -340,6 +418,7 @@
                     socialChatSessionId = data.chat_session_id;
                     displayAdCopy(data.ad_copy);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else { throw new Error(data.error); }
             } catch (error) {
                 showError(error.message);
@@ -420,6 +499,7 @@
                     displayAdCopy(session.raw_text.split('---').map(p => p.trim()).filter(p => p));
                 }
                 showNotification('Session loaded successfully!');
+                setInputsDisabled(true);
             } catch (error) {
                 showError(error.message);
             }

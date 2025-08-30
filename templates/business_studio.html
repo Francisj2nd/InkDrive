@@ -95,10 +95,16 @@
     <div class="form-group"><label for="pr-boilerplate">Company Boilerplate</label><textarea id="pr-boilerplate" class="form-control" rows="2" placeholder="e.g., Innovate Inc. is a leading provider of..."></textarea></div>
 </div>
 
-<button id="generateBtn" class="btn btn-primary mt-3" style="width: 100%;">
-    <span class="material-symbols-outlined">business_center</span>
-    Generate Document
-</button>
+<div style="display: flex; gap: 12px; margin-top: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+    <button id="generateBtn" class="btn btn-primary mt-3" style="flex-grow: 1;">
+        <span class="material-symbols-outlined">business_center</span>
+        Generate Document
+    </button>
+</div>
 {% endblock %}
 
 {% block studio_output %}
@@ -133,6 +139,62 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- Main Generate Function ---
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
+
+    function setInputsDisabled(disabled) {
+        // Proposal
+        document.getElementById('prop-company').disabled = disabled;
+        document.getElementById('prop-client').disabled = disabled;
+        document.getElementById('prop-problem').disabled = disabled;
+        document.getElementById('prop-solution').disabled = disabled;
+        document.getElementById('prop-deliverables').disabled = disabled;
+        document.getElementById('prop-tone').disabled = disabled;
+
+        // Report
+        document.getElementById('rep-type').disabled = disabled;
+        document.getElementById('rep-subject').disabled = disabled;
+        document.getElementById('rep-period').disabled = disabled;
+        document.getElementById('rep-data').disabled = disabled;
+        document.getElementById('rep-audience').disabled = disabled;
+
+        // Press Release
+        document.getElementById('pr-headline').disabled = disabled;
+        document.getElementById('pr-company-info').disabled = disabled;
+        document.getElementById('pr-key-info').disabled = disabled;
+        document.getElementById('pr-quote').disabled = disabled;
+        document.getElementById('pr-boilerplate').disabled = disabled;
+
+        generateBtn.disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+        // Clear inputs
+        document.getElementById('prop-company').value = '';
+        document.getElementById('prop-client').value = '';
+        document.getElementById('prop-problem').value = '';
+        document.getElementById('prop-solution').value = '';
+        document.getElementById('prop-deliverables').value = '';
+        document.getElementById('prop-tone').value = '';
+
+        document.getElementById('rep-subject').value = '';
+        document.getElementById('rep-period').value = '';
+        document.getElementById('rep-data').value = '';
+        document.getElementById('rep-audience').value = '';
+
+        document.getElementById('pr-headline').value = '';
+        document.getElementById('pr-company-info').value = '';
+        document.getElementById('pr-key-info').value = '';
+        document.getElementById('pr-quote').value = '';
+        document.getElementById('pr-boilerplate').value = '';
+
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">business_center</span><p>Your generated business document will appear here.</p></div>`;
+        businessChatSessionId = null;
+        if (typeof showNotification === 'function') {
+            showNotification('New session started.', 'success');
+        }
+    }
+
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
             const tool = document.querySelector('.tab-button.active')?.dataset.tab;
@@ -153,6 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     businessChatSessionId = data.chat_session_id;
                     displayOutput(data.result);
                     if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                    setInputsDisabled(true);
                 } else {
                     throw new Error(data.error || 'Failed to generate content');
                 }
@@ -212,6 +275,43 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayOutput(text) {
         if (!text) return showError('The model did not return any content. Please try again.');
         outputDisplay.innerHTML = `<div class="output-card"><pre class="output-content">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></div>`;
+    }
+
+    window.loadSessionIntoView = async function(sessionId) {
+        try {
+            showLoading();
+            const response = await fetch(`/api/chat-session/${sessionId}`);
+            if (!response.ok) throw new Error('Failed to fetch session data.');
+
+            const session = await response.json();
+            businessChatSessionId = session.session_id;
+
+            const userInput = JSON.parse(session.messages[0].content);
+            const tool = userInput.tool;
+            const settings = userInput.settings || {};
+
+            // Activate the correct tab
+            document.querySelector(`.tab-button[data-tab="${tool}"]`)?.click();
+
+            if (tool === 'proposal') {
+                document.getElementById('prop-company').value = settings.company || '';
+            } else if (tool === 'report') {
+                document.getElementById('rep-subject').value = settings.subject || '';
+            } else if (tool === 'press-release') {
+                document.getElementById('pr-headline').value = settings.headline || '';
+            }
+
+            displayOutput(session.raw_text);
+
+            if (typeof showNotification === 'function') {
+                showNotification('Session loaded successfully!');
+            }
+            setInputsDisabled(true);
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            resetButton();
+        }
     }
 });
 </script>

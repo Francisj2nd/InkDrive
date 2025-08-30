@@ -67,6 +67,12 @@
 {% block studio_description %}Paste your existing text and use our tools to refine and improve it.{% endblock %}
 
 {% block studio_inputs %}
+<div style="display: flex; gap: 12px; margin-bottom: 20px;">
+    <button id="newSessionBtn" class="btn btn-secondary" style="width: 100%;">
+        <span class="material-symbols-outlined">add</span>
+        New Session
+    </button>
+</div>
 <div class="tabs">
     <button class="tab-button active" data-tab="tone-style">Tone & Style</button>
     <button class="tab-button" data-tab="summarizer">Summarizer</button>
@@ -224,9 +230,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- EVENT LISTENERS ---
+    document.getElementById('newSessionBtn')?.addEventListener('click', startNewSession);
     document.getElementById('refineTextBtn')?.addEventListener('click', refineText);
     document.getElementById('summarizeBtn')?.addEventListener('click', summarizeText);
     document.getElementById('translateBtn')?.addEventListener('click', translateText);
+
+    // --- HELPER FUNCTIONS ---
+    function setInputsDisabled(disabled) {
+        // Tone & Style
+        document.getElementById('refine-text-input').disabled = disabled;
+        document.getElementById('refine-goal').disabled = disabled;
+        document.getElementById('refine-formality').disabled = disabled;
+        document.getElementById('refine-audience').disabled = disabled;
+        document.getElementById('refineTextBtn').disabled = disabled;
+
+        // Summarizer
+        document.getElementById('summarize-text-input').disabled = disabled;
+        document.getElementById('summary-format').disabled = disabled;
+        document.getElementById('summary-extraction').disabled = disabled;
+        document.getElementById('summary-focus').disabled = disabled;
+        document.getElementById('summarizeBtn').disabled = disabled;
+
+        // Translator
+        document.getElementById('translate-text-input').disabled = disabled;
+        document.getElementById('translate-locale').disabled = disabled;
+        document.querySelector('input[name="formality"]:checked').disabled = disabled;
+        document.getElementById('translate-idioms').disabled = disabled;
+        document.getElementById('translateBtn').disabled = disabled;
+    }
+
+    function startNewSession() {
+        setInputsDisabled(false);
+
+        // Clear all inputs
+        document.getElementById('refine-text-input').value = '';
+        document.getElementById('summarize-text-input').value = '';
+        document.getElementById('translate-text-input').value = '';
+
+        outputDisplay.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined" style="font-size: 48px;">edit_note</span><p>Your refined text will appear here.</p></div>`;
+        editingChatSessionId = null;
+        showNotification('New session started.', 'success');
+    }
 
     // --- API FUNCTIONS ---
     async function refineText() {
@@ -251,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 editingChatSessionId = data.chat_session_id;
                 displayOutput(data.refined_text, 'Refined Version');
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                setInputsDisabled(true);
             } else { throw new Error(data.error); }
         } catch (error) {
             showError(error.message);
@@ -281,6 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 editingChatSessionId = data.chat_session_id;
                 displayOutput(data.summary, 'Summary');
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                setInputsDisabled(true);
             } else { throw new Error(data.error); }
         } catch (error) {
             showError(error.message);
@@ -311,6 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 editingChatSessionId = data.chat_session_id;
                 displayOutput(data.translated_text, `Translated Text (${settings.locale})`);
                 if (typeof loadChatHistory === 'function') loadChatHistory(STUDIO_TYPE);
+                setInputsDisabled(true);
             } else { throw new Error(data.error); }
         } catch (error) {
             showError(error.message);
@@ -394,6 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayOutput(session.raw_text, `Translated Text (${userInput.language})`);
             }
             showNotification('Session loaded successfully!');
+            setInputsDisabled(true);
         } catch (error) {
             showError(error.message);
         }
