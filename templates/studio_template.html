@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dashboardLink) {
         dashboardLink.addEventListener('click', async (e) => {
             e.preventDefault();
+            console.log("Dashboard link clicked!");
 
             // Hide tool view and show dashboard view
             toolView.style.display = 'none';
@@ -90,6 +91,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="stat-card">
                     <h3>Avg. Words / Article</h3>
                     <div class="stat-value">${stats.avg_word_count_this_month || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Articles (All Time)</h3>
+                    <div class="stat-value">${(stats.total_articles_ever || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Words (All Time)</h3>
+                    <div class="stat-value">${(stats.total_words_ever || 0).toLocaleString()}</div>
                 </div>
             `;
         } else {
