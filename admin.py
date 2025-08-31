@@ -184,6 +184,131 @@ def articles():
         flash('Error loading articles.', 'error')
         return redirect(url_for('admin.dashboard'))
 
+# Studio Type Mapping
+STUDIO_TYPE_MAPPING = {
+    'article': ['ARTICLE'],
+    'social': ['SOCIAL_POST', 'EMAIL', 'AD_COPY'],
+    'editing': ['TEXT_REFINEMENT', 'SUMMARY', 'TRANSLATION'],
+    'repurpose': ['REPURPOSE_TWEET', 'REPURPOSE_SLIDES'],
+    'seo': ['SEO_KEYWORDS', 'SEO_HEADLINES'],
+    'business': ['PRESS_RELEASE', 'JOB_DESCRIPTION'],
+    'brainstorming': ['IDEAS'],
+    'scriptwriting': ['SCRIPT'],
+    'ecommerce': ['ECOMMERCE'],
+    'webcopy': ['WEBCOPY'],
+}
+
+@admin_bp.route('/studios')
+@login_required
+@superadmin_required
+def studios():
+    """Studio management page"""
+    try:
+        studio_stats = []
+        for studio_name, studio_types in STUDIO_TYPE_MAPPING.items():
+            query = ChatSession.query.filter(ChatSession.studio_type.in_(studio_types))
+
+            total_sessions = query.count()
+            total_users = query.with_entities(ChatSession.user_id).distinct().count()
+
+            # For articles, we can get a more accurate count from the Article table
+            if studio_name == 'article':
+                total_articles = Article.query.filter(Article.chat_session.has(ChatSession.studio_type.in_(studio_types))).count()
+            else:
+                # For other studios, we can count chat sessions that resulted in an article
+                total_articles = query.filter(ChatSession.articles.any()).count()
+
+            studio_stats.append({
+                'name': studio_name.replace('_', ' ').title(),
+                'key': studio_name,
+                'total_sessions': total_sessions,
+                'total_users': total_users,
+                'total_articles': total_articles,
+            })
+
+        return render_template('admin/studios.html', studio_stats=studio_stats)
+    except Exception as e:
+        logger.error(f"Admin studios page error: {e}")
+        flash('Error loading studios.', 'error')
+        return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/studios/<string:studio_name>')
+@login_required
+@superadmin_required
+def studio_detail(studio_name):
+    """Studio detail page with content and user analysis."""
+    if studio_name not in STUDIO_TYPE_MAPPING:
+        abort(404)
+
+    try:
+        page = request.args.get('page', 1, type=int)
+        search = request.args.get('search', '').strip()
+
+        studio_types = STUDIO_TYPE_MAPPING[studio_name]
+
+        # Base query for all chat sessions in this studio
+        base_query = ChatSession.query.filter(ChatSession.studio_type.in_(studio_types))
+
+        # --- Overall Stats ---
+        total_sessions = base_query.count()
+        total_users = base_query.with_entities(ChatSession.user_id).distinct().count()
+
+        # Query for articles linked to these chat sessions
+        article_query = Article.query.join(ChatSession).filter(ChatSession.studio_type.in_(studio_types))
+        total_articles = article_query.count()
+        total_words = db.session.query(func.sum(Article.word_count)).join(ChatSession).filter(ChatSession.studio_type.in_(studio_types)).scalar() or 0
+
+        studio_stats = {
+            'name': studio_name.replace('_', ' ').title(),
+            'key': studio_name,
+            'total_sessions': total_sessions,
+            'total_users': total_users,
+            'total_articles': total_articles,
+            'total_words': total_words
+        }
+
+        # --- Content Tab Query ---
+        content_query = base_query
+        if search:
+            # Search across chat session title, article title, or user name/email
+            content_query = content_query.join(User).outerjoin(Article, ChatSession.articles).filter(
+                db.or_(
+                    ChatSession.title.ilike(f'%{search}%'),
+                    Article.title.ilike(f'%{search}%'),
+                    User.name.ilike(f'%{search}%'),
+                    User.email.ilike(f'%{search}%')
+                )
+            )
+
+        # Paginate the content (chat sessions)
+        paginated_content = content_query.order_by(ChatSession.created_at.desc()).paginate(
+            page=page, per_page=20, error_out=False
+        )
+
+        # --- Users Tab Query ---
+        # Get top users by number of sessions in this studio
+        top_users_query = db.session.query(
+            User,
+            func.count(ChatSession.id).label('session_count')
+        ).join(ChatSession).filter(
+            ChatSession.studio_type.in_(studio_types)
+        ).group_by(
+            User.id
+        ).order_by(
+            func.count(ChatSession.id).desc()
+        ).limit(50).all()
+
+        return render_template('admin/studio_detail.html',
+                             studio=studio_stats,
+                             content=paginated_content,
+                             users=top_users_query,
+                             search=search)
+    except Exception as e:
+        logger.error(f"Admin studio detail page error for '{studio_name}': {e}")
+        flash(f"Error loading details for {studio_name} studio.", 'error')
+        return redirect(url_for('admin.studios'))
+
+
 @admin_bp.route('/articles/<int:article_id>')
 @login_required
 @superadmin_required
@@ -347,6 +472,34 @@ def toggle_article_public(article_id):
         db.session.rollback()
         logger.error(f"Admin toggle article public error: {e}")
         return jsonify({'error': 'Failed to update article status'}), 500
+
+@admin_bp.route('/api/sessions/<int:session_id>/delete', methods=['POST'])
+@login_required
+@superadmin_required
+def delete_session(session_id):
+    """Delete a chat session and all associated articles."""
+    try:
+        session = ChatSession.query.get_or_404(session_id)
+        session_title = session.title
+        author_name = session.user.name
+
+        # Delete all articles associated with this chat session
+        Article.query.filter_by(chat_session_id=session.id).delete()
+
+        # Delete the chat session
+        db.session.delete(session)
+        db.session.commit()
+
+        logger.info(f"Admin {current_user.email} deleted session '{session_title}' by {author_name}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Session "{session_title}" and its articles have been deleted.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Admin delete session error: {e}")
+        return jsonify({'error': 'Failed to delete session'}), 500
 
 @admin_bp.route('/api/stats/export')
 @login_required

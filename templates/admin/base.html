@@ -222,6 +222,13 @@
                             Articles
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint in ['admin.studios', 'admin.studio_detail'] %}active{% endif %}"
+                           href="{{ url_for('admin.studios') }}">
+                            <i class="fas fa-cogs fa-fw"></i>
+                            Studios
+                        </a>
+                    </li>
                     <li class="nav-item mt-auto">
                         <hr class="sidebar-divider my-3" style="border-color: #34495e;">
                     </li>

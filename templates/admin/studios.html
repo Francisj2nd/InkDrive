@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Studio Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Studio Management</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">All Studios</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Studio Name</th>
+                            <th>Total Sessions</th>
+                            <th>Unique Users</th>
+                            <th>Generated Articles</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for studio in studio_stats %}
+                        <tr>
+                            <td>{{ studio.name }}</td>
+                            <td>{{ studio.total_sessions }}</td>
+                            <td>{{ studio.total_users }}</td>
+                            <td>{{ studio.total_articles }}</td>
+                            <td>
+                                <a href="{{ url_for('admin.studio_detail', studio_name=studio.key) }}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">No studio data available.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
