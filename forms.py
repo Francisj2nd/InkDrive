@@ -7,6 +7,8 @@ class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
     remember_me = BooleanField('Remember Me')
+    turnstile_token = StringField(validators=[DataRequired(message="Please complete the CAPTCHA.")])
+
 
 class RegisterForm(FlaskForm):
     name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=100)])
@@ -20,6 +22,8 @@ class RegisterForm(FlaskForm):
         EqualTo('password', message='Passwords must match')
     ])
     
+    turnstile_token = StringField(validators=[DataRequired(message="Please complete the CAPTCHA.")])
+
     def validate_email(self, email):
         user = User.query.filter_by(email=email.data.lower()).first()
         if user:

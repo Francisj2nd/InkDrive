@@ -75,6 +75,11 @@ if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
 
+# Cloudflare Turnstile Configuration
+app.config['CLOUDFLARE_TURNSTILE_SITE_KEY'] = os.getenv('CLOUDFLARE_TURNSTILE_SITE_KEY')
+app.config['CLOUDFLARE_TURNSTILE_SECRET_KEY'] = os.getenv('CLOUDFLARE_TURNSTILE_SECRET_KEY')
+
+
 # Email Configuration
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
@@ -167,6 +172,36 @@ try:
         logger.warning("Google AI client not initialized - missing credentials")
 except Exception as e:
     logger.error(f"Failed to initialize Google AI client: {e}")
+
+def verify_turnstile(token, ip):
+    """Verify the Cloudflare Turnstile token."""
+    secret = app.config.get('CLOUDFLARE_TURNSTILE_SECRET_KEY')
+    if not secret:
+        logger.error("Cloudflare Turnstile secret key is not configured.")
+        return False, "CAPTCHA is not configured."
+
+    try:
+        response = requests.post(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            data={
+                'secret': secret,
+                'response': token,
+                'remoteip': ip,
+            },
+            timeout=5
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get('success'):
+            return True, ""
+        else:
+            error_codes = result.get('error-codes', [])
+            logger.warning(f"Turnstile verification failed: {error_codes}")
+            return False, f"Invalid CAPTCHA. Please try again. Error: {', '.join(error_codes)}"
+    except requests.RequestException as e:
+        logger.error(f"Error verifying Turnstile token: {e}")
+        return False, "Could not verify CAPTCHA. Please try again later."
+
 
 # Helper functions
 def construct_initial_prompt(topic, settings=None):
@@ -1278,6 +1313,14 @@ def auth_login():
 
     form = LoginForm()
     if form.validate_on_submit():
+        token = request.form.get('cf-turnstile-response')
+        ip = request.remote_addr
+        success, message = verify_turnstile(token, ip)
+
+        if not success:
+            flash(message, 'error')
+            return render_template('auth/login.html', form=form)
+
         try:
             user = User.query.filter_by(email=form.email.data.lower()).first()
 
@@ -1333,6 +1376,14 @@ def auth_register():
 
     form = RegisterForm()
     if form.validate_on_submit():
+        token = request.form.get('cf-turnstile-response')
+        ip = request.remote_addr
+        success, message = verify_turnstile(token, ip)
+
+        if not success:
+            flash(message, 'error')
+            return render_template('auth/register.html', form=form)
+
         try:
             # Check if user already exists
             existing_user = User.query.filter_by(email=form.email.data.lower()).first()
