@@ -56,19 +56,26 @@ else:
 # --- Subdomain and Cookie Configuration ---
 try:
     parsed_url = urlparse(APP_BASE_URL)
-    root_domain = parsed_url.hostname
-    if root_domain and not root_domain.startswith('localhost'):
-        # Ensure the cookie domain is set for the root, e.g., ".inkdrive.ink"
-        # This allows cookies to be shared between app.inkdrive.ink and studio.inkdrive.ink
-        cookie_domain = root_domain
-        if cookie_domain.count('.') > 0: # Avoid setting ".localhost"
-             app.config['SESSION_COOKIE_DOMAIN'] = f".{cookie_domain}"
+    hostname = parsed_url.hostname
+    if hostname and not hostname.startswith('localhost'):
+        if IS_PULL_REQUEST:
+            # For previews on render.com, the hostname is the full domain.
+            # No leading dot is needed as we are not sharing across subdomains of the preview URL.
+            app.config['SESSION_COOKIE_DOMAIN'] = hostname
+            logger.info(f"Setting cookie domain for PR preview: {hostname}")
         else:
-             app.config['SESSION_COOKIE_DOMAIN'] = cookie_domain
+            # For production, we want to share the cookie across subdomains (e.g., studio. and app.)
+            # so we set a leading dot. This assumes APP_BASE_URL's hostname is the root domain (e.g., 'inkdrive.ink').
+            if hostname.count('.') >= 1:
+                app.config['SESSION_COOKIE_DOMAIN'] = f".{hostname}"
+                logger.info(f"Setting cookie domain for production: .{hostname}")
+            else:
+                # For domains like 'localhost' that have no dots, just use the hostname.
+                app.config['SESSION_COOKIE_DOMAIN'] = hostname
+                logger.info(f"Setting cookie domain for production (no TLD): {hostname}")
 
 except (ValueError, AttributeError) as e:
     logger.warning(f"Could not parse APP_BASE_URL for cookie domain: {e}")
-    root_domain = None
 
 
 # Ensure cookies are secure and work across sites for OAuth and subdomains
