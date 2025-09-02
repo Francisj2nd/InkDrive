@@ -24,6 +24,7 @@ import time
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from urllib.parse import urlparse
 
 # Import our models and forms
 from models import db, User, Article, ChatSession
@@ -39,10 +40,30 @@ logger = logging.getLogger(__name__)
 # --- 1. INITIALIZATION & HELPERS ---
 app = Flask(__name__)
 
-# --- Subdomain and Cookie Configuration ---
-root_domain = os.getenv('APP_ROOT_DOMAIN')
-if root_domain:
-    app.config['SESSION_COOKIE_DOMAIN'] = f".{root_domain}"
+# --- Environment-Aware URL and Cookie Configuration ---
+APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:5001')
+STUDIO_BASE_URL = os.getenv('STUDIO_BASE_URL', 'http://localhost:5001')
+
+# Determine if this is a production setup with subdomains
+app_hostname = urlparse(APP_BASE_URL).hostname
+studio_hostname = urlparse(STUDIO_BASE_URL).hostname
+IS_PRODUCTION_SETUP = app_hostname != studio_hostname
+
+if IS_PRODUCTION_SETUP:
+    # Set a shared cookie domain only for the production setup
+    # Assumes the domain is something like '.inkdrive.ink'
+    # Note: urlparse(APP_BASE_URL).hostname might be 'inkdrive.ink', so splitting gives 'inkdrive.ink'
+    # This logic assumes the root domain is correctly extracted.
+    domain_parts = urlparse(APP_BASE_URL).hostname.split('.')
+    if len(domain_parts) > 1:
+        root_domain_for_cookie = f".{'.'.join(domain_parts[-2:])}"
+        app.config['SESSION_COOKIE_DOMAIN'] = root_domain_for_cookie
+        logger.info(f"Production setup detected. SESSION_COOKIE_DOMAIN set to: {app.config['SESSION_COOKIE_DOMAIN']}")
+    else:
+        logger.warning(f"Could not determine root domain from APP_BASE_URL: {APP_BASE_URL}")
+else:
+    logger.info("Development or preview setup detected. Using default cookie domain.")
+
 
 # Ensure cookies are secure and work across sites for OAuth and subdomains
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -1230,44 +1251,40 @@ This message was sent from the InkDrive contact form.
 @app.before_request
 def subdomain_routing():
     """Handle routing rules based on subdomain and authentication status."""
-    # Skip all logic if running on localhost for development
-    if 'localhost' in request.host or '127.0.0.1' in request.host:
+    # 1. If this is not a production setup, do nothing.
+    if not IS_PRODUCTION_SETUP:
         return
 
-    # Skip for static files to avoid unnecessary processing and potential redirect loops
+    # 2. Skip for static files to avoid unnecessary processing
     if request.path.startswith('/static/'):
         return
 
-    is_studio_domain = request.host.startswith('studio.')
+    current_hostname = request.host.split(':')[0] # Get host without port
+    is_studio_domain = current_hostname == studio_hostname
+    is_main_domain = current_hostname == app_hostname
     is_authenticated = current_user.is_authenticated
-
-    # Get the root domain from the environment variable, which should be set in production
-    root_domain = os.getenv('APP_ROOT_DOMAIN')
-    if not root_domain:
-        # If APP_ROOT_DOMAIN is not configured, we cannot enforce subdomain rules, so we exit.
-        logger.warning("APP_ROOT_DOMAIN is not configured. Subdomain routing rules will not be applied.")
-        return
 
     logger.info(f"Routing request: host={request.host}, path={request.path}, endpoint={request.endpoint}, authenticated={is_authenticated}")
 
-    # Rule 4: Unauthenticated user on the studio domain -> redirect to the main domain's login page
+    # 3. Rule: Unauthenticated user on the studio domain -> redirect to main domain's login page
     if is_studio_domain and not is_authenticated:
-        login_url = f"https://{root_domain}{url_for('auth_login')}?next={request.url}"
+        # Construct the login URL on the main app domain, passing the current URL as 'next'
+        login_url = f"{APP_BASE_URL}{url_for('auth_login')}?next={request.url}"
         logger.info(f"Redirecting unauthenticated user from studio to login: {login_url}")
         return redirect(login_url)
 
-    # Rule: Authenticated user on the main domain -> redirect to the studio domain
-    if not is_studio_domain and is_authenticated:
-        # Exceptions: Allow authenticated users to access these endpoints on the main domain
+    # 4. Rule: Authenticated user on the main domain -> redirect to the studio domain
+    if is_main_domain and is_authenticated:
+        # Exceptions: Allow authenticated users to access these specific endpoints on the main domain
         allowed_endpoints = ['auth_logout', 'share_article', 'contact', 'privacy_policy', 'terms_of_service', 'support', 'download_docx', 'api_download_article']
         if request.endpoint in allowed_endpoints:
             return # Do not redirect
 
         # For all other endpoints, redirect to the same path on the studio domain
-        # Note: request.full_path includes the query string
-        studio_url = f"https://studio.{root_domain}{request.full_path}"
-        logger.info(f"Redirecting authenticated user from main domain to studio: {studio_url}")
-        return redirect(studio_url)
+        # request.full_path includes the path and query string
+        studio_redirect_url = f"{STUDIO_BASE_URL}{request.full_path}"
+        logger.info(f"Redirecting authenticated user from main domain to studio: {studio_redirect_url}")
+        return redirect(studio_redirect_url)
 
 # --- 3. AUTHENTICATION ROUTES ---
 
@@ -1304,15 +1321,8 @@ def auth_login():
                     if next_page:
                         return redirect(next_page)
 
-                    # If no next page, determine where to go.
-                    root_domain = os.getenv('APP_ROOT_DOMAIN')
-                    # If in production (APP_ROOT_DOMAIN is set), redirect to the studio domain.
-                    if root_domain:
-                        studio_url = f"https://studio.{root_domain}{url_for('index')}"
-                        return redirect(studio_url)
-                    else:
-                        # Otherwise (local dev), just go to the local index.
-                        return redirect(url_for('index'))
+                    # If no next page, redirect to the studio base URL.
+                    return redirect(STUDIO_BASE_URL)
                 else:
                     flash('Invalid email or password.', 'error')
             else:
@@ -1366,15 +1376,8 @@ def auth_register():
             login_user(user)
             flash('Registration successful! Welcome to InkDrive!', 'success')
 
-            # After successful registration, determine where to redirect.
-            root_domain = os.getenv('APP_ROOT_DOMAIN')
-            # If in production (APP_ROOT_DOMAIN is set), redirect to the studio domain.
-            if root_domain:
-                studio_url = f"https://studio.{root_domain}{url_for('index')}"
-                return redirect(studio_url)
-            else:
-                # Otherwise (local dev), just go to the local index.
-                return redirect(url_for('index'))
+            # After successful registration, redirect to the studio base URL.
+            return redirect(STUDIO_BASE_URL)
 
         except (OperationalError, DatabaseError) as e:
             db.session.rollback()
@@ -1457,12 +1460,8 @@ def auth_google_callback():
         except Exception as e:
             logger.warning(f"Failed to update last login for Google user {user.id}: {e}")
 
-        # Determine the redirect URL based on environment.
-        root_domain = os.getenv('APP_ROOT_DOMAIN')
-        if root_domain:
-            redirect_url = f"https://studio.{root_domain}{url_for('index')}"
-        else:
-            redirect_url = url_for('index')
+        # Determine the redirect URL. Always redirect to the studio base URL.
+        redirect_url = STUDIO_BASE_URL
         return jsonify({'success': True, 'redirect': redirect_url})
 
     except ValueError as e:
