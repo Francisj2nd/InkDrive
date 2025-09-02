@@ -109,6 +109,10 @@ if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
 
+# Cloudflare Turnstile Configuration
+app.config['CLOUDFLARE_TURNSTILE_SITE_KEY'] = os.getenv('CLOUDFLARE_TURNSTILE_SITE_KEY')
+app.config['CLOUDFLARE_TURNSTILE_SECRET_KEY'] = os.getenv('CLOUDFLARE_TURNSTILE_SECRET_KEY')
+
 # Email Configuration
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
@@ -1218,6 +1222,37 @@ def check_monthly_download_quota(user):
         logger.error(f"Error checking download quota for user {user.id}: {e}")
         return True  # Allow operation if check fails
 
+def verify_turnstile(request):
+    """Verify Cloudflare Turnstile token."""
+    # CRITICAL BYPASS LOGIC for Render PR previews
+    if os.getenv('IS_PULL_REQUEST') == 'true':
+        logger.info("Bypassing Turnstile verification for Pull Request preview.")
+        return True
+
+    token = request.form.get('cf-turnstile-response')
+    secret_key = app.config['CLOUDFLARE_TURNSTILE_SECRET_KEY']
+
+    if not token or not secret_key:
+        logger.warning("Turnstile token or secret key is missing.")
+        return False
+
+    try:
+        response = requests.post(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            data={
+                'secret': secret_key,
+                'response': token,
+            },
+            timeout=5
+        )
+        response.raise_for_status()
+        result = response.json()
+        logger.info(f"Turnstile verification result: {result}")
+        return result.get('success', False)
+    except requests.RequestException as e:
+        logger.error(f"Error verifying Turnstile token: {e}")
+        return False
+
 def send_contact_email(name, email, subject, message):
     """Send contact form email"""
     try:
@@ -1312,7 +1347,13 @@ def auth_login():
         return redirect(url_for('index'))
 
     form = LoginForm()
+    is_pull_request = os.getenv('IS_PULL_REQUEST') == 'true'
+
     if form.validate_on_submit():
+        if not verify_turnstile(request):
+            flash('Invalid CAPTCHA. Please try again.', 'error')
+            return render_template('auth/login.html', form=form, is_pull_request=is_pull_request)
+
         try:
             user = User.query.filter_by(email=form.email.data.lower()).first()
 
@@ -1356,7 +1397,7 @@ def auth_login():
             logger.error(f"Login error: {e}")
             flash('An error occurred during login. Please try again.', 'error')
 
-    return render_template('auth/login.html', form=form)
+    return render_template('auth/login.html', form=form, is_pull_request=is_pull_request)
 
 @app.route('/auth/register', methods=['GET', 'POST'])
 def auth_register():
@@ -1364,13 +1405,19 @@ def auth_register():
         return redirect(url_for('index'))
 
     form = RegisterForm()
+    is_pull_request = os.getenv('IS_PULL_REQUEST') == 'true'
+
     if form.validate_on_submit():
+        if not verify_turnstile(request):
+            flash('Invalid CAPTCHA. Please try again.', 'error')
+            return render_template('auth/register.html', form=form, is_pull_request=is_pull_request)
+
         try:
             # Check if user already exists
             existing_user = User.query.filter_by(email=form.email.data.lower()).first()
             if existing_user:
                 flash('Email address already registered.', 'error')
-                return render_template('auth/register.html', form=form)
+                return render_template('auth/register.html', form=form, is_pull_request=is_pull_request)
 
             # Create new user with safe defaults
             user = User(
@@ -1390,7 +1437,7 @@ def auth_register():
                 user.set_password(form.password.data)
             except ValueError as e:
                 flash('Invalid password format.', 'error')
-                return render_template('auth/register.html', form=form)
+                return render_template('auth/register.html', form=form, is_pull_request=is_pull_request)
 
             db.session.add(user)
             db.session.commit()
@@ -1411,7 +1458,7 @@ def auth_register():
             logger.error(f"Registration error: {e}")
             flash('Registration failed. Please try again.', 'error')
 
-    return render_template('auth/register.html', form=form)
+    return render_template('auth/register.html', form=form, is_pull_request=is_pull_request)
 
 @app.route('/auth/google')
 def auth_google():
