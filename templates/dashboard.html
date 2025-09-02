@@ -8,182 +8,272 @@
 
 {% block head_css %}
 <style>
-    /* Enhanced header with better mobile responsiveness */
+    /* Enhanced header with modern design and better mobile responsiveness */
     .studios-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 24px;
-        padding: 20px 24px;
+        margin-bottom: var(--space-2xl);
+        padding: var(--space-xl);
         background: var(--surface);
         border: 1px solid var(--outline);
-        border-radius: 16px;
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-sm);
         flex-wrap: wrap;
-        gap: 16px;
+        gap: var(--space-lg);
     }
+    
     .studios-header .logo {
         display: flex;
         align-items: center;
         gap: 12px;
-        font-size: 20px;
+        font-size: 1.375rem;
         font-weight: 600;
         color: var(--primary-text);
         text-decoration: none;
-        padding: 4px 0;
+        padding: var(--space-xs) 0;
+        transition: color 0.2s ease;
     }
+    
+    .studios-header .logo:hover {
+        color: var(--primary-blue);
+    }
+    
     .studios-header .logo-icon {
-        width: 32px;
-        height: 32px;
-        background: linear-gradient(45deg, #4285f4, #34a853, #fbbc05, #ea4335);
-        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #1976d2, #42a5f5, #64b5f6);
+        border-radius: var(--border-radius);
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: 600;
-        font-size: 16px;
-        flex-shrink: 0;
+        font-size: 20px;
+        box-shadow: var(--shadow-sm);
     }
+    
     .header-nav {
         display: flex;
-        gap: 16px;
+        gap: var(--space-md);
         flex-wrap: wrap;
     }
+    
     .header-nav a {
         text-decoration: none;
         color: var(--secondary-text);
         font-weight: 500;
-        font-size: 14px;
+        font-size: 0.875rem;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border-radius: 8px;
-        transition: background-color 0.2s, color 0.2s;
-        min-height: 36px;
+        gap: var(--space-sm);
+        padding: 12px var(--space-lg);
+        border-radius: var(--border-radius);
+        transition: all 0.2s ease;
+        min-height: 44px;
+        border: 1px solid transparent;
     }
+    
     .header-nav a:hover {
         background: var(--surface-variant);
         color: var(--primary-text);
+        border-color: var(--outline);
+        transform: translateY(-1px);
     }
+    
     .header {
-        margin-bottom: 32px;
+        margin-bottom: var(--space-2xl);
+        text-align: center;
     }
+    
     .header h1 {
-        font-size: 32px;
+        font-size: 2.5rem;
         font-weight: 500;
         margin: 0;
         color: var(--primary-text);
+        background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
-    /* Enhanced studio grid with better mobile layout */
+    
+    /* Enhanced studio grid with better card design */
     .studio-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 24px;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: var(--space-xl);
+        margin-top: var(--space-xl);
     }
+    
     .studio-card {
         background: var(--surface);
-        border-radius: 16px;
-        padding: 24px;
+        border-radius: var(--border-radius-lg);
+        padding: var(--space-2xl);
         border: 1px solid var(--outline);
         transition: all 0.3s ease;
         text-decoration: none;
         color: var(--primary-text);
         display: flex;
         flex-direction: column;
-        min-height: 200px;
+        min-height: 240px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
     }
+    
+    .studio-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-blue), var(--primary-blue-dark));
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
     .studio-card:hover {
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        transform: translateY(-4px);
-        border-color: var(--primary-blue-light);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-8px);
+        border-color: var(--primary-blue);
     }
+    
+    .studio-card:hover::before {
+        transform: scaleX(1);
+    }
+    
     .studio-card.disabled {
         opacity: 0.6;
         cursor: not-allowed;
         background-color: var(--surface-variant);
     }
+    
     .studio-card.disabled:hover {
-        box-shadow: none;
+        box-shadow: var(--shadow-sm);
         transform: none;
         border-color: var(--outline);
     }
+    
+    .studio-card.disabled::before {
+        display: none;
+    }
+    
     .studio-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
+        font-size: 56px;
+        margin-bottom: var(--space-lg);
         color: var(--primary-blue);
         flex-shrink: 0;
+        transition: transform 0.3s ease;
     }
+    
+    .studio-card:hover .studio-icon {
+        transform: scale(1.1);
+    }
+    
     .studio-title {
-        font-size: 20px;
+        font-size: 1.375rem;
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: var(--space-md);
         color: var(--primary-text);
+        line-height: 1.3;
     }
+    
     .studio-description {
-        font-size: 14px;
+        font-size: 0.875rem;
         color: var(--secondary-text);
         flex-grow: 1;
-        margin-bottom: 16px;
-        line-height: 1.5;
+        margin-bottom: var(--space-lg);
+        line-height: 1.6;
     }
+    
     .studio-status {
-        font-size: 12px;
-        font-weight: 500;
+        font-size: 0.75rem;
+        font-weight: 600;
         color: var(--primary-blue);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         align-self: flex-start;
         background: var(--primary-blue-light);
-        padding: 4px 8px;
-        border-radius: 4px;
+        padding: var(--space-xs) 12px;
+        border-radius: 20px;
+        border: 1px solid var(--primary-blue);
     }
     
-    /* Mobile responsive adjustments */
+    .studio-status.new {
+        color: var(--success);
+        background: var(--success-light);
+        border-color: var(--success);
+    }
+    
+    /* Enhanced mobile responsive design */
     @media (max-width: 768px) {
         .studios-header {
             flex-direction: column;
             text-align: center;
-            padding: 20px 16px;
+            padding: var(--space-lg);
+            gap: var(--space-md);
         }
+        
         .studios-header .logo {
             align-self: center;
+            font-size: 1.25rem;
         }
+        
+        .studios-header .logo-icon {
+            width: 36px;
+            height: 36px;
+            font-size: 18px;
+        }
+        
         .header-nav {
             justify-content: center;
             width: 100%;
         }
+        
         .header h1 {
-            font-size: 28px;
+            font-size: 2rem;
         }
+        
         .studio-grid {
             grid-template-columns: 1fr;
-            gap: 16px;
+            gap: var(--space-lg);
         }
+        
         .studio-card {
-            padding: 20px;
-            min-height: 180px;
+            padding: var(--space-xl);
+            min-height: 200px;
         }
+        
         .studio-icon {
-            font-size: 40px;
+            font-size: 48px;
         }
+        
         .studio-title {
-            font-size: 18px;
+            font-size: 1.25rem;
         }
     }
     
     @media (max-width: 480px) {
         .studios-header {
-            padding: 16px 12px;
+            padding: var(--space-md);
         }
+        
         .header {
-            margin-bottom: 24px;
+            margin-bottom: var(--space-xl);
         }
+        
         .header h1 {
-            font-size: 24px;
+            font-size: 1.75rem;
         }
+        
         .studio-card {
-            padding: 16px;
+            padding: var(--space-lg);
+        }
+        
+        .header-nav a {
+            padding: 10px var(--space-md);
+            font-size: 0.8125rem;
         }
     }
 </style>
@@ -191,13 +281,19 @@
 
 {% block content %}
 <header class="studios-header">
-    <a href="{{ url_for('index') }}" class="logo">
-        <div class="logo-icon">I</div>
+    <a href="{{ url_for('index') }}" class="logo" aria-label="InkDrive home">
+        <div class="logo-icon" aria-hidden="true">I</div>
         <span>InkDrive</span>
     </a>
-    <nav class="header-nav">
-        <a href="{{ url_for('profile_edit') }}"><span class="material-symbols-outlined">settings</span>Settings</a>
-        <a href="{{ url_for('auth_logout') }}"><span class="material-symbols-outlined">logout</span>Logout</a>
+    <nav class="header-nav" role="navigation" aria-label="Header navigation">
+        <a href="{{ url_for('profile_edit') }}" aria-label="Edit profile settings">
+            <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+            <span>Settings</span>
+        </a>
+        <a href="{{ url_for('auth_logout') }}" aria-label="Sign out">
+            <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+            <span>Logout</span>
+        </a>
     </nav>
 </header>
 
@@ -206,84 +302,75 @@
 </div>
 
 <div class="studio-grid">
-    <!-- Article Studio (Clickable) -->
-    <a href="{{ url_for('article_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">article</span>
+     Enhanced studio cards with better accessibility and visual design 
+    <a href="{{ url_for('article_studio') }}" class="studio-card" aria-label="Open Article Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">article</span>
         <h2 class="studio-title">Article Studio</h2>
-        <p class="studio-description">Generate long-form, SEO-optimized articles and thought-leadership content.</p>
+        <p class="studio-description">Generate long-form, SEO-optimized articles and thought-leadership content with AI assistance.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Social & Comms Studio -->
-    <a href="{{ url_for('social_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">group</span>
+    <a href="{{ url_for('social_studio') }}" class="studio-card" aria-label="Open Social & Comms Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">group</span>
         <h2 class="studio-title">Social & Comms Studio</h2>
-        <p class="studio-description">Craft engaging social media posts, email campaigns, and ad copy.</p>
+        <p class="studio-description">Craft engaging social media posts, email campaigns, and compelling ad copy.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Editing & Refinement Studio -->
-    <a href="{{ url_for('editing_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">edit_note</span>
+    <a href="{{ url_for('editing_studio') }}" class="studio-card" aria-label="Open Editing & Refinement Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">edit_note</span>
         <h2 class="studio-title">Editing & Refinement Studio</h2>
-        <p class="studio-description">Improve existing text by changing tone, style, and fixing errors.</p>
+        <p class="studio-description">Improve existing text by changing tone, style, and fixing grammar errors.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Content Repurposing Studio -->
-    <a href="{{ url_for('repurpose_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">transform</span>
+    <a href="{{ url_for('repurpose_studio') }}" class="studio-card" aria-label="Open Content Repurposing Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">transform</span>
         <h2 class="studio-title">Content Repurposing Studio</h2>
-        <p class="studio-description">Turn one piece of content into many, like an article into a Twitter thread.</p>
+        <p class="studio-description">Transform one piece of content into multiple formats, like articles into Twitter threads.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- SEO Strategy Studio -->
-    <a href="{{ url_for('seo_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">trending_up</span>
+    <a href="{{ url_for('seo_studio') }}" class="studio-card" aria-label="Open SEO Strategy Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">trending_up</span>
         <h2 class="studio-title">SEO Strategy Studio</h2>
-        <p class="studio-description">Generate keywords, analyze headlines, and build a content strategy.</p>
+        <p class="studio-description">Generate keywords, analyze headlines, and build comprehensive content strategies.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Brainstorming Studio -->
-    <a href="{{ url_for('brainstorming_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">lightbulb</span>
+    <a href="{{ url_for('brainstorming_studio') }}" class="studio-card" aria-label="Open Brainstorming Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">lightbulb</span>
         <h2 class="studio-title">Brainstorming Studio</h2>
-        <p class="studio-description">Generate new ideas, titles, and outlines for your content.</p>
+        <p class="studio-description">Generate fresh ideas, compelling titles, and detailed outlines for your content.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Scriptwriting Studio -->
-    <a href="{{ url_for('scriptwriting_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">movie</span>
+    <a href="{{ url_for('scriptwriting_studio') }}" class="studio-card" aria-label="Open Scriptwriting Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">movie</span>
         <h2 class="studio-title">Scriptwriting Studio</h2>
-        <p class="studio-description">Generate scripts for YouTube, TikTok, and other video platforms.</p>
+        <p class="studio-description">Create engaging scripts for YouTube, TikTok, and other video platforms.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- E-commerce Studio -->
-    <a href="{{ url_for('ecommerce_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">storefront</span>
+    <a href="{{ url_for('ecommerce_studio') }}" class="studio-card" aria-label="Open E-commerce Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">storefront</span>
         <h2 class="studio-title">E-commerce Studio</h2>
-        <p class="studio-description">Write compelling product descriptions and marketing copy.</p>
+        <p class="studio-description">Write compelling product descriptions and persuasive marketing copy.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Web Copy Studio -->
-    <a href="{{ url_for('webcopy_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">web</span>
+    <a href="{{ url_for('webcopy_studio') }}" class="studio-card" aria-label="Open Web Copy Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">web</span>
         <h2 class="studio-title">Web Copy Studio</h2>
-        <p class="studio-description">Craft landing page copy, ad copy, and more using proven frameworks.</p>
+        <p class="studio-description">Craft high-converting landing page copy and ads using proven frameworks.</p>
         <span class="studio-status">Available</span>
     </a>
 
-    <!-- Business Docs Studio -->
-    <a href="{{ url_for('business_studio') }}" class="studio-card">
-        <span class="material-symbols-outlined studio-icon">business_center</span>
+    <a href="{{ url_for('business_studio') }}" class="studio-card" aria-label="Open Business Docs Studio">
+        <span class="material-symbols-outlined studio-icon" aria-hidden="true">business_center</span>
         <h2 class="studio-title">Business Docs Studio</h2>
-        <p class="studio-description">Generate professional press releases, job descriptions, and reports.</p>
-        <span class="studio-status">New</span>
+        <p class="studio-description">Generate professional press releases, job descriptions, and business reports.</p>
+        <span class="studio-status new">New</span>
     </a>
 </div>
 {% endblock %}
