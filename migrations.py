@@ -15,13 +15,17 @@ def run_migrations():
         inspector = db.inspect(db.engine)
         
         # Check articles table columns
-        articles_columns = [col['name'] for col in inspector.get_columns('articles')]
+        articles_columns = [col['name'] for col in inspector.get_columns('articles')] if inspector.has_table('articles') else []
         users_columns = [col['name'] for col in inspector.get_columns('users')]
         
         migrations_needed = []
+
+        # Check if articles table needs to be renamed
+        if inspector.has_table('articles') and not inspector.has_table('generated_content'):
+            migrations_needed.append('rename_articles_to_generated_content')
         
         # Check for missing articles fields
-        if 'is_public' not in articles_columns:
+        if articles_columns and 'is_public' not in articles_columns:
             migrations_needed.append('add_is_public_field')
         if 'published_at' not in articles_columns:
             migrations_needed.append('add_published_at_field')
@@ -49,7 +53,9 @@ def run_migrations():
         # Run migrations
         for migration in migrations_needed:
             logger.info(f"Running migration: {migration}")
-            if migration == 'add_is_public_field':
+            if migration == 'rename_articles_to_generated_content':
+                rename_articles_to_generated_content()
+            elif migration == 'add_is_public_field':
                 add_is_public_field()
             elif migration == 'add_published_at_field':
                 add_published_at_field()
@@ -204,4 +210,15 @@ def add_is_superadmin_field():
         logger.info("Added is_superadmin field to users table")
     except Exception as e:
         logger.error(f"Error adding is_superadmin field: {e}")
+        raise
+
+def rename_articles_to_generated_content():
+    """Rename the articles table to generated_content"""
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE articles RENAME TO generated_content'))
+            conn.commit()
+        logger.info("Renamed table 'articles' to 'generated_content'")
+    except Exception as e:
+        logger.error(f"Error renaming articles table: {e}")
         raise

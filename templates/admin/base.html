@@ -216,10 +216,10 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint in ['admin.articles', 'admin.article_detail'] %}active{% endif %}" 
-                           href="{{ url_for('admin.articles') }}">
+                        <a class="nav-link {% if request.endpoint in ['admin.content', 'admin.content_detail'] %}active{% endif %}"
+                           href="{{ url_for('admin.content') }}">
                             <i class="fas fa-file-alt fa-fw"></i>
-                            Articles
+                            Content
                         </a>
                     </li>
                     <li class="nav-item">

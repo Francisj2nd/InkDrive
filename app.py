@@ -27,7 +27,7 @@ from email.mime.multipart import MIMEMultipart
 from urllib.parse import urlparse
 
 # Import our models and forms
-from models import db, User, Article, ChatSession
+from models import db, User, GeneratedContent, ChatSession
 from forms import LoginForm, RegisterForm, ProfileForm, ChangePasswordForm
 
 # Import admin blueprint
@@ -1096,39 +1096,38 @@ def format_article_content(raw_markdown_text, topic=""):
     return final_html
 
 @retry_db_operation(max_retries=3)
-def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=False, article_id=None, chat_session_id=None):
-    """Save article to database with retry logic"""
+def save_content_to_db(user_id, title, content_html, content_raw, is_refined=False, content_id=None, chat_session_id=None):
+    """Save content to database with retry logic"""
     try:
         # Extract word count (rough estimate)
         word_count = len(content_raw.split())
 
-        if article_id:
-            # Update existing article
-            article = Article.query.filter_by(id=article_id, user_id=user_id).first()
-            if article:
-                article.content_html = content_html
-                article.content_raw = content_raw
-                article.is_refined = is_refined
-                article.word_count = word_count
-                article.updated_at = datetime.utcnow()
+        if content_id:
+            # Update existing content
+            content = GeneratedContent.query.filter_by(id=content_id, user_id=user_id).first()
+            if content:
+                content.content_html = content_html
+                content.content_raw = content_raw
+                content.is_refined = is_refined
+                content.word_count = word_count
+                content.updated_at = datetime.utcnow()
             else:
-                # Article not found or doesn't belong to user
+                # Content not found or doesn't belong to user
                 return None
         else:
-            # Create new article
-            article = Article(
+            # Create new content
+            content = GeneratedContent(
                 user_id=user_id,
-                title=topic[:200],  # Truncate if too long
+                title=title[:500],  # Truncate if too long
                 content_html=content_html,
                 content_raw=content_raw,
-                topic=topic,
+                topic=title, # Use title as topic for now
                 is_refined=is_refined,
                 word_count=word_count,
-                public_id=str(uuid.uuid4())[:8],  # Generate a short public ID for sharing
                 chat_session_id=chat_session_id  # Link to chat session
             )
 
-            db.session.add(article)
+            db.session.add(content)
 
             # Update user's article count and monthly word count
             user = User.query.get(user_id)
@@ -1144,10 +1143,10 @@ def save_article_to_db(user_id, topic, content_html, content_raw, is_refined=Fal
                     user.words_generated_this_month = (user.words_generated_this_month or 0) + word_count
 
         db.session.commit()
-        return article.id
+        return content.id
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error saving article: {e}")
+        logger.error(f"Error saving content: {e}")
         return None
 
 @retry_db_operation(max_retries=3)
@@ -1577,8 +1576,8 @@ def profile_change_password():
 def profile_delete_account():
     """Delete user account"""
     try:
-        # Delete all user's articles
-        Article.query.filter_by(user_id=current_user.id).delete()
+        # Delete all user's content
+        GeneratedContent.query.filter_by(user_id=current_user.id).delete()
 
         # Delete all user's chat sessions
         ChatSession.query.filter_by(user_id=current_user.id).delete()
@@ -1601,152 +1600,152 @@ def profile_delete_account():
         flash('Failed to delete account. Please try again.', 'error')
         return redirect(url_for('profile_edit'))
 
-@app.route('/profile/articles')
+@app.route('/profile/content')
 @login_required
-def profile_articles():
-    """View all user articles"""
+def profile_content():
+    """View all user content"""
     try:
         page = request.args.get('page', 1, type=int)
-        articles = Article.query.filter_by(user_id=current_user.id)\
-                               .order_by(Article.created_at.desc())\
+        content_items = GeneratedContent.query.filter_by(user_id=current_user.id)\
+                               .order_by(GeneratedContent.created_at.desc())\
                                .paginate(page=page, per_page=20, error_out=False)
 
-        return render_template('profile/articles.html', articles=articles)
+        return render_template('profile/content.html', content_items=content_items)
     except (OperationalError, DatabaseError) as e:
-        logger.error(f"Database error loading articles: {e}")
-        flash('Database connection issue loading articles.', 'error')
+        logger.error(f"Database error loading content: {e}")
+        flash('Database connection issue loading content.', 'error')
         return redirect(url_for('profile_dashboard'))
     except Exception as e:
-        logger.error(f"Articles page error: {e}")
-        flash('Error loading articles.', 'error')
+        logger.error(f"Content page error: {e}")
+        flash('Error loading content.', 'error')
         return redirect(url_for('profile_dashboard'))
 
-@app.route('/article/view/<int:article_id>')
+@app.route('/content/view/<int:content_id>')
 @login_required
-def article_view(article_id):
-    """View a specific article"""
+def content_view(content_id):
+    """View a specific content item"""
     try:
-        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
-        return render_template('article/view.html', article=article)
+        content = GeneratedContent.query.filter_by(id=content_id, user_id=current_user.id).first_or_404()
+        return render_template('content/view.html', content=content)
     except (OperationalError, DatabaseError) as e:
-        logger.error(f"Database error loading article {article_id}: {e}")
-        flash('Database connection issue loading article.', 'error')
-        return redirect(url_for('profile_articles'))
+        logger.error(f"Database error loading content {content_id}: {e}")
+        flash('Database connection issue loading content.', 'error')
+        return redirect(url_for('profile_content'))
     except Exception as e:
-        logger.error(f"Article view error: {e}")
-        flash('Error loading article.', 'error')
-        return redirect(url_for('profile_articles'))
+        logger.error(f"Content view error: {e}")
+        flash('Error loading content.', 'error')
+        return redirect(url_for('profile_content'))
 
-@app.route('/article/<int:article_id>/publish', methods=['POST'])
+@app.route('/content/<int:content_id>/publish', methods=['POST'])
 @login_required
-def publish_article(article_id):
-    """Publish an article"""
+def publish_content(content_id):
+    """Publish a content item"""
     try:
-        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        content = GeneratedContent.query.filter_by(id=content_id, user_id=current_user.id).first_or_404()
 
-        if article.is_public:
-            return jsonify({"error": "Article is already published"}), 400
+        if content.is_public:
+            return jsonify({"error": "Content is already published"}), 400
 
-        article.publish()
+        content.publish()
 
-        public_url = url_for('share_article', public_id=article.public_id, _external=True)
+        public_url = url_for('share_content', public_id=content.public_id, _external=True)
 
         return jsonify({
             "success": True,
-            "message": "Article published successfully!",
+            "message": "Content published successfully!",
             "public_url": public_url
         })
     except (OperationalError, DatabaseError) as e:
-        logger.error(f"Database error publishing article {article_id}: {e}")
+        logger.error(f"Database error publishing content {content_id}: {e}")
         return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
-        logger.error(f"Article publish error: {e}")
-        return jsonify({"error": "Failed to publish article"}), 500
+        logger.error(f"Content publish error: {e}")
+        return jsonify({"error": "Failed to publish content"}), 500
 
-@app.route('/article/<int:article_id>/unpublish', methods=['POST'])
+@app.route('/content/<int:content_id>/unpublish', methods=['POST'])
 @login_required
-def unpublish_article(article_id):
-    """Unpublish an article"""
+def unpublish_content(content_id):
+    """Unpublish a content item"""
     try:
-        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        content = GeneratedContent.query.filter_by(id=content_id, user_id=current_user.id).first_or_404()
 
-        if not article.is_public:
-            return jsonify({"error": "Article is not published"}), 400
+        if not content.is_public:
+            return jsonify({"error": "Content is not published"}), 400
 
-        article.unpublish()
+        content.unpublish()
 
         return jsonify({
             "success": True,
-            "message": "Article unpublished successfully!"
+            "message": "Content unpublished successfully!"
         })
     except (OperationalError, DatabaseError) as e:
-        logger.error(f"Database error unpublishing article {article_id}: {e}")
+        logger.error(f"Database error unpublishing content {content_id}: {e}")
         return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
-        logger.error(f"Article unpublish error: {e}")
-        return jsonify({"error": "Failed to unpublish article"}), 500
+        logger.error(f"Content unpublish error: {e}")
+        return jsonify({"error": "Failed to unpublish content"}), 500
 
-@app.route('/article/<int:article_id>/delete', methods=['POST'])
+@app.route('/content/<int:content_id>/delete', methods=['POST'])
 @login_required
-def delete_article(article_id):
-    """Delete an article and its associated chat session"""
+def delete_content(content_id):
+    """Delete a content item and its associated chat session"""
     try:
-        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        content = GeneratedContent.query.filter_by(id=content_id, user_id=current_user.id).first_or_404()
 
         # Find and delete associated chat session if it exists
-        if article.chat_session_id:
-            chat_session = ChatSession.query.filter_by(id=article.chat_session_id, user_id=current_user.id).first()
+        if content.chat_session_id:
+            chat_session = ChatSession.query.filter_by(id=content.chat_session_id, user_id=current_user.id).first()
             if chat_session:
                 db.session.delete(chat_session)
 
-        # Delete the article
-        db.session.delete(article)
+        # Delete the content
+        db.session.delete(content)
         db.session.commit()
 
         return jsonify({
             "success": True,
-            "message": "Article and associated chat deleted successfully!"
+            "message": "Content and associated chat deleted successfully!"
         })
     except (OperationalError, DatabaseError) as e:
         db.session.rollback()
-        logger.error(f"Database error deleting article {article_id}: {e}")
+        logger.error(f"Database error deleting content {content_id}: {e}")
         return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Article delete error: {e}")
-        return jsonify({"error": "Failed to delete article"}), 500
+        logger.error(f"Content delete error: {e}")
+        return jsonify({"error": "Failed to delete content"}), 500
 
 @app.route('/share/<string:public_id>')
-def share_article(public_id):
-    """Public-facing route to view a published article"""
+def share_content(public_id):
+    """Public-facing route to view a published content item"""
     try:
-        # Fixed query: Only get articles that are both matching public_id AND published
-        article = Article.query.filter_by(public_id=public_id, is_public=True).first()
+        # Fixed query: Only get content that are both matching public_id AND published
+        content = GeneratedContent.query.filter_by(public_id=public_id, is_public=True).first()
 
-        if not article:
-            # Article doesn't exist or is not published
+        if not content:
+            # Content doesn't exist or is not published
             abort(404)
 
         # Increment view count
-        article.increment_view()
+        content.increment_view()
 
-        # Get random published articles for social proof (excluding current article)
+        # Get random published content for social proof (excluding current content)
         try:
             # Use a simpler query that works with both SQLite and PostgreSQL
-            featured_articles = Article.query.filter(
-                Article.is_public == True,
-                Article.id != article.id
+            featured_content = GeneratedContent.query.filter(
+                GeneratedContent.is_public == True,
+                GeneratedContent.id != content.id
             ).limit(6).all()
         except Exception as e:
-            logger.warning(f"Error fetching featured articles: {e}")
-            featured_articles = []
+            logger.warning(f"Error fetching featured content: {e}")
+            featured_content = []
 
-        return render_template('article/share.html', article=article, featured_articles=featured_articles)
+        return render_template('article/share.html', article=content, featured_articles=featured_content)
     except (OperationalError, DatabaseError) as e:
-        logger.error(f"Database error loading shared article {public_id}: {e}")
+        logger.error(f"Database error loading shared content {public_id}: {e}")
         return render_template('errors/500.html'), 500
     except Exception as e:
-        logger.error(f"Share article error: {e}")
+        logger.error(f"Share content error: {e}")
         return render_template('errors/404.html'), 404
 
 # --- 4. MAIN APP ROUTES ---
@@ -1757,15 +1756,15 @@ def index():
     if current_user.is_authenticated:
         return render_template("dashboard.html", user=current_user, page_type='dashboard')
     else:
-        # Get random published articles for social proof
+        # Get random published content for social proof
         try:
             # Use a simpler query that works with both SQLite and PostgreSQL
-            featured_articles = Article.query.filter_by(is_public=True).limit(6).all()
+            featured_content = GeneratedContent.query.filter_by(is_public=True).limit(6).all()
         except Exception as e:
-            logger.warning(f"Error fetching featured articles for landing: {e}")
-            featured_articles = []
+            logger.warning(f"Error fetching featured content for landing: {e}")
+            featured_content = []
 
-        return render_template("landing.html", featured_articles=featured_articles)
+        return render_template("landing.html", featured_articles=featured_content)
 
 @app.route('/article')
 @login_required
@@ -1863,7 +1862,11 @@ def generate_social_content():
             user_message = json.dumps({"tool": "social_post", "topic": topic, "goal": goal, "platform": platform, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Social Posts for '{topic}'"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SOCIAL_POST')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(raw_text)
+            save_content_to_db(current_user.id, session_title, content_html, raw_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"posts": posts, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -1887,7 +1890,11 @@ def generate_social_content():
             user_message = json.dumps({"tool": "email", "topic": topic, "audience": audience, "tone": tone, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Email for '{topic}'"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='EMAIL')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(raw_text)
+            save_content_to_db(current_user.id, session_title, content_html, raw_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"email_content": raw_text, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -1911,7 +1918,11 @@ def generate_social_content():
             user_message = json.dumps({"tool": "ad_copy", "product": product, "audience": audience, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Ad Copy for {product}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='AD_COPY')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='AD_COPY')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(raw_text)
+            save_content_to_db(current_user.id, session_title, content_html, raw_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"ad_copy": ad_copy, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -1954,7 +1965,11 @@ def generate_brainstorm_content():
             user_message = json.dumps({"tool": "general", "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Brainstorm: {settings.get('goal', 'General')}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='IDEAS')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(raw_text)
+            save_content_to_db(current_user.id, session_title, content_html, raw_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"ideas": ideas, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -1976,7 +1991,11 @@ def generate_brainstorm_content():
             user_message = json.dumps({"tool": "naming", "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Names for: {settings.get('description', 'New Project')[:30]}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='NAMING')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='NAMING')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(raw_text)
+            save_content_to_db(current_user.id, session_title, content_html, raw_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"names": names, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -2021,7 +2040,11 @@ def generate_script():
         ]
 
         session_title = f"Script: {topic[:40]}{'...' if len(topic) > 40 else ''}"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, script_text, studio_type='SCRIPT')
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, script_text, studio_type='SCRIPT')
+
+        # Save generated content to the database
+        content_html = markdown.markdown(script_text)
+        save_content_to_db(current_user.id, session_title, content_html, script_text, chat_session_id=db_chat_session_id)
 
         return jsonify({
             "script": script_text,
@@ -2076,7 +2099,11 @@ def generate_ecommerce():
             {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='ECOMMERCE')
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='ECOMMERCE')
+
+        # Save generated content to the database
+        content_html = markdown.markdown(result_text)
+        save_content_to_db(current_user.id, session_title, content_html, result_text, chat_session_id=db_chat_session_id)
 
         return jsonify({
             "result": result_text,
@@ -2131,7 +2158,11 @@ def generate_webcopy():
             {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}
         ]
 
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='WEBCOPY')
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='WEBCOPY')
+
+        # Save generated content to the database
+        content_html = markdown.markdown(result_text)
+        save_content_to_db(current_user.id, session_title, content_html, result_text, chat_session_id=db_chat_session_id)
 
         return jsonify({
             "result": result_text,
@@ -2187,7 +2218,10 @@ def generate_business_doc():
 
         # Note: The studio_type is generic 'BUSINESS' now, but could be made more specific
         if current_user.is_authenticated:
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='BUSINESS')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type='BUSINESS')
+            # Save generated content to the database
+            content_html = markdown.markdown(result_text)
+            save_content_to_db(current_user.id, session_title, content_html, result_text, chat_session_id=db_chat_session_id)
 
         return jsonify({
             "result": result_text,
@@ -2243,17 +2277,17 @@ def generate_article():
         db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, user_topic, messages, raw_text, studio_type='ARTICLE')
 
         # Save article to database with chat session link
-        article_id = save_article_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id)
+        content_id = save_content_to_db(current_user.id, user_topic, final_html, raw_text, False, None, db_chat_session_id)
 
         return jsonify({
             "article_html": final_html,
             "raw_text": raw_text,
-            "article_id": article_id,
+            "article_id": content_id,
             "chat_session_id": chat_session_id,
             "refinements_remaining": 5  # Always 5 for authenticated users on new article
         })
     except Exception as e:
-        logger.error(f"Article generation error: {e}")
+        logger.error(f"Content generation error: {e}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/api/v1/generate/article-guest", methods=["POST"])
@@ -2295,7 +2329,7 @@ def refine_article():
 
     data = request.get_json()
     raw_text, refinement_prompt = data.get("raw_text"), data.get("refinement_prompt")
-    article_id = data.get("article_id")
+    content_id = data.get("article_id") # Keep article_id for backward compatibility with frontend
     chat_session_id = data.get("chat_session_id")
     refinements_used = data.get("refinements_used", 0)
     topic = data.get("topic", "")
@@ -2335,9 +2369,9 @@ def refine_article():
             current_user.words_generated_this_month = (current_user.words_generated_this_month or 0) + word_count
             db.session.commit()
 
-            # Update article in database if article_id provided
-            if article_id:
-                save_article_to_db(current_user.id, "", final_html, refined_text, True, article_id)
+            # Update article in database if content_id provided
+            if content_id:
+                save_content_to_db(current_user.id, topic, final_html, refined_text, True, content_id)
 
             # Update chat session
             if chat_session_id:
@@ -2376,7 +2410,7 @@ def refine_article():
             "refinements_remaining": remaining_refinements
         })
     except Exception as e:
-        logger.error(f"Article refinement error: {e}")
+        logger.error(f"Content refinement error: {e}")
         return jsonify({"error": f"An unexpected error occurred during refinement: {str(e)}"}), 500
 
 @app.route('/api/v1/refine/text', methods=['POST'])
@@ -2409,7 +2443,11 @@ def refine_and_edit_text():
             user_message = json.dumps({"tool": "tone_style", "text": text, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": refined_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Refinement: {settings.get('goal', 'General')}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, refined_text, studio_type='TEXT_REFINEMENT')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(refined_text)
+            save_content_to_db(current_user.id, session_title, content_html, refined_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"refined_text": refined_text, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -2427,7 +2465,11 @@ def refine_and_edit_text():
             user_message = json.dumps({"tool": "summarize", "text": text, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": summary, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Summary ({settings.get('format', 'paragraph')})"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, summary, studio_type='SUMMARY')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, summary, studio_type='SUMMARY')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(summary)
+            save_content_to_db(current_user.id, session_title, content_html, summary, chat_session_id=db_chat_session_id)
 
             return jsonify({"summary": summary, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -2445,7 +2487,11 @@ def refine_and_edit_text():
             user_message = json.dumps({"tool": "translate", "text": text, "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": translated_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"Translation to {settings.get('locale', 'Unknown')}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, translated_text, studio_type='TRANSLATION')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, translated_text, studio_type='TRANSLATION')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(translated_text)
+            save_content_to_db(current_user.id, session_title, content_html, translated_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"translated_text": translated_text, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -2493,7 +2539,11 @@ def repurpose_content():
         user_message = json.dumps({"tool": tool, "text": text, "settings": settings})
         messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": result_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
         session_title = f"Repurposed into: {tool.replace('_', ' ').title()}"
-        save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type=studio_type)
+        db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, result_text, studio_type=studio_type)
+
+        # Save generated content to the database
+        content_html = markdown.markdown(result_text)
+        save_content_to_db(current_user.id, session_title, content_html, result_text, chat_session_id=db_chat_session_id)
 
         return jsonify({"result": result_text, "chat_session_id": chat_session_id})
     except Exception as e:
@@ -2533,7 +2583,11 @@ def seo_tools():
             user_message = json.dumps({"tool": "keyword_strategy", "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": raw_text, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = "Keyword Strategy"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_KEYWORDS')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, raw_text, studio_type='SEO_KEYWORDS')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(raw_text)
+            save_content_to_db(current_user.id, session_title, content_html, raw_text, chat_session_id=db_chat_session_id)
 
             return jsonify({"keywords": keywords_json, "chat_session_id": chat_session_id})
         except json.JSONDecodeError:
@@ -2557,7 +2611,11 @@ def seo_tools():
             user_message = json.dumps({"tool": "on_page_audit", "settings": settings})
             messages = [{"content": user_message, "isUser": True, "id": f"msg_{int(datetime.utcnow().timestamp())}_user"}, {"content": audit_results, "isUser": False, "id": f"msg_{int(datetime.utcnow().timestamp())}_ai"}]
             session_title = f"On-Page Audit for {settings.get('primaryKeyword')}"
-            save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, audit_results, studio_type='SEO_AUDIT')
+            db_chat_session_id = save_chat_session_to_db(current_user.id, chat_session_id, session_title, messages, audit_results, studio_type='SEO_AUDIT')
+
+            # Save generated content to the database
+            content_html = markdown.markdown(audit_results)
+            save_content_to_db(current_user.id, session_title, content_html, audit_results, chat_session_id=db_chat_session_id)
 
             return jsonify({"audit_results": audit_results, "chat_session_id": chat_session_id})
         except Exception as e:
@@ -2569,26 +2627,26 @@ def seo_tools():
 
 @app.route("/download-docx", methods=["POST"])
 def download_docx():
-    """Download article as DOCX for both authenticated and guest users"""
+    """Download content as DOCX for both authenticated and guest users"""
     data = request.get_json()
     html_content = data.get("html")
-    topic = data.get("topic", "Generated Article")
-    article_id = data.get("article_id")
+    topic = data.get("topic", "Generated Content")
+    content_id = data.get("article_id") # Keep article_id for backward compatibility
 
     if not html_content:
         return jsonify({"error": "Missing HTML content."}), 400
 
     try:
-        # Update download count if article_id provided and user is authenticated
-        if article_id and current_user.is_authenticated:
+        # Update download count if content_id provided and user is authenticated
+        if content_id and current_user.is_authenticated:
             try:
                 # Check monthly download quota
                 if not check_monthly_download_quota(current_user):
                     return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
 
-                article = Article.query.filter_by(id=article_id, user_id=current_user.id).first()
-                if article:
-                    article.increment_download()
+                content = GeneratedContent.query.filter_by(id=content_id, user_id=current_user.id).first()
+                if content:
+                    content.increment_download()
                     current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
                     db.session.commit()
             except Exception as e:
@@ -2691,34 +2749,34 @@ def api_get_chat_session(session_id):
         logger.error(f"API get chat session error: {e}")
         return jsonify({"error": "Failed to fetch chat session"}), 500
 
-@app.route('/api/user/articles')
+@app.route('/api/user/content')
 @login_required
-def api_user_articles():
-    """Get user's articles via API"""
+def api_user_content():
+    """Get user's content via API"""
     try:
-        articles = Article.query.filter_by(user_id=current_user.id)\
-                               .order_by(Article.created_at.desc()).all()
-        return jsonify([article.to_dict() for article in articles])
+        content_items = GeneratedContent.query.filter_by(user_id=current_user.id)\
+                               .order_by(GeneratedContent.created_at.desc()).all()
+        return jsonify([content.to_dict() for content in content_items])
     except (OperationalError, DatabaseError) as e:
-        logger.error(f"Database error in API articles: {e}")
+        logger.error(f"Database error in API content: {e}")
         return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
-        logger.error(f"API articles error: {e}")
-        return jsonify({"error": "Failed to fetch articles"}), 500
+        logger.error(f"API content error: {e}")
+        return jsonify({"error": "Failed to fetch content"}), 500
 
 @app.route('/api/user/stats')
 @login_required
 def api_user_stats():
     """Get user statistics"""
     try:
-        total_articles = Article.query.filter_by(user_id=current_user.id).count()
-        total_words = db.session.query(db.func.sum(Article.word_count))\
+        total_content_items = GeneratedContent.query.filter_by(user_id=current_user.id).count()
+        total_words = db.session.query(db.func.sum(GeneratedContent.word_count))\
                                .filter_by(user_id=current_user.id).scalar() or 0
-        total_downloads = db.session.query(db.func.sum(Article.download_count))\
+        total_downloads = db.session.query(db.func.sum(GeneratedContent.download_count))\
                                     .filter_by(user_id=current_user.id).scalar() or 0
 
         return jsonify({
-            'total_articles': total_articles,
+            'total_articles': total_content_items, # Keep 'total_articles' for frontend compatibility
             'total_words': total_words,
             'total_downloads': total_downloads,
             'words_this_month': getattr(current_user, 'words_generated_this_month', 0) or 0,
@@ -2734,21 +2792,21 @@ def api_user_stats():
         logger.error(f"API stats error: {e}")
         return jsonify({"error": "Failed to fetch stats"}), 500
 
-@app.route('/api/articles/<int:article_id>/download', methods=['POST'])
+@app.route('/api/content/<int:content_id>/download', methods=['POST'])
 @login_required
-def api_download_article(article_id):
-    """API endpoint to download an article"""
+def api_download_content(content_id):
+    """API endpoint to download a content item"""
     try:
-        article = Article.query.filter_by(id=article_id, user_id=current_user.id).first_or_404()
+        content = GeneratedContent.query.filter_by(id=content_id, user_id=current_user.id).first_or_404()
 
         # Check monthly download quota
         if not check_monthly_download_quota(current_user):
             return jsonify({"error": f"You've reached your monthly limit of {MONTHLY_DOWNLOAD_LIMIT} downloads."}), 403
 
         # Generate DOCX
-        soup = BeautifulSoup(article.content_html, 'html.parser')
+        soup = BeautifulSoup(content.content_html, 'html.parser')
         doc = Document()
-        doc.add_heading(article.title, level=0)
+        doc.add_heading(content.title, level=0)
 
         for element in soup.find_all(['h2', 'h3', 'p', 'div']):
             if element.name == 'h2':
@@ -2793,10 +2851,10 @@ def api_download_article(article_id):
         file_stream = io.BytesIO()
         doc.save(file_stream)
         file_stream.seek(0)
-        filename = f"{article.title[:50].strip().replace(' ', '_')}.docx"
+        filename = f"{content.title[:50].strip().replace(' ', '_')}.docx"
 
         # Update download count
-        article.increment_download()
+        content.increment_download()
         current_user.downloads_this_month = (getattr(current_user, 'downloads_this_month', 0) or 0) + 1
         db.session.commit()
 
@@ -2807,7 +2865,7 @@ def api_download_article(article_id):
         return jsonify({"error": "Database connection issue"}), 500
     except Exception as e:
         logger.error(f"API download error: {e}")
-        return jsonify({"error": "Failed to download article"}), 500
+        return jsonify({"error": "Failed to download content"}), 500
 
 def get_count_for_studio_type(user_id, studio_type, start_of_month):
     return db.session.query(func.count(ChatSession.id)).filter(ChatSession.user_id == user_id, ChatSession.studio_type == studio_type, ChatSession.created_at >= start_of_month).scalar()
@@ -2826,20 +2884,20 @@ def get_studio_stats(studio_name):
     }
 
     if studio_name == 'article':
-        articles_this_month = Article.query.filter(
-            Article.user_id == current_user.id,
-            Article.created_at >= start_of_month
+        content_this_month = GeneratedContent.query.filter(
+            GeneratedContent.user_id == current_user.id,
+            GeneratedContent.created_at >= start_of_month
         ).all()
-        total_articles = len(articles_this_month)
-        total_words = sum(article.word_count for article in articles_this_month)
-        avg_word_count = total_words / total_articles if total_articles > 0 else 0
-        total_articles_ever = Article.query.filter_by(user_id=current_user.id).count()
-        total_words_ever = db.session.query(db.func.sum(Article.word_count)).filter_by(user_id=current_user.id).scalar() or 0
+        total_content_items = len(content_this_month)
+        total_words = sum(content.word_count for content in content_this_month)
+        avg_word_count = total_words / total_content_items if total_content_items > 0 else 0
+        total_content_items_ever = GeneratedContent.query.filter_by(user_id=current_user.id).count()
+        total_words_ever = db.session.query(db.func.sum(GeneratedContent.word_count)).filter_by(user_id=current_user.id).scalar() or 0
         stats.update({
-            "total_articles_this_month": total_articles,
+            "total_articles_this_month": total_content_items,
             "total_words_this_month": total_words,
             "avg_word_count_this_month": int(avg_word_count),
-            "total_articles_ever": total_articles_ever,
+            "total_articles_ever": total_content_items_ever,
             "total_words_ever": total_words_ever
         })
     elif studio_name == 'social':
@@ -2887,21 +2945,21 @@ def get_studio_stats(studio_name):
 @app.route('/api/chat-sessions/<string:session_id>', methods=['DELETE'])
 @login_required
 def delete_chat_session(session_id):
-    """Delete a chat session and all associated articles"""
+    """Delete a chat session and all associated content"""
     try:
         # Find the chat session
         chat_session = ChatSession.query.filter_by(session_id=session_id, user_id=current_user.id).first()
         if not chat_session:
             return jsonify({"error": "Chat session not found"}), 404
 
-        # Delete all articles associated with this chat session
-        Article.query.filter_by(chat_session_id=chat_session.id, user_id=current_user.id).delete()
+        # Delete all content associated with this chat session
+        GeneratedContent.query.filter_by(chat_session_id=chat_session.id, user_id=current_user.id).delete()
 
         # Delete the chat session
         db.session.delete(chat_session)
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Chat session and associated articles deleted"})
+        return jsonify({"success": True, "message": "Chat session and associated content deleted"})
     except (OperationalError, DatabaseError) as e:
         db.session.rollback()
         logger.error(f"Database error deleting chat session: {e}")

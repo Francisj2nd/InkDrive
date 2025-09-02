@@ -43,7 +43,7 @@ class User(UserMixin, db.Model):
     last_quota_reset = db.Column(db.DateTime)
     
     # Relationships
-    articles = db.relationship('Article', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    generated_content = db.relationship('GeneratedContent', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     chat_sessions = db.relationship('ChatSession', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
@@ -88,8 +88,8 @@ class User(UserMixin, db.Model):
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
-class Article(db.Model):
-    __tablename__ = 'articles'
+class GeneratedContent(db.Model):
+    __tablename__ = 'generated_content'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
@@ -215,7 +215,7 @@ class ChatSession(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
-    articles = db.relationship('Article', backref='chat_session', lazy='dynamic')
+    content_items = db.relationship('GeneratedContent', backref='chat_session', lazy='dynamic')
     
     def set_messages(self, messages_list):
         """Set messages as JSON string"""
@@ -232,9 +232,9 @@ class ChatSession(db.Model):
     
     def to_dict(self):
         """Convert chat session to dictionary"""
-        # Get the first article associated with this session, if one exists
-        article = self.articles.first()
-        article_id = article.id if article else None
+        # Get the first content item associated with this session, if one exists
+        content_item = self.content_items.first()
+        content_id = content_item.id if content_item else None
 
         return {
             'id': self.id,
@@ -246,5 +246,5 @@ class ChatSession(db.Model):
             'studio_type': self.studio_type,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'article_id': article_id
+            'content_id': content_id
         }

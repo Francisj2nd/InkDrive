@@ -1,8 +1,8 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Article Management - InkDrive Admin{% endblock %}
-{% block page_title %}Article Management{% endblock %}
-{% block page_description %}Manage articles and content moderation{% endblock %}
+{% block title %}Content Management - InkDrive Admin{% endblock %}
+{% block page_title %}Content Management{% endblock %}
+{% block page_description %}Manage all generated content{% endblock %}
 
 {% block content %}
 <div class="row mb-4 align-items-center">
@@ -18,14 +18,14 @@
         <form method="GET">
             <input type="hidden" name="search" value="{{ search }}">
             <select name="filter" class="form-select" onchange="this.form.submit()">
-                <option value="all" {% if filter_type == 'all' %}selected{% endif %}>All Articles</option>
+                <option value="all" {% if filter_type == 'all' %}selected{% endif %}>All Content</option>
                 <option value="published" {% if filter_type == 'published' %}selected{% endif %}>Published Only</option>
                 <option value="unpublished" {% if filter_type == 'unpublished' %}selected{% endif %}>Unpublished Only</option>
             </select>
         </form>
     </div>
     <div class="col-md-4 text-end">
-        <span class="text-muted">Total: {{ articles.total }} articles</span>
+        <span class="text-muted">Total: {{ content_items.total }} items</span>
     </div>
 </div>
 
@@ -45,53 +45,53 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for article in articles.items %}
-                    <tr id="article-{{ article.id }}">
+                    {% for content in content_items.items %}
+                    <tr id="content-{{ content.id }}">
                         <td>
-                            <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="text-decoration-none fw-bold">
-                                {{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}
+                            <a href="{{ url_for('admin.content_detail', content_id=content.id) }}" class="text-decoration-none fw-bold">
+                                {{ content.title[:50] }}{% if content.title|length > 50 %}...{% endif %}
                             </a>
-                            <p class="text-muted small mb-0">{{ article.topic[:60] if article.topic else 'No topic' }}</p>
+                            <p class="text-muted small mb-0">{{ content.topic[:60] if content.topic else 'No topic' }}</p>
                         </td>
                         <td>
-                            <span class="text-muted fst-italic">"{{ article.get_excerpt(80) }}"</span>
+                            <span class="text-muted fst-italic">"{{ content.get_excerpt(80) }}"</span>
                         </td>
                         <td>
-                            <a href="{{ url_for('admin.user_detail', user_id=article.author.id) }}" class="text-decoration-none">
-                                {{ article.author.name }}
+                            <a href="{{ url_for('admin.user_detail', user_id=content.author.id) }}" class="text-decoration-none">
+                                {{ content.author.name }}
                             </a>
                         </td>
                         <td class="text-center">
                             <span class="badge bg-light text-dark">
-                                <i class="fas fa-eye me-1"></i>{{ article.view_count or 0 }}
+                                <i class="fas fa-eye me-1"></i>{{ content.view_count or 0 }}
                             </span>
                             <span class="badge bg-light text-dark">
-                                <i class="fas fa-download me-1"></i>{{ article.download_count or 0 }}
+                                <i class="fas fa-download me-1"></i>{{ content.download_count or 0 }}
                             </span>
                             <span class="badge bg-light text-dark">
-                                <i class="fas fa-file-word me-1"></i>{{ "{:,}".format(article.word_count or 0) }}
+                                <i class="fas fa-file-word me-1"></i>{{ "{:,}".format(content.word_count or 0) }}
                             </span>
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
-                                {{ 'Published' if article.is_public else 'Draft' }}
+                            <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }}">
+                                {{ 'Published' if content.is_public else 'Draft' }}
                             </span>
-                            {% if article.is_refined %}
+                            {% if content.is_refined %}
                             <span class="badge bg-info mt-1">Refined</span>
                             {% endif %}
                         </td>
-                        <td>{{ article.created_at.strftime('%m/%d/%Y') if article.created_at else 'N/A' }}</td>
+                        <td>{{ content.created_at.strftime('%m/%d/%Y') if content.created_at else 'N/A' }}</td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="btn btn-outline-primary" title="View Details">
+                                <a href="{{ url_for('admin.content_detail', content_id=content.id) }}" class="btn btn-outline-primary" title="View Details">
                                     <i class="fas fa-eye"></i>
-                                </a>
-                                <button class="btn btn-outline-{{ 'secondary' if article.is_public else 'success' }}" 
-                                        onclick="toggleArticlePublic({{ article.id }}, '{{ article.title[:30] }}', {{ article.is_public|lower }})"
-                                        title="{{ 'Unpublish' if article.is_public else 'Publish' }}">
-                                    <i class="fas fa-{{ 'eye-slash' if article.is_public else 'eye' }}"></i>
+                                a>
+                                <button class="btn btn-outline-{{ 'secondary' if content.is_public else 'success' }}"
+                                        onclick="toggleContentPublic({{ content.id }}, '{{ content.title[:30] }}', {{ content.is_public|lower }})"
+                                        title="{{ 'Unpublish' if content.is_public else 'Publish' }}">
+                                    <i class="fas fa-{{ 'eye-slash' if content.is_public else 'eye' }}"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')" title="Delete Article">
+                                <button class="btn btn-outline-danger" onclick="deleteContent({{ content.id }}, '{{ content.title[:30] }}')" title="Delete Content">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -103,12 +103,12 @@
         </div>
 
         <!-- Pagination -->
-        {% if articles.pages > 1 %}
-        <nav aria-label="Article pagination" class="mt-4">
+        {% if content_items.pages > 1 %}
+        <nav aria-label="Content pagination" class="mt-4">
             <ul class="pagination justify-content-center">
-                {% if articles.has_prev %}
+                {% if content_items.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.articles', page=articles.prev_num, search=search, filter=filter_type) }}">&laquo; Previous</a>
+                    <a class="page-link" href="{{ url_for('admin.content', page=content_items.prev_num, search=search, filter=filter_type) }}">&laquo; Previous</a>
                 </li>
                 {% else %}
                 <li class="page-item disabled">
@@ -116,11 +116,11 @@
                 </li>
                 {% endif %}
                 
-                {% for page_num in articles.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% for page_num in content_items.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
-                        {% if page_num != articles.page %}
+                        {% if page_num != content_items.page %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.articles', page=page_num, search=search, filter=filter_type) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('admin.content', page=page_num, search=search, filter=filter_type) }}">{{ page_num }}</a>
                         </li>
                         {% else %}
                         <li class="page-item active">
@@ -134,9 +134,9 @@
                     {% endif %}
                 {% endfor %}
                 
-                {% if articles.has_next %}
+                {% if content_items.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.articles', page=articles.next_num, search=search, filter=filter_type) }}">Next &raquo;</a>
+                    <a class="page-link" href="{{ url_for('admin.content', page=content_items.next_num, search=search, filter=filter_type) }}">Next &raquo;</a>
                 </li>
                 {% else %}
                 <li class="page-item disabled">
@@ -152,9 +152,9 @@
 
 {% block scripts %}
 <script>
-function deleteArticle(articleId, articleTitle) {
-    if (confirm(`Are you sure you want to delete the article "${articleTitle}"? This action cannot be undone.`)) {
-        fetch(`/admin/api/articles/${articleId}/delete`, {
+function deleteContent(contentId, contentTitle) {
+    if (confirm(`Are you sure you want to delete the content "${contentTitle}"? This action cannot be undone.`)) {
+        fetch(`/admin/api/content/${contentId}/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -163,7 +163,7 @@ function deleteArticle(articleId, articleTitle) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.getElementById(`article-${articleId}`).remove();
+                document.getElementById(`content-${contentId}`).remove();
                 alert(data.message);
             } else {
                 alert('Error: ' + data.error);
@@ -171,15 +171,15 @@ function deleteArticle(articleId, articleTitle) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to delete article');
+            alert('Failed to delete content');
         });
     }
 }
 
-function toggleArticlePublic(articleId, articleTitle, isPublic) {
+function toggleContentPublic(contentId, contentTitle, isPublic) {
     const action = isPublic ? 'unpublish' : 'publish';
-    if (confirm(`Are you sure you want to ${action} the article "${articleTitle}"?`)) {
-        fetch(`/admin/api/articles/${articleId}/toggle-public`, {
+    if (confirm(`Are you sure you want to ${action} the content "${contentTitle}"?`)) {
+        fetch(`/admin/api/content/${contentId}/toggle-public`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ function toggleArticlePublic(articleId, articleTitle, isPublic) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to update article status');
+            alert('Failed to update content status');
         });
     }
 }

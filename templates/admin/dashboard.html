@@ -42,8 +42,8 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Articles</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_articles or 0 }}</div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Content Items</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_content_items or 0 }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-file-alt fa-2x text-gray-300"></i>
@@ -58,8 +58,8 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Published Articles</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.published_articles or 0 }}</div>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Published Content</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.published_content or 0 }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-globe fa-2x text-gray-300"></i>
@@ -182,11 +182,11 @@
         </div>
     </div>
 
-     Recent Articles 
+     Recent Content
     <div class="col-lg-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h6 class="m-0 font-weight-bold text-primary">Recent Articles</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Recent Content</h6>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -200,18 +200,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for article in recent_articles %}
+                            {% for content in recent_content %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="text-decoration-none">
-                                        {{ article.title[:30] }}{% if article.title|length > 30 %}...{% endif %}
+                                    <a href="{{ url_for('admin.content_detail', content_id=content.id) }}" class="text-decoration-none">
+                                        {{ content.title[:30] }}{% if content.title|length > 30 %}...{% endif %}
                                     </a>
                                 </td>
-                                <td>{{ article.author.name }}</td>
-                                <td>{{ article.created_at.strftime('%m/%d/%Y') if article.created_at else 'N/A' }}</td>
+                                <td>{{ content.author.name }}</td>
+                                <td>{{ content.created_at.strftime('%m/%d/%Y') if content.created_at else 'N/A' }}</td>
                                 <td>
-                                    <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
-                                        {{ 'Published' if article.is_public else 'Draft' }}
+                                    <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }}">
+                                        {{ 'Published' if content.is_public else 'Draft' }}
                                     </span>
                                 </td>
                             </tr>
@@ -220,7 +220,7 @@
                     </table>
                 </div>
                 <div class="text-center">
-                    <a href="{{ url_for('admin.articles') }}" class="btn btn-primary btn-sm">View All Articles</a>
+                    <a href="{{ url_for('admin.content') }}" class="btn btn-primary btn-sm">View All Content</a>
                 </div>
             </div>
         </div>
@@ -244,8 +244,8 @@
                     </div>
                     <div class="col-6">
                         <div class="text-center">
-                            <div class="h4 mb-0 text-success">{{ stats.monthly_articles or 0 }}</div>
-                            <div class="text-xs text-uppercase">New Articles</div>
+                            <div class="h4 mb-0 text-success">{{ stats.monthly_content or 0 }}</div>
+                            <div class="text-xs text-uppercase">New Content</div>
                         </div>
                     </div>
                 </div>
@@ -266,8 +266,8 @@
                     <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-users me-2"></i>Manage Users
                     </a>
-                    <a href="{{ url_for('admin.articles') }}" class="btn btn-outline-info">
-                        <i class="fas fa-file-alt me-2"></i>Manage Articles
+                    <a href="{{ url_for('admin.content') }}" class="btn btn-outline-info">
+                        <i class="fas fa-file-alt me-2"></i>Manage Content
                     </a>
                 </div>
             </div>
