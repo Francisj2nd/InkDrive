@@ -106,8 +106,8 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3 text-center">
-                        <div class="h4 mb-0 text-primary">{{ user_stats.total_articles }}</div>
-                        <div class="text-xs text-uppercase">Total Articles</div>
+                        <div class="h4 mb-0 text-primary">{{ user_stats.total_content_items }}</div>
+                        <div class="text-xs text-uppercase">Total Content</div>
                     </div>
                     <div class="col-md-3 text-center">
                         <div class="h4 mb-0 text-success">{{ "{:,}".format(user_stats.total_words) }}</div>
@@ -141,14 +141,14 @@
 </div>
 
 <div class="row">
-     Recent Articles 
+     Recent Content
     <div class="col-lg-8 mb-4">
         <div class="card">
             <div class="card-header">
-                <h6 class="m-0 font-weight-bold text-primary">Recent Articles ({{ articles|length }})</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Recent Content ({{ content_items|length }})</h6>
             </div>
             <div class="card-body">
-                {% if articles %}
+                {% if content_items %}
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
@@ -162,27 +162,27 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for article in articles %}
+                            {% for content in content_items %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="text-decoration-none">
-                                        {{ article.title[:40] }}{% if article.title|length > 40 %}...{% endif %}
+                                    <a href="{{ url_for('admin.content_detail', content_id=content.id) }}" class="text-decoration-none">
+                                        {{ content.title[:40] }}{% if content.title|length > 40 %}...{% endif %}
                                     </a>
                                 </td>
-                                <td>{{ "{:,}".format(article.word_count or 0) }}</td>
-                                <td>{{ article.view_count or 0 }}</td>
+                                <td>{{ "{:,}".format(content.word_count or 0) }}</td>
+                                <td>{{ content.view_count or 0 }}</td>
                                 <td>
-                                    <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
-                                        {{ 'Published' if article.is_public else 'Draft' }}
+                                    <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }}">
+                                        {{ 'Published' if content.is_public else 'Draft' }}
                                     </span>
                                 </td>
-                                <td>{{ article.created_at.strftime('%m/%d/%Y') if article.created_at else 'N/A' }}</td>
+                                <td>{{ content.created_at.strftime('%m/%d/%Y') if content.created_at else 'N/A' }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('admin.article_detail', article_id=article.id) }}" class="btn btn-outline-primary">
+                                        <a href="{{ url_for('admin.content_detail', content_id=content.id) }}" class="btn btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <button class="btn btn-outline-danger" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')">
+                                        <button class="btn btn-outline-danger" onclick="deleteContent({{ content.id }}, '{{ content.title[:30] }}')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
@@ -193,7 +193,7 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted text-center">No articles found.</p>
+                <p class="text-muted text-center">No content found.</p>
                 {% endif %}
             </div>
         </div>
@@ -305,9 +305,9 @@ function resetUserLimits(userId, userName) {
     }
 }
 
-function deleteArticle(articleId, articleTitle) {
-    if (confirm(`Are you sure you want to delete the article "${articleTitle}"? This action cannot be undone.`)) {
-        fetch(`/admin/api/articles/${articleId}/delete`, {
+function deleteContent(contentId, contentTitle) {
+    if (confirm(`Are you sure you want to delete the content "${contentTitle}"? This action cannot be undone.`)) {
+        fetch(`/admin/api/content/${contentId}/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ function deleteArticle(articleId, articleTitle) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to delete article');
+            alert('Failed to delete content');
         });
     }
 }

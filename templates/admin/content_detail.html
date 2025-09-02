@@ -1,74 +1,74 @@
 {% extends "admin/base.html" %}
 
-{% block title %}{{ article.title }} - Article Details - InkDrive Admin{% endblock %}
-{% block page_title %}Article Details{% endblock %}
-{% block page_description %}Detailed view of "{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}"{% endblock %}
+{% block title %}{{ content.title }} - Content Details - InkDrive Admin{% endblock %}
+{% block page_title %}Content Details{% endblock %}
+{% block page_description %}Detailed view of "{{ content.title[:50] }}{% if content.title|length > 50 %}...{% endif %}"{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-12">
-        <a href="{{ url_for('admin.articles') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Back to Articles
+        <a href="{{ url_for('admin.content') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Content
         </a>
     </div>
 </div>
 
 <div class="row">
-    <!-- Article Metadata -->
+    <!-- Content Metadata -->
     <div class="col-lg-4 mb-4">
         <div class="card">
             <div class="card-header">
-                <h6 class="m-0 font-weight-bold text-primary">Article Information</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Content Information</h6>
             </div>
             <div class="card-body">
                 <table class="table table-sm table-borderless">
                     <tr>
                         <td><strong>Author:</strong></td>
                         <td>
-                            <a href="{{ url_for('admin.user_detail', user_id=article.author.id) }}" class="text-decoration-none">
-                                {{ article.author.name }}
+                            <a href="{{ url_for('admin.user_detail', user_id=content.author.id) }}" class="text-decoration-none">
+                                {{ content.author.name }}
                             </a>
                         </td>
                     </tr>
                     <tr>
                         <td><strong>Word Count:</strong></td>
-                        <td>{{ "{:,}".format(article.word_count or 0) }}</td>
+                        <td>{{ "{:,}".format(content.word_count or 0) }}</td>
                     </tr>
                     <tr>
                         <td><strong>View Count:</strong></td>
-                        <td>{{ article.view_count or 0 }}</td>
+                        <td>{{ content.view_count or 0 }}</td>
                     </tr>
                     <tr>
                         <td><strong>Downloads:</strong></td>
-                        <td>{{ article.download_count or 0 }}</td>
+                        <td>{{ content.download_count or 0 }}</td>
                     </tr>
                     <tr>
                         <td><strong>Status:</strong></td>
                         <td>
-                            <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }}">
-                                {{ 'Published' if article.is_public else 'Draft' }}
+                            <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }}">
+                                {{ 'Published' if content.is_public else 'Draft' }}
                             </span>
                         </td>
                     </tr>
                     <tr>
                         <td><strong>Created:</strong></td>
-                        <td>{{ article.created_at.strftime('%B %d, %Y at %I:%M %p') if article.created_at else 'N/A' }}</td>
+                        <td>{{ content.created_at.strftime('%B %d, %Y at %I:%M %p') if content.created_at else 'N/A' }}</td>
                     </tr>
                     <tr>
                         <td><strong>Updated:</strong></td>
-                        <td>{{ article.updated_at.strftime('%B %d, %Y at %I:%M %p') if article.updated_at else 'N/A' }}</td>
+                        <td>{{ content.updated_at.strftime('%B %d, %Y at %I:%M %p') if content.updated_at else 'N/A' }}</td>
                     </tr>
-                    {% if article.published_at %}
+                    {% if content.published_at %}
                     <tr>
                         <td><strong>Published:</strong></td>
-                        <td>{{ article.published_at.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                        <td>{{ content.published_at.strftime('%B %d, %Y at %I:%M %p') }}</td>
                     </tr>
                     {% endif %}
-                    {% if article.public_id %}
+                    {% if content.public_id %}
                     <tr>
                         <td><strong>Public URL:</strong></td>
                         <td>
-                            <a href="{{ url_for('share_article', public_id=article.public_id) }}" target="_blank" class="text-decoration-none">
+                            <a href="{{ url_for('share_content', public_id=content.public_id) }}" target="_blank" class="text-decoration-none">
                                 View Public <i class="fas fa-external-link-alt"></i>
                             </a>
                         </td>
@@ -77,30 +77,30 @@
                 </table>
 
                 <div class="d-grid gap-2 mt-3">
-                    <button class="btn btn-{{ 'secondary' if article.is_public else 'success' }} btn-sm" 
-                            onclick="toggleArticlePublic({{ article.id }}, '{{ article.title[:30] }}', {{ article.is_public|lower }})">
-                        <i class="fas fa-{{ 'eye-slash' if article.is_public else 'eye' }} me-2"></i>
-                        {{ 'Unpublish' if article.is_public else 'Publish' }} Article
+                    <button class="btn btn-{{ 'secondary' if content.is_public else 'success' }} btn-sm"
+                            onclick="toggleContentPublic({{ content.id }}, '{{ content.title[:30] }}', {{ content.is_public|lower }})">
+                        <i class="fas fa-{{ 'eye-slash' if content.is_public else 'eye' }} me-2"></i>
+                        {{ 'Unpublish' if content.is_public else 'Publish' }} Content
                     </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteArticle({{ article.id }}, '{{ article.title[:30] }}')">
-                        <i class="fas fa-trash me-2"></i>Delete Article
+                    <button class="btn btn-danger btn-sm" onclick="deleteContent({{ content.id }}, '{{ content.title[:30] }}')">
+                        <i class="fas fa-trash me-2"></i>Delete Content
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Chat Session Info -->
-        {% if article.chat_session %}
+        {% if content.chat_session %}
         <div class="card mt-4">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">Chat Session</h6>
             </div>
             <div class="card-body">
-                <p><strong>Session Title:</strong> {{ article.chat_session.title }}</p>
-                <p><strong>Created:</strong> {{ article.chat_session.created_at.strftime('%B %d, %Y') if article.chat_session.created_at else 'N/A' }}</p>
+                <p><strong>Session Title:</strong> {{ content.chat_session.title }}</p>
+                <p><strong>Created:</strong> {{ content.chat_session.created_at.strftime('%B %d, %Y') if content.chat_session.created_at else 'N/A' }}</p>
                 <p><strong>Has Refined:</strong> 
-                    <span class="badge bg-{{ 'success' if article.chat_session.has_refined else 'secondary' }}">
-                        {{ 'Yes' if article.chat_session.has_refined else 'No' }}
+                    <span class="badge bg-{{ 'success' if content.chat_session.has_refined else 'secondary' }}">
+                        {{ 'Yes' if content.chat_session.has_refined else 'No' }}
                     </span>
                 </p>
             </div>
@@ -108,51 +108,51 @@
         {% endif %}
     </div>
 
-    <!-- Article Information -->
+    <!-- Content Information -->
     <div class="col-lg-8 mb-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Article Content</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Content</h6>
                 <div>
-                    <span class="badge bg-{{ 'success' if article.is_public else 'secondary' }} me-2">
-                        {{ 'Published' if article.is_public else 'Draft' }}
+                    <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }} me-2">
+                        {{ 'Published' if content.is_public else 'Draft' }}
                     </span>
-                    {% if article.is_refined %}
+                    {% if content.is_refined %}
                     <span class="badge bg-info">Refined</span>
                     {% endif %}
                 </div>
             </div>
             <div class="card-body">
-                <h4 class="mb-3">{{ article.title }}</h4>
+                <h4 class="mb-3">{{ content.title }}</h4>
 
-                {% if article.topic %}
-                <p class="text-muted mb-3"><strong>Topic:</strong> {{ article.topic }}</p>
+                {% if content.topic %}
+                <p class="text-muted mb-3"><strong>Topic:</strong> {{ content.topic }}</p>
                 {% endif %}
 
                 <div class="article-content">
-                    {{ article.content_html|safe }}
+                    {{ content.content_html|safe }}
                 </div>
             </div>
         </div>
 
         <!-- SEO Information -->
-        {% if article.meta_description or article.seo_keywords %}
+        {% if content.meta_description or content.seo_keywords %}
         <div class="card mt-4">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">SEO Information</h6>
             </div>
             <div class="card-body">
-                {% if article.meta_description %}
+                {% if content.meta_description %}
                 <div class="mb-3">
                     <strong>Meta Description:</strong>
-                    <p class="text-muted">{{ article.meta_description }}</p>
+                    <p class="text-muted">{{ content.meta_description }}</p>
                 </div>
                 {% endif %}
 
-                {% if article.seo_keywords %}
+                {% if content.seo_keywords %}
                 <div class="mb-3">
                     <strong>SEO Keywords:</strong>
-                    <p class="text-muted">{{ article.seo_keywords }}</p>
+                    <p class="text-muted">{{ content.seo_keywords }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -165,7 +165,7 @@
                 <h6 class="m-0 font-weight-bold text-primary">Raw Content</h6>
             </div>
             <div class="card-body">
-                <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem; white-space: pre-wrap;">{{ article.content_raw }}</pre>
+                <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto; font-size: 0.875rem; white-space: pre-wrap;">{{ content.content_raw }}</pre>
             </div>
         </div>
     </div>
@@ -174,9 +174,9 @@
 
 {% block scripts %}
 <script>
-function deleteArticle(articleId, articleTitle) {
-    if (confirm(`Are you sure you want to delete the article "${articleTitle}"? This action cannot be undone.`)) {
-        fetch(`/admin/api/articles/${articleId}/delete`, {
+function deleteContent(contentId, contentTitle) {
+    if (confirm(`Are you sure you want to delete the content "${contentTitle}"? This action cannot be undone.`)) {
+        fetch(`/admin/api/content/${contentId}/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -186,22 +186,22 @@ function deleteArticle(articleId, articleTitle) {
         .then(data => {
             if (data.success) {
                 alert(data.message);
-                window.location.href = '{{ url_for("admin.articles") }}';
+                window.location.href = '{{ url_for("admin.content") }}';
             } else {
                 alert('Error: ' + data.error);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to delete article');
+            alert('Failed to delete content');
         });
     }
 }
 
-function toggleArticlePublic(articleId, articleTitle, isPublic) {
+function toggleContentPublic(contentId, contentTitle, isPublic) {
     const action = isPublic ? 'unpublish' : 'publish';
-    if (confirm(`Are you sure you want to ${action} the article "${articleTitle}"?`)) {
-        fetch(`/admin/api/articles/${articleId}/toggle-public`, {
+    if (confirm(`Are you sure you want to ${action} the content "${contentTitle}"?`)) {
+        fetch(`/admin/api/content/${contentId}/toggle-public`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ function toggleArticlePublic(articleId, articleTitle, isPublic) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to update article status');
+            alert('Failed to update content status');
         });
     }
 }

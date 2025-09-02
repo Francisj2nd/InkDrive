@@ -42,8 +42,8 @@ class ChangePasswordForm(FlaskForm):
         EqualTo('new_password', message='Passwords must match')
     ])
 
-class ArticleForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired(), Length(max=200)])
+class ContentForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=500)])
     topic = StringField('Topic', validators=[DataRequired(), Length(max=500)])
     content = TextAreaField('Content')
 
