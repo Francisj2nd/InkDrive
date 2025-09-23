@@ -191,11 +191,7 @@ STUDIO_TYPE_MAPPING = {
     'editing': ['TEXT_REFINEMENT', 'SUMMARY', 'TRANSLATION'],
     'repurpose': ['REPURPOSE_TWEET', 'REPURPOSE_SLIDES'],
     'seo': ['SEO_KEYWORDS', 'SEO_HEADLINES'],
-    'business': ['PRESS_RELEASE', 'JOB_DESCRIPTION'],
-    'brainstorming': ['IDEAS'],
     'scriptwriting': ['SCRIPT'],
-    'ecommerce': ['ECOMMERCE'],
-    'webcopy': ['WEBCOPY'],
 }
 
 @admin_bp.route('/studios')
