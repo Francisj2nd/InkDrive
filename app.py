@@ -1165,9 +1165,11 @@ def auth_google_callback():
 @app.route('/auth/logout')
 @login_required
 def auth_logout():
+    """Logs the user out and redirects to the main application URL."""
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))
+    # Redirect to the main application base URL for a clean logout.
+    return redirect(APP_BASE_URL)
 
 # --- 3. PROFILE & DASHBOARD ROUTES ---
 
