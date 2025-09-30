@@ -1,13 +1,8 @@
-# Ignore secrets file. DO NOT PUSH THIS TO GITHUB.
-config.json
-
-# Python cache
+node_modules/
 __pycache__/
-
-# Virtual Environment folder
-venv/
-*.venv
-.env
-
-# Log files
-*.log
+instance/
+app.log
+app_output.log
+flask.log
+server.log
+.DS_Store
