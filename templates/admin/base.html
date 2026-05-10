@@ -229,6 +229,13 @@
                             Studios
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'admin.auto_publish' %}active{% endif %}"
+                           href="{{ url_for('admin.auto_publish') }}">
+                            <i class="fas fa-robot fa-fw"></i>
+                            Auto-Publish
+                        </a>
+                    </li>
                     <li class="nav-item mt-auto">
                         <hr class="sidebar-divider my-3" style="border-color: #34495e;">
                     </li>

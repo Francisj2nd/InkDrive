@@ -49,7 +49,21 @@ def run_migrations():
             migrations_needed.append('add_total_words_generated_field')
         if 'is_superadmin' not in users_columns:
             migrations_needed.append('add_is_superadmin_field')
-        
+
+        # Check for missing generated_content fields (auto-publish)
+        gc_columns = (
+            [col['name'] for col in inspector.get_columns('generated_content')]
+            if inspector.has_table('generated_content') else []
+        )
+        if gc_columns and 'is_auto_published' not in gc_columns:
+            migrations_needed.append('add_is_auto_published_field')
+        if gc_columns and 'category' not in gc_columns:
+            migrations_needed.append('add_category_field')
+
+        # Ensure auto_publish_config table exists (handled by db.create_all, but double-check)
+        if not inspector.has_table('auto_publish_config'):
+            migrations_needed.append('create_auto_publish_config_table')
+
         # Run migrations
         for migration in migrations_needed:
             logger.info(f"Running migration: {migration}")
@@ -77,6 +91,12 @@ def run_migrations():
                 add_total_words_generated_field()
             elif migration == 'add_is_superadmin_field':
                 add_is_superadmin_field()
+            elif migration == 'add_is_auto_published_field':
+                add_is_auto_published_field()
+            elif migration == 'add_category_field':
+                add_category_field()
+            elif migration == 'create_auto_publish_config_table':
+                create_auto_publish_config_table()
         
         if migrations_needed:
             logger.info(f"Completed {len(migrations_needed)} migrations")
@@ -221,4 +241,58 @@ def rename_articles_to_generated_content():
         logger.info("Renamed table 'articles' to 'generated_content'")
     except Exception as e:
         logger.error(f"Error renaming articles table: {e}")
+        raise
+
+
+def add_is_auto_published_field():
+    """Add is_auto_published flag to generated_content."""
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text(
+                'ALTER TABLE generated_content ADD COLUMN is_auto_published BOOLEAN DEFAULT FALSE'
+            ))
+            conn.commit()
+        logger.info("Added is_auto_published field to generated_content")
+    except Exception as e:
+        logger.error(f"Error adding is_auto_published field: {e}")
+        raise
+
+
+def add_category_field():
+    """Add category column to generated_content."""
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text(
+                'ALTER TABLE generated_content ADD COLUMN category VARCHAR(100)'
+            ))
+            conn.commit()
+        logger.info("Added category field to generated_content")
+    except Exception as e:
+        logger.error(f"Error adding category field: {e}")
+        raise
+
+
+def create_auto_publish_config_table():
+    """Create auto_publish_config table if it doesn't exist yet."""
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS auto_publish_config (
+                    id SERIAL PRIMARY KEY,
+                    is_enabled BOOLEAN DEFAULT FALSE,
+                    frequency_hours INTEGER DEFAULT 6,
+                    articles_per_run INTEGER DEFAULT 3,
+                    word_count INTEGER DEFAULT 800,
+                    tone VARCHAR(50) DEFAULT 'Professional',
+                    categories TEXT DEFAULT '[]',
+                    last_run_at TIMESTAMP,
+                    last_run_status VARCHAR(500),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.commit()
+        logger.info("Created auto_publish_config table")
+    except Exception as e:
+        logger.error(f"Error creating auto_publish_config table: {e}")
         raise

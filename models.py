@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import json
 import re
+import uuid
 from bs4 import BeautifulSoup
 
 db = SQLAlchemy()
@@ -110,18 +111,45 @@ class GeneratedContent(db.Model):
     
     # Analytics
     download_count = db.Column(db.Integer, default=0)
-    
+    view_count = db.Column(db.Integer, default=0)
+
+    # Publishing
+    is_public = db.Column(db.Boolean, default=False)
+    public_id = db.Column(db.String(50), unique=True, nullable=True, index=True)
+    published_at = db.Column(db.DateTime, nullable=True)
+
+    # Auto-publish metadata
+    is_auto_published = db.Column(db.Boolean, default=False)
+    category = db.Column(db.String(100), nullable=True)
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+
     # Link to chat session
     chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_sessions.id'), nullable=True)
     
+    def publish(self):
+        if not self.public_id:
+            self.public_id = str(uuid.uuid4())[:12]
+        self.is_public = True
+        self.published_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+    def unpublish(self):
+        self.is_public = False
+        db.session.commit()
+
     def increment_download(self):
-        """Increment download count"""
         try:
             self.download_count = (self.download_count or 0) + 1
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    def increment_view(self):
+        try:
+            self.view_count = (self.view_count or 0) + 1
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -248,3 +276,43 @@ class ChatSession(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'content_id': content_id
         }
+
+
+class AutoPublishConfig(db.Model):
+    __tablename__ = 'auto_publish_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    is_enabled = db.Column(db.Boolean, default=False)
+    frequency_hours = db.Column(db.Integer, default=6)
+    articles_per_run = db.Column(db.Integer, default=3)
+    word_count = db.Column(db.Integer, default=800)
+    tone = db.Column(db.String(50), default='Professional')
+    # JSON list of category strings
+    categories = db.Column(db.Text, default='[]')
+
+    last_run_at = db.Column(db.DateTime, nullable=True)
+    last_run_status = db.Column(db.String(500), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    def get_categories(self):
+        if not self.categories:
+            return []
+        try:
+            return json.loads(self.categories)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def set_categories(self, categories_list):
+        self.categories = json.dumps(categories_list)
+
+    @classmethod
+    def get_or_create(cls):
+        config = cls.query.first()
+        if not config:
+            config = cls()
+            db.session.add(config)
+            db.session.commit()
+        return config

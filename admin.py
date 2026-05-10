@@ -4,7 +4,8 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import func
-from models import db, User, GeneratedContent, ChatSession
+from models import db, User, GeneratedContent, ChatSession, AutoPublishConfig
+from auto_publisher import ALL_CATEGORIES
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -573,6 +574,81 @@ def export_stats():
     except Exception as e:
         logger.error(f"Admin export stats error: {e}")
         return jsonify({'error': 'Failed to export statistics'}), 500
+
+# ---------------------------------------------------------------------------
+# Auto-publish admin routes
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/auto-publish')
+@login_required
+@superadmin_required
+def auto_publish():
+    """Auto-publish configuration page."""
+    config = AutoPublishConfig.get_or_create()
+    recent_auto = (
+        GeneratedContent.query
+        .filter_by(is_auto_published=True)
+        .order_by(GeneratedContent.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return render_template(
+        'admin/auto_publish.html',
+        config=config,
+        all_categories=ALL_CATEGORIES,
+        recent_auto=recent_auto,
+    )
+
+
+@admin_bp.route('/api/auto-publish/config', methods=['POST'])
+@login_required
+@superadmin_required
+def update_auto_publish_config():
+    """Save auto-publish configuration."""
+    try:
+        data = request.get_json() or {}
+        config = AutoPublishConfig.get_or_create()
+
+        config.is_enabled = bool(data.get('is_enabled', False))
+        config.frequency_hours = max(1, int(data.get('frequency_hours', 6)))
+        config.articles_per_run = max(1, min(10, int(data.get('articles_per_run', 3))))
+        config.word_count = max(300, min(3000, int(data.get('word_count', 800))))
+        config.tone = data.get('tone', 'Professional')
+        categories = data.get('categories', [])
+        config.set_categories([c for c in categories if c in ALL_CATEGORIES])
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Configuration saved.'})
+    except Exception as exc:
+        logger.error("update_auto_publish_config error: %s", exc)
+        return jsonify({'error': str(exc)}), 500
+
+
+@admin_bp.route('/api/auto-publish/trigger', methods=['POST'])
+@login_required
+@superadmin_required
+def trigger_auto_publish():
+    """Manually trigger one auto-publish run immediately."""
+    try:
+        from auto_publisher import run_auto_publish_job
+        from flask import current_app
+
+        # Temporarily override last_run_at so the job runs regardless of schedule
+        config = AutoPublishConfig.get_or_create()
+        config.last_run_at = None
+        db.session.commit()
+
+        run_auto_publish_job(current_app._get_current_object())
+        config = AutoPublishConfig.get_or_create()
+        return jsonify({
+            'success': True,
+            'status': config.last_run_status,
+            'last_run_at': config.last_run_at.isoformat() if config.last_run_at else None,
+        })
+    except Exception as exc:
+        logger.error("trigger_auto_publish error: %s", exc)
+        return jsonify({'error': str(exc)}), 500
+
 
 # Error handlers for admin blueprint
 @admin_bp.errorhandler(404)

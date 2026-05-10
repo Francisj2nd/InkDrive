@@ -2384,10 +2384,37 @@ def init_db():
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
+def _start_scheduler():
+    """Start the background auto-publish scheduler if ENABLE_SCHEDULER=true."""
+    if os.environ.get('ENABLE_SCHEDULER', 'false').lower() != 'true':
+        return
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from auto_publisher import run_auto_publish_job
+
+        scheduler = BackgroundScheduler(daemon=True)
+        # Poll every 30 minutes; the job itself checks whether it is actually due.
+        scheduler.add_job(
+            lambda: run_auto_publish_job(app),
+            'interval',
+            minutes=30,
+            id='auto_publish',
+            replace_existing=True,
+        )
+        scheduler.start()
+        logger.info("Auto-publish scheduler started (polling every 30 min).")
+    except ImportError:
+        logger.warning("APScheduler not installed — auto-publish scheduler disabled.")
+    except Exception as exc:
+        logger.error("Failed to start auto-publish scheduler: %s", exc)
+
+
 if __name__ == "__main__":
     init_db()
+    _start_scheduler()
     port = int(os.environ.get('PORT', 5001))
     app.run(host='0.0.0.0', port=port, debug=False)
 else:
     # For production deployment
     init_db()
+    _start_scheduler()
